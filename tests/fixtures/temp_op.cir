@@ -1,0 +1,12 @@
+* golden: .step temp with a negative corner. Pins the signed step axis, and is the
+* temperature leg of a PVT sweep with an exact answer.
+* R1 has tc=1m, so R1(T) = 1k*(1 + 1e-3*(T - 27)) and V(out) = 1k/(R1(T) + 1k):
+*   T = -40 C -> R1 = 933 ohm -> V(out) = 0.5173306777
+*   T =  27 C -> R1 = 1000    -> V(out) = 0.5
+*   T = 125 C -> R1 = 1098    -> V(out) = 0.4766444020
+V1 in 0 1
+R1 in out 1k tc=1m
+R2 out 0 1k
+.step temp list -40 27 125
+.op
+.end

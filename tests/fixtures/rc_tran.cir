@@ -1,0 +1,12 @@
+* golden: RC step. v(out) = 1-exp(-t/1e-4), tau = 100us
+* t_rise(10-90%) = tau*ln(9)   = 219.7224577e-6
+* t_settle(1%)   = tau*ln(100) = 460.5170186e-6
+* t_settle(0.1%) = tau*ln(1000)= 690.7755279e-6
+* slew max       = 1/tau       = 10000 V/s at t=0,  overshoot = 0 (first order)
+* plotwinsize=0: without it LTspice compresses the .raw and rise/settling read a lossy curve
+V1 in 0 PULSE(0 1 0 1n 1n 1 2)
+R1 in out 1k
+C1 out 0 100n
+.options plotwinsize=0
+.tran 0 1m 0 1u
+.end

@@ -1,0 +1,7 @@
+* golden: stepped AC, 3 datasets concatenated in one .raw
+V1 in 0 AC 1
+R1 in out {R}
+C1 out 0 100n
+.step param R list 1k 2k 4k
+.ac dec 20 10 100k
+.end

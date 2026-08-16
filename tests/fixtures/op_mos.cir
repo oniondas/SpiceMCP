@@ -1,0 +1,12 @@
+* golden: DC bias, NMOS in saturation + NPN in active
+.model NM NMOS(VTO=0.7 KP=200u LAMBDA=0.01)
+.model NPNM NPN(BF=100 IS=1e-16)
+V1 vdd 0 5
+V2 g 0 2
+M1 d g 0 0 NM W=20u L=2u
+R1 vdd d 20k
+Q1 c b 0 NPNM
+V3 b 0 0.65
+R2 vdd c 10k
+.op
+.end

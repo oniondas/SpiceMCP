@@ -1,0 +1,8 @@
+* golden: bipolar .dc sweep. Exists to pin a signed sweep axis -- the reader once
+* applied abs() to every axis and read this back as 5 4 3 2 1 0 1 2 3 4 5.
+* Equal divider, so V(out) = V1/2 exactly at every point, and I(R1) = V1/2000.
+V1 in 0 0
+R1 in out 1k
+R2 out 0 1k
+.dc V1 -5 5 1
+.end

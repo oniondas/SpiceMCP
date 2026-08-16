@@ -1,0 +1,9 @@
+* golden: series RLC step across C. L=1mH C=100nF R=40 -> w0=1e5 rad/s, zeta=0.2
+* overshoot = exp(-pi*z/sqrt(1-z^2)) = 52.6610%   t_peak = pi/(w0*sqrt(1-z^2)) = 32.0587us
+V1 in 0 PULSE(0 1 0 1n 1n 1 2)
+L1 in mid 1m
+R1 mid out 40
+C1 out 0 100n
+.options plotwinsize=0
+.tran 0 500u 0 200n
+.end

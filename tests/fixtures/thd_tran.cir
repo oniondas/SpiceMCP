@@ -1,0 +1,9 @@
+* golden: 1kHz + exact harmonics a1=1 a2=0.05 a3=0.02
+* THD(rms/fundamental) = sqrt(0.05^2+0.02^2) = 5.3851648071e-2
+* 5ms = exactly 5 fundamental cycles, so an integer-cycle FFT window exists
+V1 in 0 SINE(0 1 1k)
+B1 out 0 V=1*sin(2*pi*1k*time) + 0.05*sin(2*pi*2k*time) + 0.02*sin(2*pi*3k*time)
+R1 out 0 1k
+.options plotwinsize=0
+.tran 0 5m 0 1u
+.end

@@ -1,0 +1,6 @@
+* golden: RC lowpass AC. |H| = 1/|1+jw*1e-4|, fc = 1591.5494309190 Hz
+V1 in 0 AC 1
+R1 in out 1k
+C1 out 0 100n
+.ac dec 50 10 1Meg
+.end

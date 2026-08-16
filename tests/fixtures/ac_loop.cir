@@ -1,0 +1,12 @@
+* golden: 3-pole loop gain, exact via Laplace source. A0=100, poles at 100Hz / 10kHz / 100kHz
+* H(s) = 100/((1+s/w1)(1+s/w2)(1+s/w3)), w = 2*pi*f
+* Values below are from that closed form, not from this .raw:
+*   DC gain      = 40 dB
+*   UGF          = 7843.619581 Hz
+*   phase margin = 48.136268 deg
+*   gain margin  = 20.922963 dB   (phase crosses -180 deg at 31796.226191 Hz)
+V1 in 0 AC 1
+E1 out 0 in 0 LAPLACE=100/((1+s/628.3185307179587)*(1+s/62831.85307179587)*(1+s/628318.5307179587))
+R1 out 0 1k
+.ac dec 200 1 10Meg
+.end
