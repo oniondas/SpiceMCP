@@ -11,7 +11,7 @@ never existed.
 
 ```bash
 pip install -e ".[dev]"
-pytest -q                                  # no LTspice needed: analytic backend
+pytest -q                                
 ```
 
 LTspice is auto-detected (`AppData\Local\Programs\ADI\LTspice\LTspice.exe`,
