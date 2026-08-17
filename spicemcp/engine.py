@@ -71,7 +71,14 @@ def _norm_objectives(raw, constraints: list[dict]) -> list[dict]:
 
 def start_run(con, run_id: str, netlist_template: str, param_space: dict,
               objectives: list, constraints=None, sim_config=None, seed: int = 0,
-              notes: str = "") -> dict:
+              notes: str = "", preflight: dict | None = None) -> dict:
+    """Create a run, refusing one whose spec cannot be met by any topology.
+
+    `preflight` = {"bypass": bool, "circuit_type": ..., "mode": ..., "technology_params":
+    {...}} -- see `feasibility.check`. A hard violation returns an error instead of
+    creating the run, because the alternative is N simulations of a spec with no solution.
+    Warnings ride along in the answer and block nothing.
+    """
     if con.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone():
         raise EngineError(f"run {run_id!r} already exists (state is persistent)")
     cons = _norm_constraints(constraints)
@@ -81,6 +88,29 @@ def start_run(con, run_id: str, netlist_template: str, param_space: dict,
             raise EngineError(f"param {name!r} needs min+max or values")
     cfg = dict(sim_config or {})
     cfg.setdefault("backend", "ltspice")
+
+    pre = dict(preflight or {})
+    bypass = bool(pre.pop("bypass", False))
+    ctype = pre.pop("circuit_type", "general")
+    pmode = pre.pop("mode", "practical")
+    tech = pre.pop("technology_params", None)
+    if pre:
+        raise EngineError(f"unknown preflight keys {sorted(pre)}; expected bypass, "
+                          f"circuit_type, mode, technology_params")
+    verdict = None
+    # The analytic backend has no netlist semantics at all -- its metrics come from a
+    # registered Python function, so `.meas` directives and placeholders mean nothing
+    # there and every template check would be a false positive.
+    if not bypass and cfg.get("backend") == "ltspice":
+        from . import feasibility               # imported here: feasibility imports engine
+        verdict = feasibility.check(objectives, constraints, param_space,
+                                    netlist_template, circuit_type=ctype, mode=pmode,
+                                    technology_params=tech)
+        if not verdict.passed:
+            return {"error": f"run not created: {len(verdict.errors)} requirement(s) "
+                             f"cannot be met by any topology. Fix the spec, or pass "
+                             f"preflight={{'bypass': true}} to proceed anyway.",
+                    "feasibility": verdict.to_dict()}
     with db.transaction(con):
         con.execute(
             "INSERT INTO runs (run_id, created_at, status, netlist_template,"
@@ -88,8 +118,11 @@ def start_run(con, run_id: str, netlist_template: str, param_space: dict,
             " VALUES (?,?,'running',?,?,?,?,?,?,?)",
             (run_id, db.now(), netlist_template, db.jdumps(param_space),
              db.jdumps(objs), db.jdumps(cons), db.jdumps(cfg), int(seed), notes))
-    return {"run_id": run_id, "objectives": objs, "constraints": cons,
-            "parameters": sorted(param_space), "seed": seed}
+    out = {"run_id": run_id, "objectives": objs, "constraints": cons,
+           "parameters": sorted(param_space), "seed": seed}
+    if verdict is not None and (verdict.violations or verdict.checks_skipped):
+        out["feasibility"] = verdict.to_dict()
+    return out
 
 
 def get_run(con, run_id: str):

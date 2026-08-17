@@ -7,6 +7,83 @@ dedup, best-so-far, sensitivities and rollback all live in SQLite and are re-der
 on every call, so a long optimization can't drift into remembering a circuit that
 never existed.
 
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Client ["LLM / MCP Client"]
+        Agent["AI Agent / LLM<br/><i>(Topology & Optimization Strategy)</i>"]
+    end
+
+    subgraph Server ["SpiceMCP Server (FastMCP API)"]
+        direction TB
+        subgraph ToolEndpoints ["Tool Endpoints"]
+            T_Life["<b>Lifecycle Tools</b><br/>start_optimization<br/>stop_optimization<br/>list_runs / status"]
+            T_Eval["<b>Evaluation Tools</b><br/>run_optimization<br/>evaluate_candidate<br/>select_next_experiment"]
+            T_Query["<b>State &amp; Trace Queries</b><br/>get_best_candidate / pareto<br/>sensitivity / history / trace<br/>generate_design_report<br/>rollback_to_candidate"]
+            T_Direct["<b>Direct & Diagnostic</b><br/>simulate_netlist<br/>check_feasibility<br/>check_ltspice"]
+        end
+    end
+
+    subgraph Core ["Optimization & Circuit Core"]
+        Engine["<b>Optimization Engine</b> (engine.py)<br/>• Coordinate descent & step halving<br/>• Pure-function scoring & Pareto frontier<br/>• Empirical sensitivity analysis (FD / OLS)"]
+        IR["<b>Circuit IR & Hashing</b> (ir.py)<br/>• Template placeholder substitution: {param}<br/>• Fingerprinting (topology, design, config)<br/>• Deterministic deduplication"]
+        ASC["<b>Schematic Writer</b> (asc.py)<br/>• Pin-name routing with symbol (.asy) parsing<br/>• Round-trip netlist validation"]
+        Robust["<b>Robustness & Waves</b> (robustness.py, raw.py)<br/>• DC operating point & bias audit<br/>• PVT corners & Monte Carlo yield<br/>• Binary .raw parser & metrics"]
+        Feas["<b>Pre-Flight Feasibility</b> (feasibility.py)<br/>• Static: contradictory bounds & param_space<br/>• Template: .meas coverage, {PARAM} match<br/>• Physics: filter order, SR/GBW/noise floors"]
+        Rep["<b>Design Report</b> (report.py, plots.py)<br/>• Six-section Markdown, rendered from state<br/>• BOM, baseline-vs-final, Bode/tran/THD figures<br/>• A section with no data says which arg produces it"]
+    end
+
+    subgraph Simulation ["Simulation Layer (sim.py)"]
+        Router{"Backend Router"}
+        LTSpice["<b>LTspice Executable</b><br/>Batch process (<code>-b -ascii</code>)"]
+        Analytic["<b>Analytic Backend</b><br/>Fast closed-form surfaces (test/dry-run)"]
+        MeasParser["<b>Log & Meas Parser</b><br/>• .meas regex metric extraction<br/>• Complex AC magnitude/phase parsing<br/>• Failure taxonomy classifier"]
+    end
+
+    subgraph State ["Authoritative State (.ltspice-mcp/)"]
+        subgraph DB ["SQLite Database (state.db - WAL Mode)"]
+            T_Runs[("<b>runs</b><br/>Templates, parameter bounds, objectives")]
+            T_Designs[("<b>designs</b><br/>Byte-exact netlists, lineages, SHA hashes")]
+            T_Exps[("<b>experiments</b><br/>Metrics, scores, feasibility, failures")]
+            T_Sens[("<b>sensitivities</b><br/>Slopes, R2, confidence")]
+        end
+        subgraph FS ["Filesystem Artifacts"]
+            CandDir["<code>candidates/</code> (cand_XXXX.cir)"]
+            SimDir["<code>simulations/</code> (logs & raw)"]
+            RepDir["<code>reports/</code> & <code>plots/</code>"]
+        end
+    end
+
+    %% Communication Flow
+    Agent -->|"1. Tool calls (goals, param space, evaluations)"| ToolEndpoints
+    ToolEndpoints -->|"6. Compact summaries, sensitivities, best candidates"| Agent
+
+    T_Life & T_Eval & T_Query --> Engine
+    T_Direct --> Router
+    T_Direct --> Feas
+    Engine -->|"Refuse impossible specs before any state is written"| Feas
+    Engine --> IR
+    Engine --> Robust
+
+    Engine -->|"Execute candidate sim"| Router
+    Router -->|"Subprocess"| LTSpice
+    Router -->|"In-memory"| Analytic
+    LTSpice -->|"Parse .log / .raw"| MeasParser
+    Analytic --> MeasParser
+    MeasParser -->|"Extracted metrics & failure status"| Engine
+
+    IR -->|"Query existing fingerprints"| T_Designs
+    Engine -->|"ACID Transaction (append-only history)"| DB
+    Engine -->|"Store byte-exact netlists & traces"| FS
+    T_Query -->|"Re-derive dynamically (best, pareto, sensitivities)"| DB
+    T_Query --> Rep
+    Rep -->|"Read stored state, never hand-entered numbers"| DB
+    Rep -->|"Re-simulate the winner for waveforms & corners"| Robust
+    Rep -->|"Write DESIGN_REPORT.md + figures"| RepDir
+    ASC -.->|"Round-trip verification"| LTSpice
+```
+
 ## Install
 
 ```bash
@@ -78,6 +155,66 @@ case — uppercase `AT` for a point it found, lowercase `at` for one you specifi
 the parser is case-sensitive here. Getting it backwards returns the sample time as the
 measurement, which plots as a perfectly plausible straight line.
 
+## Pre-flight: is the spec even possible?
+
+`check_feasibility` answers that before a single LTspice process starts. It costs no
+simulation and no tokens beyond the call, and it exists because the expensive failure
+mode is an optimization loop that runs 40 iterations against a requirement no topology
+can meet, then reports a confident near-miss.
+
+```python
+check_feasibility(
+  objectives=[{"metric": "slew_rate", "direction": "max"}],
+  constraints={"slew_rate": ">1e8", "power": "<0.0005"},
+  circuit_type="opamp", mode="concept",
+  technology_params={"vdd": 1.8, "cload": 10e-12})
+
+# status: "infeasible", passed: false
+# power_below_dynamic_floor: power < 0.0005 W, but the slew requirement alone draws
+#   0.001 A from 1.8 V = 0.0018 W, before bias, output stage or reference current
+# suggestion: raise the power limit above 0.0018 W, drop C_load, or relax the slew
+#   requirement
+# details: theoretical_min_power = 0.0018, power_floor_from = "slew"
+```
+
+Three layers, each reported separately so you can tell a typo from physics:
+
+| layer | catches |
+|---|---|
+| `static` | contradictory bounds (`fc > 10k` and `fc < 9k`), over-unity efficiency, inverted or empty `param_space`, `P_max < Vdd·I_load` |
+| `template` | an objective or constraint with no `.meas` that produces it, `{PARAM}` vs `param_space` mismatches in both directions, gain > 1 demanded of an R-and-C-only deck, reactive-element count vs the filter order the mask needs |
+| `physics` | closed-form limits per `circuit_type` — filter order (Butterworth / Chebyshev / elliptic), `SR ≤ I/C_L`, `GBW ≤ gm/2πC_L` against both the bias current and `f_T`, `4kTR` and `kT/C` noise floors, LDO dropout / headroom / the `Vout/Vin` efficiency ceiling, boost-without-an-inductor, duty cycle |
+
+`mode` picks how strict: `practical` (physics plus engineering guidelines — R > 100 MΩ,
+C < 0.1 fF, phase margin under 45°, W/L over 1000), `theoretical` (hard limits only),
+`concept` (no netlist needed, for checking an idea before writing a deck).
+
+`status` is one of four, and the fourth is the point:
+
+- **`infeasible`** — a hard bound is violated. `passed` is false. Every error here is a
+  bound that holds for *any* topology, derived from a definition or a conservation law,
+  so the answer is to change the spec.
+- **`impractical`** — buildable, with flagged concerns. `passed` is true.
+- **`feasible`** — nothing ruled it out and every applicable check ran.
+- **`unverified`** — nothing ruled it out but a check that mattered could not run,
+  usually a missing `technology_params` entry. It outranks `impractical`, because a
+  warning is visible in `violations` either way while a silently skipped physics check
+  reads as a pass. What was skipped is listed in `checks_skipped`.
+
+`start_optimization` runs the same check first and **does not create the run** when a
+requirement is impossible — the answer carries the violations and suggested fixes
+instead, and no state is written. Warnings ride along and block nothing.
+
+```python
+start_optimization(..., preflight={"bypass": True})     # skip the check entirely
+start_optimization(..., preflight={"circuit_type": "ldo", "mode": "theoretical",
+                                   "technology_params": {"vin": 5.0, "vout": 1.8}})
+```
+
+The check is skipped for `backend: "analytic"`: those metrics come from a registered
+Python function, so `.meas` directives and `{PARAM}` placeholders mean nothing there and
+every template check would be a false positive.
+
 ## Usage
 
 `start_optimization` once, then let `run_optimization` do the iterating:
@@ -146,6 +283,49 @@ real knob, not a formality — on a 10 kHz Sallen-Key, going from an effectively
 `GBW=1G` to the block's own `GBW=10Meg` default moves the corner 1.55 Hz and the step
 overshoot from 5.76 % to 5.81 %.
 
+## The final design report
+
+`generate_design_report` writes the whole thing — six sections of Markdown, every number
+read out of `state.db` or out of a simulation launched while writing the file. Nothing is
+hand-entered, so the report cannot disagree with the run it describes.
+
+```bash
+python -m spicemcp.report amp_001 --dc-audit --pvt --supply V1 --mc 100
+# .ltspice-mcp/reports/amp_001_DESIGN_REPORT.md
+```
+
+```python
+generate_design_report(run_id="amp_001", dc_audit=True, pvt=True,
+                       supply="V1", monte_carlo=100, schematic="pics/amp.png")
+```
+
+| section | contents |
+|---|---|
+| 1 · Executive summary | topology and what the run does and does not establish, constraint scorecard |
+| 2 · Schematic & BOM | designators, optimized values in engineering units (`81.4 kΩ`, `12.2 nF`), which knob tuned each one, tolerance, `.model` cards, link to the byte-exact `.cir` |
+| 3 · Optimization & verification | `Metric │ Target │ Baseline │ Final │ Δ │ Status`, measured sensitivities with their method, trade-offs, bound warnings |
+| 4 · Waveform analysis | Bode (gain, phase, −3 dB, PM/GM), transient (rise, overshoot, ±1 % and ±0.1 % settling, slew), FFT/THD, with plots |
+| 5 · Robustness | per-device Vds/Vgs/Vth/current/region, PVT corners, Monte Carlo yield and Cpk |
+| 6 · Reproduction guide | open the `.cir`, the directives already in it, F9, Ctrl+L |
+
+Sections 1–3 and 6 are free — they are a query. The rest each cost LTspice launches, so
+they are opt-in: one shared re-run of the winner (it draws the plots *and* reports whether
+the fresh metrics still match the stored ones), plus `dc_audit` 1, `pvt` 5, `monte_carlo`
+one stepped run rather than N.
+
+**A section that did not run says so, and says which argument would produce it.** That is
+the whole design constraint. A reviewer reads a missing heading as "checked, nothing to
+report", so an unswept corner analysis prints as `> **Not run.** … To include it:
+generate(con, run_id, pvt=True)` rather than being quietly dropped or filled with zeros —
+the same reason `check_feasibility` reports `checks_skipped` at the other end of the
+pipeline. Two more places it refuses to fill a gap:
+
+- Monte Carlo **yield** is counted against the run's own constraints. With no interval for
+  a metric, the table is labelled a spread and `pass` is called what it is: nothing checked.
+- No schematic is drawn. A netlist has no coordinates, and an invented layout is a picture
+  of a different circuit — pass `schematic=` an image you drew with `spicemcp.asc` and
+  round-tripped through `asc.check()`.
+
 ### Tools
 
 | lifecycle | evaluation | state queries |
@@ -155,10 +335,11 @@ overshoot from 5.76 % to 5.81 %.
 | `get_optimization_status` | `select_next_experiment` | `get_optimization_history` |
 | `list_runs` | `simulate_netlist` | `get_candidate` / `get_previous_candidates` |
 | | `check_ltspice` | `compare_candidates` / `get_similar_candidates` |
-| | | `get_parameter_sensitivity` |
+| | `check_feasibility` | `get_parameter_sensitivity` |
 | | | `get_explored_parameter_range` |
 | | | `get_failed_candidates` |
 | | | `get_optimization_trace` |
+| | | `generate_design_report` |
 | | | `rollback_to_candidate` |
 
 ## Guarantees worth knowing
@@ -205,6 +386,11 @@ overshoot from 5.76 % to 5.81 %.
 | incremental sensitivity updates (O(n²) per iteration) | runs exceed a few hundred candidates |
 | `promising_unexplored_region` is the widest untried gap, not direction-aware — it can point away from where the metric improves | you want it as a search directive rather than a coverage hint (the actual search already uses measured sensitivity) |
 | `asc.Sheet` places parts at coordinates you pick; only pins, routing and text are computed | a topology arrives that nobody wants to lay out by hand — then write a placer, not more templates |
+| the design report embeds a schematic you supply and draws none: a netlist has no coordinates | that placer exists — then the report can render its own picture and `asc.check()` it |
+| the report's plot section re-simulates the winner, because `experiments` stores the `.log` path but no `.raw` | waveforms are wanted for every candidate rather than the winner — then store raw paths and pay the disk |
+| pre-flight metric recognition is by name (`power`, `pwr`, `p_total` → power), since objectives carry no unit metadata | a metric name collides with a different quantity — then add an explicit `kind` to the objective rather than more aliases |
+| `check_feasibility` reads the deck's element letters, not a netlisted circuit: a two-pole op-amp subcircuit counts as one active element, not as two poles | you need loop-gain feasibility, which needs the small-signal model — that is a simulation, and `robustness` already runs those |
+| the W/L aspect-ratio check only fires when both a `W`- and an `L`-named parameter exist | device geometry arrives as a single `size` parameter or a `.model` line |
 
 ## The hallucination-loop test
 

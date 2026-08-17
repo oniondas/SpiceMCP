@@ -11,7 +11,7 @@ import os
 
 from mcp.server.fastmcp import FastMCP
 
-from . import db, engine, sim
+from . import db, engine, feasibility, report, sim
 
 mcp = FastMCP("spicemcp")
 
@@ -57,13 +57,49 @@ def check_ltspice() -> dict:
             "analytic_models": sorted(sim.ANALYTIC_MODELS)}
 
 
+@mcp.tool()
+def check_feasibility(objectives: list, constraints: dict | list | None = None,
+                      param_space: dict | None = None,
+                      netlist_template: str | None = None,
+                      circuit_type: str = "general", mode: str = "practical",
+                      technology_params: dict | None = None) -> dict:
+    """Pre-flight check: is this specification physically and structurally achievable,
+    before any simulation or optimization budget is spent.
+
+    Costs nothing (no LTspice launch). Three layers report separately:
+      static    -- self-contradictory bounds, over-unity efficiency, bad param_space
+      template  -- metrics with no `.meas`, {PARAM} vs param_space, gain with no active
+                   element, reactive-element count vs required filter order
+      physics   -- closed-form limits per circuit_type: filter order (Butterworth /
+                   Chebyshev / elliptic), slew rate and GBW against current and C_load,
+                   4kTR and kT/C noise floors, LDO dropout / headroom / Vout-over-Vin
+                   efficiency ceiling, DC-DC topology and duty cycle
+
+    circuit_type: "general" | "filter" | "opamp" | "ldo" | "dcdc"
+    mode: "practical" (physics + engineering guidelines) | "theoretical" (hard limits
+      only) | "concept" (no netlist needed -- check an idea before writing a deck)
+    technology_params: SI units. vdd, vin, vout, cload, iload, itotal, temp_c, ft, rmin,
+      vov, rds_on, lmin, f_pass, f_stop, ripple_db, atten_db, filter_kind, duty_max, fsw.
+      Checks that need a value you did not give are listed in `checks_skipped`, never
+      silently passed.
+
+    `status`: "infeasible" (a hard bound is violated -- fix the spec), "impractical"
+    (buildable, with flagged concerns), "feasible", "unverified" (nothing ruled it out
+    but the domain physics could not be evaluated). `passed` is false only for
+    "infeasible".
+    """
+    return _guard(lambda: feasibility.check(
+        objectives, constraints, param_space, netlist_template, circuit_type, mode,
+        technology_params).to_dict())
+
+
 # --- run lifecycle -------------------------------------------------------------
 
 @mcp.tool()
 def start_optimization(run_id: str, netlist_template: str, param_space: dict,
                        objectives: list, constraints: dict | list | None = None,
                        sim_config: dict | None = None, seed: int = 0,
-                       notes: str = "") -> dict:
+                       notes: str = "", preflight: dict | None = None) -> dict:
     """Create a persistent optimization run.
 
     netlist_template: an LTspice netlist where tunable values appear as {NAME}
@@ -73,9 +109,15 @@ def start_optimization(run_id: str, netlist_template: str, param_space: dict,
     constraints: {"bandwidth": ">100000", "power": "<0.005"}
     Scores are a pure function of metrics, so the best candidate can never be
     retroactively demoted. State survives an MCP restart.
+
+    The spec is checked by `check_feasibility` first and the run is NOT created if a
+    requirement is impossible for any topology; the answer then carries the violations
+    and suggested fixes. `preflight` tunes that check:
+    {"bypass": true} to skip it entirely, plus optional "circuit_type", "mode" and
+    "technology_params" to get the domain physics checked here too.
     """
     return _guard(engine.start_run, con(), run_id, netlist_template, param_space,
-                  objectives, constraints, sim_config, seed, notes)
+                  objectives, constraints, sim_config, seed, notes, preflight)
 
 
 @mcp.tool()
@@ -255,6 +297,41 @@ def rollback_to_candidate(run_id: str, candidate_id: str) -> dict:
     past circuit from conversation memory -- use this.
     """
     return _guard(engine.rollback, con(), run_id, candidate_id)
+
+
+@mcp.tool()
+def generate_design_report(run_id: str, out: str | None = None,
+                           schematic: str | None = None, plot: bool = True,
+                           dc_audit: bool = False, pvt: bool = False,
+                           monte_carlo: int = 0, supply: str | None = None,
+                           node: str | None = None, r_tol: float = 0.01,
+                           c_tol: float = 0.05) -> dict:
+    """Write the final design report for a run as a Markdown document, and return its path.
+
+    Six sections: executive summary and spec scorecard, schematic and BOM, optimization
+    summary with baseline-vs-final metrics and measured trade-offs, waveform analysis with
+    plots, robustness (DC bias / PVT / Monte Carlo yield), and an LTspice reproduction
+    guide. Every number is read from the database or from a simulation launched while
+    writing the file; nothing is hand-entered, so the report cannot disagree with the run.
+
+    Sections 1-3 and 6 come from stored state and cost nothing. The rest each cost LTspice
+    launches, so they are opt-in and a section that did not run says so in the document
+    rather than being omitted:
+      plot=True      Bode / transient / THD plots. Any flag below also triggers the one
+                     shared re-run of the winner, whose fresh metrics are compared against
+                     the stored ones in section 3.
+      dc_audit=True  1 launch -- per-device Vds/Vgs/Vth, terminal current, region
+      pvt=True       5 launches -- TT/SS/FF/SF/FS at -40/27/125 C and Vdd +-10%
+                     (`supply` names the DC source to scale, e.g. "V1")
+      monte_carlo=N  1 stepped launch -- N samples on passive tolerances; yield is counted
+                     against this run's own constraints
+
+    `schematic` embeds an existing image; none is generated, because a netlist carries no
+    coordinates and an invented layout would be a picture of a different circuit.
+    """
+    return _guard(report.generate, con(), run_id, out=out, schematic=schematic, plot=plot,
+                  dc_audit=dc_audit, pvt=pvt, monte_carlo=monte_carlo, supply=supply,
+                  node=node, r_tol=r_tol, c_tol=c_tol)
 
 
 def main() -> None:
