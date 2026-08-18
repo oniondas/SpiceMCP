@@ -7,6 +7,26 @@ dedup, best so far, sensitivities and rollback all live in SQLite and are re-der
 on every call, so a long optimization can't drift into remembering a circuit that
 never existed.
 
+> ### Prototype Status & Live Example
+> **SpiceMCP is currently an experimental prototype.**
+>
+> Below is a demonstration of what SpiceMCP generated and analyzed autonomously for **Chua's Chaotic Circuit**—showcasing automated `.asc` schematic generation, batch LTspice simulations, binary `.raw` waveform parsing, parameter sweeps, and publication-ready visualization:
+>
+> | **Schematic Rendering (`render_schematic`)** | **3D Double-Scroll Attractor** |
+> | :---: | :---: |
+> | ![Chua Schematic](gallery/chua/chua_circuit_classic.png) | ![Chua 3D Double Scroll Attractor](gallery/chua/chua_double_scroll_3d.png) |
+> | *Vector schematic generated from `.asc` in `classic` style* | *3D phase-space trajectory $(v_{C1}, v_{C2}, i_L)$ parsed from binary `.raw`* |
+>
+> | **Bifurcation Route to Chaos (`simulate_sweep`)** | **Sensitivity to Initial Conditions (Butterfly Effect)** |
+> | :---: | :---: |
+> | ![Bifurcation Route to Chaos](gallery/chua/chua_bifurcation_diagram.png) | ![Butterfly Sensitivity](gallery/chua/chua_butterfly_sensitivity.png) |
+> | *Multi-point parameter sweep capturing period-doubling cascades* | *Lyapunov divergence tracking $1\,\mu\text{V}$ initial condition perturbations* |
+>
+> | **2D Phase Plane Portraits & Orbital Density** | **Nonlinear Diode (NDR) I-V Curve** |
+> | :---: | :---: |
+> | ![2D Phase Portraits](gallery/chua/chua_phase_portraits_2d.png) | ![Chua Diode IV Curve](gallery/chua/chua_diode_iv_curve.png) |
+> | *Orthogonal projections ($V_{C1}-V_{C2}, V_{C1}-I_L$) with orbital density* | *Piecewise-linear Negative Differential Resistance ($G_a, G_b$) DC sweep* |
+
 ## Architecture
 
 ```mermaid
@@ -498,6 +518,15 @@ Two additional cases where missing data is made explicit:
 | `render_schematic` applies single pass greedy label collision offsets | complex placement solver is required for high density schematics |
 | renderer draws explicitly defined `.asc` geometry without automatic placement | layout synthesis engine is added |
 | `simulate_sweep` steps one parameter per launch | nested 2D parameter sweeps are needed (run sequentially across outer values) |
+
+## Schematic rendering styles
+
+`render_schematic` renders any `.asc` file into three distinct visual styles over identical circuit geometry:
+
+| **Classic (`classic`)** | **Sketch (`sketch`)** | **Tech Minimal (`tech_minimal`)** |
+| :---: | :---: | :---: |
+| ![Classic Style](gallery/chua/chua_circuit_classic.png) | ![Sketch Style](gallery/chua/chua_circuit_sketch.png) | ![Tech Minimal Style](gallery/chua/chua_circuit_tech_minimal.png) |
+| *Monochrome, high-contrast formal print style* | *Engineering notebook style on graph paper with deterministic hand-drawn wobble* | *Charcoal ink with semantic signal line and port highlighting* |
 
 ## Test suites & verification
 

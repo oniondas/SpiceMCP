@@ -33,4 +33,6 @@ htmlcov/
 .claude/
 
 # gallery output
-gallery/
+gallery/*
+!gallery/chua/
+
