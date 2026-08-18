@@ -3,7 +3,7 @@
 LTspice MCP server where **the server owns the optimization state, not the LLM**.
 
 The model contributes topology and strategy. Candidate identity, simulation history,
-dedup, best-so-far, sensitivities and rollback all live in SQLite and are re-derived
+dedup, best so far, sensitivities and rollback all live in SQLite and are re-derived
 on every call, so a long optimization can't drift into remembering a circuit that
 never existed.
 
@@ -30,25 +30,25 @@ flowchart TB
     subgraph Core ["Optimization & Circuit Core"]
         Engine["<b>Optimization Engine</b> (engine.py)<br/>• Coordinate descent & step halving<br/>• Pure-function scoring & Pareto frontier<br/>• Empirical sensitivity analysis (FD / OLS)"]
         IR["<b>Circuit IR & Hashing</b> (ir.py)<br/>• Template placeholder substitution: {param}<br/>• Fingerprinting (topology, design, config)<br/>• Deterministic deduplication"]
-        ASC["<b>Schematic Writer</b> (asc.py)<br/>• Pin-name routing with symbol (.asy) parsing<br/>• Orthogonal L-routing (HV/VH/auto)<br/>• Round-trip netlist validation via asc.check()"]
-        Render["<b>Schematic Renderer</b> (render.py)<br/>• Real .asy geometry & transformation matrices<br/>• SVG (zero-dep) and PNG (matplotlib)<br/>• 3 styles: tech_minimal, classic, sketch<br/>• Label collision avoidance"]
+        ASC["<b>Schematic Writer</b> (asc.py)<br/>• Pin-name routing with symbol (.asy) parsing<br/>• Orthogonal L-routing (HV/VH/auto)<br/>• Round trip netlist validation via asc.check()"]
+        Render["<b>Schematic Renderer</b> (render.py)<br/>• Real .asy geometry & transformation matrices<br/>• SVG (zero dependency) and PNG (matplotlib)<br/>• 3 styles: tech_minimal, classic, sketch<br/>• Label collision avoidance"]
         Robust["<b>Robustness & Waves</b> (robustness.py, raw.py)<br/>• DC operating point & bias audit<br/>• PVT corners & Monte Carlo yield / Cpk<br/>• Binary .raw parser & waveform metrics"]
-        Feas["<b>Pre-Flight Feasibility</b> (feasibility.py)<br/>• 3 tiers: static, template, physics<br/>• 3 modes: practical, theoretical, concept<br/>• Closed-form limits (SR, GBW, noise, filter order)"]
-        Rep["<b>Design Report & Plots</b> (report.py, plots.py)<br/>• Six-section Markdown, rendered from state<br/>• BOM, baseline-vs-final, Bode/tran/THD figures<br/>• Unified 5-color visualization ramp & chrome"]
+        Feas["<b>Preflight Feasibility</b> (feasibility.py)<br/>• 3 tiers: static, template, physics<br/>• 3 modes: practical, theoretical, concept<br/>• Closed form limits (SR, GBW, noise, filter order)"]
+        Rep["<b>Design Report & Plots</b> (report.py, plots.py)<br/>• Six-section Markdown, rendered from state<br/>• BOM, baseline vs final, Bode/tran/THD figures<br/>• Unified 5-color visualization ramp & chrome"]
     end
 
     subgraph Simulation ["Simulation Layer (sim.py)"]
         Router{"Backend Router"}
         LTSpice["<b>LTspice Executable</b><br/>Batch process (<code>-b -ascii</code>)"]
-        Analytic["<b>Analytic Backend</b><br/>Fast closed-form surfaces (test/dry-run)"]
-        SweepEngine["<b>Sweep Engine</b><br/>Single-launch <code>.step</code> multi-point execution<br/>Value recovery from .log / .raw"]
+        Analytic["<b>Analytic Backend</b><br/>Fast closed form surfaces (test/dry-run)"]
+        SweepEngine["<b>Sweep Engine</b><br/>Single launch <code>.step</code> multipoint execution<br/>Value recovery from .log / .raw"]
         MeasParser["<b>Log & Meas Parser</b><br/>• .meas regex metric extraction<br/>• Complex AC magnitude/phase parsing<br/>• Failure taxonomy classifier"]
     end
 
     subgraph State ["Authoritative State (.ltspice-mcp/)"]
         subgraph DB ["SQLite Database (state.db - WAL Mode)"]
             T_Runs[("<b>runs</b><br/>Templates, parameter bounds, objectives")]
-            T_Designs[("<b>designs</b><br/>Byte-exact netlists, lineages, SHA hashes")]
+            T_Designs[("<b>designs</b><br/>Byte exact netlists, lineages, SHA hashes")]
             T_Exps[("<b>experiments</b><br/>Metrics, scores, feasibility, failures")]
             T_Sens[("<b>sensitivities</b><br/>Slopes, R2, confidence")]
         end
@@ -82,14 +82,14 @@ flowchart TB
     MeasParser -->|"Extracted metrics & failure status"| Engine
 
     IR -->|"Query existing fingerprints"| T_Designs
-    Engine -->|"ACID Transaction (append-only history)"| DB
-    Engine -->|"Store byte-exact netlists & traces"| FS
-    T_Query -->|"Re-derive dynamically (best, pareto, sensitivities)"| DB
+    Engine -->|"ACID Transaction (append only history)"| DB
+    Engine -->|"Store byte exact netlists & traces"| FS
+    T_Query -->|"Rederive dynamically (best, pareto, sensitivities)"| DB
     T_Query --> Rep
-    Rep -->|"Read stored state, never hand-entered numbers"| DB
-    Rep -->|"Re-simulate the winner for waveforms & corners"| Robust
+    Rep -->|"Read stored state, never hand entered numbers"| DB
+    Rep -->|"Resimulate the winner for waveforms & corners"| Robust
     Rep -->|"Write DESIGN_REPORT.md + figures"| RepDir
-    ASC -.->|"Round-trip verification"| LTSpice
+    ASC -.->|"Round trip verification"| LTSpice
     Render -.->|"Parse .asy symbol definitions"| FS
 ```
 
@@ -121,7 +121,7 @@ State lands in `$SPICEMCP_PROJECT/.ltspice-mcp/`:
 
 ```
 state.db      authoritative state (SQLite WAL)
-candidates/   cand_XXXX.cir, byte-exact netlists for rollback
+candidates/   cand_XXXX.cir, byte exact netlists for rollback
 simulations/  LTspice working dirs, logs, and raw waveforms
 reports/      Markdown design reports and iteration traces
 plots/        Rendered Bode, transient, and THD figures
@@ -164,15 +164,15 @@ p050: V(out) =0.140915020014 at 6.666666667e-05  -> 0.1409  (FIND AT: the value)
 In a `WHEN` measure the number after `=` is the trigger level you specified and `AT`
 carries the result; in `FIND ... AT` it is the reverse. LTspice separates them only by
 case (uppercase `AT` for a point it found, lowercase `at` for one you specified), so
-the parser is case-sensitive here. Getting it backwards returns the sample time as the
+the parser is case sensitive here. Getting it backwards returns the sample time as the
 measurement, which plots as a plausible straight line.
 
-## Pre-flight: is the spec even possible?
+## Preflight: is the spec even possible?
 
 `check_feasibility` answers that before a single LTspice process starts. It costs no
 simulation and no tokens beyond the call, and it exists because the expensive failure
 mode is an optimization loop that runs 40 iterations against a requirement no topology
-can meet, then reports a confident near-miss.
+can meet, then reports a confident near miss.
 
 ```python
 check_feasibility(
@@ -193,9 +193,9 @@ Three layers, each reported separately so you can tell a typo from physics:
 
 | layer | catches |
 |---|---|
-| `static` | contradictory bounds (`fc > 10k` and `fc < 9k`), over-unity efficiency, inverted or empty `param_space`, `P_max < Vdd·I_load` |
-| `template` | an objective or constraint with no `.meas` that produces it, `{PARAM}` vs `param_space` mismatches in both directions, gain > 1 demanded of an R-and-C-only deck, reactive-element count vs the filter order the mask needs |
-| `physics` | closed-form limits per `circuit_type`: filter order (Butterworth, Chebyshev, elliptic), `SR ≤ I/C_L`, `GBW ≤ gm/2πC_L` against both bias current and `f_T`, `4kTR` and `kT/C` noise floors, LDO dropout / headroom / `Vout/Vin` efficiency ceiling, boost without inductor, duty cycle |
+| `static` | contradictory bounds (`fc > 10k` and `fc < 9k`), over unity efficiency, inverted or empty `param_space`, `P_max < Vdd·I_load` |
+| `template` | an objective or constraint with no `.meas` that produces it, `{PARAM}` vs `param_space` mismatches in both directions, gain > 1 demanded of an R and C only deck, reactive element count vs the filter order the mask needs |
+| `physics` | closed form limits per `circuit_type`: filter order (Butterworth, Chebyshev, elliptic), `SR ≤ I/C_L`, `GBW ≤ gm/2πC_L` against both bias current and `f_T`, `4kTR` and `kT/C` noise floors, LDO dropout / headroom / `Vout/Vin` efficiency ceiling, boost without inductor, duty cycle |
 
 `mode` picks how strict: `practical` (physics plus engineering guidelines: R > 100 MΩ,
 C < 0.1 fF, phase margin under 45°, W/L over 1000), `theoretical` (hard limits only),
@@ -203,12 +203,12 @@ C < 0.1 fF, phase margin under 45°, W/L over 1000), `theoretical` (hard limits 
 
 `status` is one of four outcomes:
 
-- **`infeasible`**: a hard bound is violated. `passed` is false. Every error here is a
+* **`infeasible`**: a hard bound is violated. `passed` is false. Every error here is a
   bound that holds for any topology, derived from a definition or conservation law,
   so the requirement must be adjusted.
-- **`impractical`**: buildable, with flagged engineering concerns. `passed` is true.
-- **`feasible`**: nothing ruled it out and every applicable check completed successfully.
-- **`unverified`**: nothing ruled it out but a relevant check could not run,
+* **`impractical`**: buildable, with flagged engineering concerns. `passed` is true.
+* **`feasible`**: nothing ruled it out and every applicable check completed successfully.
+* **`unverified`**: nothing ruled it out but a relevant check could not run,
   usually due to a missing `technology_params` entry. It outranks `impractical`, because a
   warning is visible in `violations` either way while a silently skipped physics check
   reads as a pass. What was skipped is listed in `checks_skipped`.
@@ -264,7 +264,7 @@ The full history stays queryable but never arrives unasked.
 `spicemcp.asc` writes a real `.asc` using LTspice's symbol library, so a candidate opens
 as a schematic you can probe and edit, rather than as a netlist in a text window. Pin offsets
 are read from the actual `.asy`, which means `res`, `cap`, `OpAmps/opamp`, `nmos`, `npn`
-and everything else in `lib/sym` work with no per-part table.
+and everything else in `lib/sym` work with no per part table.
 
 Wire by **pin name**; nothing takes a pin coordinate:
 
@@ -276,7 +276,7 @@ R1 = sh.part("res", "R1", (80, 112), "R270", value=1849.60938)
 U1 = sh.part("OpAmps/opamp", "U1", (480, 176), "M180",
              SpiceLine="Aol=1Meg", SpiceLine2="GBW=1G")
 sh.net(V1["+"], R1["A"])
-sh.route(R1["B"], U1["noninvin"], "VH")     # L-shaped, no intermediate points
+sh.route(R1["B"], U1["noninvin"], "VH")     # L shaped, no intermediate points
 sh.gnd(V1["-"]);  sh.flag(U1["out"], "out")
 sh.directive(".lib opamp.sub", ".ac dec 400 100 1Meg")
 assert "XU1 out b out opamp" in asc.check(sh.write("f.asc"))
@@ -286,17 +286,17 @@ assert "XU1 out b out opamp" in asc.check(sh.write("f.asc"))
 it: it is the only way to know the picture is the circuit you meant. A wrong
 orientation or an unwired pin produces a schematic that opens and simulates happily,
 and comparing against the candidate netlist is what catches it. Directives and notes
-auto-stack above and below the drawn content, so text placement isn't a coordinate
+auto stack above and below the drawn content, so text placement isn't a coordinate
 either.
 
 Use the library part, not an equivalent model: `E1 out 0 in out 1e6` is a VCVS, and
-`OpAmps/opamp` is a single-pole amplifier with `Aol` and `GBW` you can dial. `GBW` is a
+`OpAmps/opamp` is a single pole amplifier with `Aol` and `GBW` you can dial. `GBW` is a
 functional knob: on a 10 kHz Sallen-Key, going from an ideal
 `GBW=1G` to the block's own `GBW=10Meg` default moves the corner 1.55 Hz and the step
 overshoot from 5.76% to 5.81%.
 
 `connect(a, b)` is the general form: same axis creates a straight wire, and two pins that share
-neither axis receive a two-segment L through one corner (`HV` across then up, `VH` up then
+neither axis receive a two segment L through one corner (`HV` across then up, `VH` up then
 across, `auto` longer leg first). Never a diagonal, because LTspice draws a diagonal
 line without connecting anything at either end, and `auto` is a pure function of the two
 coordinates, ensuring deterministic schematic output across runs.
@@ -304,9 +304,9 @@ coordinates, ensuring deterministic schematic output across runs.
 ## Rendering a schematic
 
 `render_schematic` draws the `.asc` that is on disk. Every symbol's geometry comes out of
-its own `.asy` transformed by that instance's orientation, so a resistor is the zig-zag
-LTspice draws and an op-amp has its inverting input where the symbol puts it; nothing is
-re-imagined from a netlist. Wires, junction dots, net labels, power rails, grounds, ports,
+its own `.asy` transformed by that instance's orientation, so a resistor is the zigzag
+LTspice draws and an op amp has its inverting input where the symbol puts it; nothing is
+reimagined from a netlist. Wires, junction dots, net labels, power rails, grounds, ports,
 pin names, designators, values and directives all come from the file.
 
 ```python
@@ -315,9 +315,9 @@ render_schematic("f.asc", "f.png", "classic", dpi=300)    # PNG needs matplotlib
 ```
 
 Three styles over identical geometry:
-- **`tech_minimal`** (default): charcoal ink, with colour reserved strictly for signal information like inputs, outputs, and feedback paths.
-- **`classic`**: monochrome, engineered for crisp print and formal publication.
-- **`sketch`**: engineering notebook style on graph paper with subtle hand-drawn variation, while preserving exact circuit topology.
+* **`tech_minimal`** (default): charcoal ink, with colour reserved strictly for signal information like inputs, outputs, and feedback paths.
+* **`classic`**: monochrome, engineered for crisp print and formal publication.
+* **`sketch`**: engineering notebook style on graph paper with subtle hand drawn variation, while preserving exact circuit topology.
 
 The canvas is computed from the schematic's own bounding box, so nothing is cropped and there is no
 empty page. The same file and style produce identical bytes every time: `sketch` wobble is
@@ -335,7 +335,7 @@ get_visual_style()
 ```
 
 Waveform plots (`generate_design_report`, `spicemcp.plots`) draw their traces from a unified
-five-colour data visualization ramp and their chrome from `tech_minimal`:
+five colour data visualization ramp and their chrome from `tech_minimal`:
 
 | role | token | default | usage |
 |---|---|---|---|
@@ -346,13 +346,13 @@ five-colour data visualization ramp and their chrome from `tech_minimal`:
 | Margin bands & tolerance | `C_BAND` | `#F2CC8F` | Settling error bands (±1%, ±0.1%) and tolerance envelopes |
 
 The series ramp is a monotonic lightness sweep that degrades cleanly in greyscale printing,
-while maintaining maximum hue contrast between the first two traces for dual-axis plots.
+while maintaining maximum hue contrast between the first two traces for dual axis plots.
 
 ## Sweeping a parameter
 
 `simulate_sweep` runs one LTspice launch for the whole sweep via `.step`, and resolves the
 parameter name against the deck so an ordinary netlist can be swept without being
-re-authored as a template:
+reauthored as a template:
 
 ```python
 simulate_sweep(netlist, "temp", [-40, 27, 125])      # .step temp list
@@ -372,7 +372,7 @@ empty.
 
 `generate_design_report` writes the entire report: six sections of Markdown where every number
 is read out of `state.db` or out of a simulation launched while writing the file. Nothing is
-hand-entered, ensuring the report cannot disagree with the run it describes.
+hand entered, ensuring the report cannot disagree with the run it describes.
 
 ```bash
 python -m spicemcp.report amp_001 --dc-audit --pvt --supply V1 --mc 100
@@ -387,14 +387,14 @@ generate_design_report(run_id="amp_001", dc_audit=True, pvt=True,
 | section | contents |
 |---|---|
 | 1: Executive summary | topology and what the run establishes, constraint scorecard |
-| 2: Schematic & BOM | designators, optimized values in engineering units (`81.4 kΩ`, `12.2 nF`), tuning parameter mapping, tolerance, `.model` cards, link to the byte-exact `.cir` |
-| 3: Optimization & verification | `Metric │ Target │ Baseline │ Final │ Δ │ Status`, measured sensitivities with method, trade-offs, bound warnings |
+| 2: Schematic & BOM | designators, optimized values in engineering units (`81.4 kΩ`, `12.2 nF`), tuning parameter mapping, tolerance, `.model` cards, link to the byte exact `.cir` |
+| 3: Optimization & verification | `Metric │ Target │ Baseline │ Final │ Δ │ Status`, measured sensitivities with method, tradeoffs, bound warnings |
 | 4: Waveform analysis | Bode (gain, phase, −3 dB, PM/GM), transient (rise, overshoot, ±1% and ±0.1% settling, slew), FFT/THD, with plots |
 | 5: Robustness | per-device Vds/Vgs/Vth/current/region, PVT corners, Monte Carlo yield and Cpk |
 | 6: Reproduction guide | open the `.cir`, the directives already in it, F9, Ctrl+L |
 
 Sections 1, 2, 3, and 6 are free queries against stored state. The rest each cost LTspice launches,
-so they are opt-in: one shared re-run of the winner (which draws the plots and reports whether
+so they are opt in: one shared rerun of the winner (which draws the plots and reports whether
 fresh metrics still match stored ones), plus `dc_audit` (1 launch), `pvt` (5 launches), and `monte_carlo`
 (1 stepped run rather than N separate launches).
 
@@ -404,89 +404,89 @@ A reviewer reads a missing heading as "checked, nothing to report", so an unswep
 The same principle applies when `check_feasibility` reports `checks_skipped` at the beginning of the pipeline.
 Two additional cases where missing data is made explicit:
 
-- Monte Carlo **yield** is evaluated against the run's own constraints. Without an interval for
+* Monte Carlo **yield** is evaluated against the run's own constraints. Without an interval for
   a metric, the table is labelled as a spread and `pass` is reported accurately as unverified.
-- No schematic is automatically generated from netlists alone, because netlists lack coordinates.
+* No schematic is automatically generated from netlists alone, because netlists lack coordinates.
   Pass `schematic=` with an image drawn using `spicemcp.asc` and validated via `asc.check()`.
 
 ### Tools Reference
 
 | category | tool | purpose |
 |---|---|---|
-| **Lifecycle** | `start_optimization` | Create a persistent run with pre-flight gating and parameter bounds |
+| **Lifecycle** | `start_optimization` | Create a persistent run with preflight gating and parameter bounds |
 | | `stop_optimization` | Conclude an active run while retaining all state |
 | | `get_optimization_status` | Return compact summary of incumbent, constraints, and search progress |
 | | `list_runs` | List all runs persisted in `state.db` |
 | **Evaluation & Search** | `run_optimization` | Execute $N$ coordinate descent iterations locally; return single summary |
 | | `evaluate_candidate` | Simulate one candidate with dedup, lineage tracking, and pure scoring |
 | | `select_next_experiment` | Propose next parameter candidate based on empirical sensitivity |
-| **Simulation & Sweeps** | `simulate_netlist` | Ad-hoc netlist simulation with `.meas` extraction and zero state mutation |
-| | `simulate_sweep` | Single-launch `.step` multi-point parameter/temperature sweep |
-| **Diagnostics & Feasibility** | `check_feasibility` | Zero-sim 3-tier check (static, template, physics) across 3 modes |
+| **Simulation & Sweeps** | `simulate_netlist` | Ad hoc netlist simulation with `.meas` extraction and zero state mutation |
+| | `simulate_sweep` | Single launch `.step` multipoint parameter/temperature sweep |
+| **Diagnostics & Feasibility** | `check_feasibility` | Zero-sim 3 tier check (static, template, physics) across 3 modes |
 | | `check_ltspice` | Query detected LTspice binary, state directory, and analytic backends |
 | **Schematics & Visuals** | `render_schematic` | Render `.asc` to SVG/PNG using real `.asy` geometry in 3 styles |
-| | `get_visual_style` | Query house styles, 5-colour series ramp, and semantic net colours |
-| **State Queries & Trace** | `get_best_candidate` | Retrieve overall best and best-feasible candidate |
-| | `get_pareto_frontier` | Compute non-dominated candidates across all objectives |
+| | `get_visual_style` | Query house styles, 5 colour series ramp, and semantic net colours |
+| **State Queries & Trace** | `get_best_candidate` | Retrieve overall best and best feasible candidate |
+| | `get_pareto_frontier` | Compute non dominated candidates across all objectives |
 | | `get_parameter_sensitivity` | Retrieve measured sensitivities (causal FD or correlational OLS) |
 | | `get_optimization_history` | Paged history of optimization iterations |
 | | `get_previous_candidates` | Candidate lineage tree with parent IDs and generation counts |
 | | `get_candidate` | Full candidate record with netlist, hashes, and simulation logs |
-| | `compare_candidates` | Side-by-side metric and parameter deltas |
+| | `compare_candidates` | Side by side metric and parameter deltas |
 | | `get_similar_candidates` | Nearest evaluated designs in normalized parameter distance |
 | | `get_explored_parameter_range`| Explored parameter intervals and widest untried gap |
 | | `get_failed_candidates` | Classified failures (convergence, singular matrix, structural) |
-| | `get_optimization_trace` | Human-readable per-iteration progress trace |
-| | `rollback_to_candidate` | Restore byte-exact past circuit and metrics |
-| | `generate_design_report` | Render six-section Markdown report with BOM, plots, and PVT audit |
+| | `get_optimization_trace` | Human readable per iteration progress trace |
+| | `rollback_to_candidate` | Restore byte exact past circuit and metrics |
+| | `generate_design_report` | Render six section Markdown report with BOM, plots, and PVT audit |
 
 ## Guarantees worth knowing
 
-- **A worse iteration cannot demote the incumbent.** `best_candidate` is a `MAX(score)`
+* **A worse iteration cannot demote the incumbent.** `best_candidate` is a `MAX(score)`
   query, where `score` is a pure function of a candidate's metrics (using fixed reference
   scales defined at run creation). Nothing is overwritten, preventing state corruption.
-- **Modification never mutates.** A changed parameter set creates a new candidate record (`cand_NNNN`)
+* **Modification never mutates.** A changed parameter set creates a new candidate record (`cand_NNNN`)
   linked to its `parent_id`, preserving the complete derivation tree.
-- **Duplicates are never re-simulated.** Deduplication checks `sha256(design) + sha256(sim_config)`.
+* **Duplicates are never resimulated.** Deduplication checks `sha256(design) + sha256(sim_config)`.
   Evaluating the same circuit under different conditions constitutes a distinct experiment rather than a duplicate.
-- **`rollback_to_candidate` restores stored bytes directly from disk**, never a reconstruction.
-- **Sensitivities are measured empirically.** The `finite_difference` method indicates direct
+* **`rollback_to_candidate` restores stored bytes directly from disk**, never a reconstruction.
+* **Sensitivities are measured empirically.** The `finite_difference` method indicates direct
   causal pairs differing in a single parameter; `ols_marginal` indicates correlational fits across multiple runs.
-- **Every parameter is screened initially.** Parameters without variance have zero measured
+* **Every parameter is screened initially.** Parameters without variance have zero measured
   sensitivity and cannot be selected by exploitation alone. Unmeasured parameters take priority
-  over unexploited ones. For decade-spaced discrete lists, steps move to adjacent entries rather than
+  over unexploited ones. For decade spaced discrete lists, steps move to adjacent entries rather than
   using proportional spans.
-- **The search is scale-free, cycles coordinates, and refines step sizes dynamically.**
+* **The search is scale free, cycles coordinates, and refines step sizes dynamically.**
   Coordinate descent accounts for dimensional scaling (e.g. farads vs ohms) by normalizing against
   parameter bounds, alternates across coordinates to avoid greedy fixation, and halves step sizes
   when progress stagnates to converge within narrow tolerance bands.
-- **Failures are classified and remembered.** The engine records failure modes (`convergence_failure`,
+* **Failures are classified and remembered.** The engine records failure modes (`convergence_failure`,
   `structural_error`, `constraint_violation`, `numerical_instability`) to prevent redundant exploration of invalid parameter regions.
 
 ## Deliberate simplifications
 
 | skipped | add when |
 |---|---|
-| scoring a candidate off a waveform (`raw.py` parses `.raw`, but objectives are `.meas`) | a metric genuinely cannot be expressed as `.meas` (requires wave-to-scalar processing) |
+| scoring a candidate off a waveform (`raw.py` parses `.raw`, but objectives are `.meas`) | a metric genuinely cannot be expressed as `.meas` (requires wave to scalar processing) |
 | Bayesian optimization / GP surrogate | a single sim is fast enough that ~30 evaluations is cheaper than surrogate model complexity |
 | step halving on stagnation instead of line search | evaluations spent bracketing cost more than simple step halving bookkeeping |
 | one parameter moves per iteration (coordinate descent) | metric surface has strong parameter interactions requiring full compass polling |
-| component-graph IR (topology edits are new templates) | programmatic topology rewriting is explicitly required |
+| component graph IR (topology edits are new templates) | programmatic topology rewriting is explicitly required |
 | incremental sensitivity updates (O(n²) per iteration) | runs exceed several hundred candidates |
 | `promising_unexplored_region` identifies the widest untried gap | directional search hints are needed (the main search already uses measured sensitivity) |
 | `asc.Sheet` places parts at specified coordinates | automated placement solver is available |
-| the design report embeds user-supplied schematics without auto-layout | schematic autoplacer exists to render and validate netlists |
-| report plot generation re-simulates the winner | full waveform history is required for every intermediate candidate |
-| pre-flight metric recognition uses standardized naming conventions | metric name collisions require explicit type annotations |
-| `check_feasibility` inspects top-level netlist elements | subcircuit internal pole modeling is required (handled during simulation in robustness) |
+| the design report embeds user supplied schematics without auto layout | schematic autoplacer exists to render and validate netlists |
+| report plot generation resimulates the winner | full waveform history is required for every intermediate candidate |
+| preflight metric recognition uses standardized naming conventions | metric name collisions require explicit type annotations |
+| `check_feasibility` inspects top level netlist elements | subcircuit internal pole modeling is required (handled during simulation in robustness) |
 | W/L aspect ratio check requires explicit W and L parameters | device geometry is defined via unified size parameters or model cards |
-| `render_schematic` applies single-pass greedy label collision offsets | complex placement solver is required for high-density schematics |
-| renderer draws explicitly defined `.asc` geometry without auto-placement | layout synthesis engine is added |
+| `render_schematic` applies single pass greedy label collision offsets | complex placement solver is required for high density schematics |
+| renderer draws explicitly defined `.asc` geometry without automatic placement | layout synthesis engine is added |
 | `simulate_sweep` steps one parameter per launch | nested 2D parameter sweeps are needed (run sequentially across outer values) |
 
 ## Test suites & verification
 
-- **Hallucination-Loop Test** (`tests/test_hallucination_loop.py`): drives the adversarial sequence (improve, improve, best, worse, worse, improve) and verifies the incumbent survives, candidate identities remain immutable, duplicates are rejected without simulation, and sensitivities match analytical derivatives.
-- **Visual Gallery** (`tests/gallery.py`): renders side-by-side comparison sheets of every schematic style and plot type into `gallery/index.html` using real `.asy` library symbols.
-- **Pre-flight & Report Testing** (`tests/test_feasibility.py`, `tests/test_report.py`, `tests/test_robustness.py`): validates 3-tier feasibility checks, Monte Carlo yield and Cpk calculations, DC bias audits, and full Markdown report generation.
-- **Rendering & Sweeps** (`tests/test_render.py`, `tests/test_sweep.py`, `tests/test_asc.py`): tests deterministic SVG and PNG rendering, symbol orientation matrices, collision offsets, and single-launch parameter sweeps.
+* **Hallucination Loop Test** (`tests/test_hallucination_loop.py`): drives the adversarial sequence (improve, improve, best, worse, worse, improve) and verifies the incumbent survives, candidate identities remain immutable, duplicates are rejected without simulation, and sensitivities match analytical derivatives.
+* **Visual Gallery** (`tests/gallery.py`): renders side by side comparison sheets of every schematic style and plot type into `gallery/index.html` using real `.asy` library symbols.
+* **Preflight & Report Testing** (`tests/test_feasibility.py`, `tests/test_report.py`, `tests/test_robustness.py`): validates 3 tier feasibility checks, Monte Carlo yield and Cpk calculations, DC bias audits, and full Markdown report generation.
+* **Rendering & Sweeps** (`tests/test_render.py`, `tests/test_sweep.py`, `tests/test_asc.py`): tests deterministic SVG and PNG rendering, symbol orientation matrices, collision offsets, and single launch parameter sweeps.
