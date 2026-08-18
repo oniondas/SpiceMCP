@@ -91,6 +91,21 @@ flowchart TB
     Rep -->|"Write DESIGN_REPORT.md + figures"| RepDir
     ASC -.->|"Round trip verification"| LTSpice
     Render -.->|"Parse .asy symbol definitions"| FS
+
+    %% Styling based on SpiceMCP visual style palette
+    classDef client fill:#f9f9f9,stroke:#333,stroke-width:2px,color:#333
+    classDef endpoint fill:#1E56A0,stroke:#12396e,stroke-width:2px,color:#fff
+    classDef core fill:#38A3A5,stroke:#23696a,stroke-width:2px,color:#fff
+    classDef sim fill:#E07A5F,stroke:#9c5340,stroke-width:2px,color:#fff
+    classDef db fill:#D9534F,stroke:#933734,stroke-width:2px,color:#fff
+    classDef fs fill:#F2CC8F,stroke:#a68a5d,stroke-width:2px,color:#333
+
+    class Agent client
+    class T_Life,T_Eval,T_Sim,T_Diag,T_Vis,T_Query endpoint
+    class Engine,IR,ASC,Render,Robust,Feas,Rep core
+    class Router,LTSpice,Analytic,SweepEngine,MeasParser sim
+    class T_Runs,T_Designs,T_Exps,T_Sens db
+    class CandDir,SimDir,RepDir fs
 ```
 
 ## Install
