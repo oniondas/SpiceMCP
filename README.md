@@ -17,27 +17,31 @@ flowchart TB
 
     subgraph Server ["SpiceMCP Server (FastMCP API)"]
         direction TB
-        subgraph ToolEndpoints ["Tool Endpoints"]
-            T_Life["<b>Lifecycle Tools</b><br/>start_optimization<br/>stop_optimization<br/>list_runs / status"]
-            T_Eval["<b>Evaluation Tools</b><br/>run_optimization<br/>evaluate_candidate<br/>select_next_experiment"]
-            T_Query["<b>State &amp; Trace Queries</b><br/>get_best_candidate / pareto<br/>sensitivity / history / trace<br/>generate_design_report<br/>rollback_to_candidate"]
-            T_Direct["<b>Direct & Diagnostic</b><br/>simulate_netlist<br/>check_feasibility<br/>check_ltspice"]
+        subgraph ToolEndpoints ["Tool Endpoints (24 Tools)"]
+            T_Life["<b>Lifecycle Tools</b><br/>start_optimization<br/>stop_optimization<br/>get_optimization_status<br/>list_runs"]
+            T_Eval["<b>Evaluation & Search</b><br/>run_optimization<br/>evaluate_candidate<br/>select_next_experiment"]
+            T_Sim["<b>Simulation & Sweeps</b><br/>simulate_netlist<br/>simulate_sweep"]
+            T_Diag["<b>Feasibility & System</b><br/>check_feasibility<br/>check_ltspice"]
+            T_Vis["<b>Schematics & Styling</b><br/>render_schematic<br/>get_visual_style"]
+            T_Query["<b>State Queries & Reports</b><br/>get_best_candidate / pareto<br/>sensitivity / history / trace<br/>candidate / similar / compare<br/>generate_design_report<br/>rollback_to_candidate"]
         end
     end
 
     subgraph Core ["Optimization & Circuit Core"]
         Engine["<b>Optimization Engine</b> (engine.py)<br/>• Coordinate descent & step halving<br/>• Pure-function scoring & Pareto frontier<br/>• Empirical sensitivity analysis (FD / OLS)"]
         IR["<b>Circuit IR & Hashing</b> (ir.py)<br/>• Template placeholder substitution: {param}<br/>• Fingerprinting (topology, design, config)<br/>• Deterministic deduplication"]
-        ASC["<b>Schematic Writer</b> (asc.py)<br/>• Pin-name routing with symbol (.asy) parsing<br/>• Round-trip netlist validation"]
-        Robust["<b>Robustness & Waves</b> (robustness.py, raw.py)<br/>• DC operating point & bias audit<br/>• PVT corners & Monte Carlo yield<br/>• Binary .raw parser & metrics"]
-        Feas["<b>Pre-Flight Feasibility</b> (feasibility.py)<br/>• Static: contradictory bounds & param_space<br/>• Template: .meas coverage, {PARAM} match<br/>• Physics: filter order, SR/GBW/noise floors"]
-        Rep["<b>Design Report</b> (report.py, plots.py)<br/>• Six-section Markdown, rendered from state<br/>• BOM, baseline-vs-final, Bode/tran/THD figures<br/>• A section with no data says which arg produces it"]
+        ASC["<b>Schematic Writer</b> (asc.py)<br/>• Pin-name routing with symbol (.asy) parsing<br/>• Orthogonal L-routing (HV/VH/auto)<br/>• Round-trip netlist validation via asc.check()"]
+        Render["<b>Schematic Renderer</b> (render.py)<br/>• Real .asy geometry & transformation matrices<br/>• SVG (zero-dep) and PNG (matplotlib)<br/>• 3 styles: tech_minimal, classic, sketch<br/>• Label collision avoidance"]
+        Robust["<b>Robustness & Waves</b> (robustness.py, raw.py)<br/>• DC operating point & bias audit<br/>• PVT corners & Monte Carlo yield / Cpk<br/>• Binary .raw parser & waveform metrics"]
+        Feas["<b>Pre-Flight Feasibility</b> (feasibility.py)<br/>• 3 tiers: static, template, physics<br/>• 3 modes: practical, theoretical, concept<br/>• Closed-form limits (SR, GBW, noise, filter order)"]
+        Rep["<b>Design Report & Plots</b> (report.py, plots.py)<br/>• Six-section Markdown, rendered from state<br/>• BOM, baseline-vs-final, Bode/tran/THD figures<br/>• Unified 5-color visualization ramp & chrome"]
     end
 
     subgraph Simulation ["Simulation Layer (sim.py)"]
         Router{"Backend Router"}
         LTSpice["<b>LTspice Executable</b><br/>Batch process (<code>-b -ascii</code>)"]
         Analytic["<b>Analytic Backend</b><br/>Fast closed-form surfaces (test/dry-run)"]
+        SweepEngine["<b>Sweep Engine</b><br/>Single-launch <code>.step</code> multi-point execution<br/>Value recovery from .log / .raw"]
         MeasParser["<b>Log & Meas Parser</b><br/>• .meas regex metric extraction<br/>• Complex AC magnitude/phase parsing<br/>• Failure taxonomy classifier"]
     end
 
@@ -50,7 +54,7 @@ flowchart TB
         end
         subgraph FS ["Filesystem Artifacts"]
             CandDir["<code>candidates/</code> (cand_XXXX.cir)"]
-            SimDir["<code>simulations/</code> (logs & raw)"]
+            SimDir["<code>simulations/</code> (adhoc, sweep, logs, raw)"]
             RepDir["<code>reports/</code> & <code>plots/</code>"]
         end
     end
@@ -60,8 +64,10 @@ flowchart TB
     ToolEndpoints -->|"6. Compact summaries, sensitivities, best candidates"| Agent
 
     T_Life & T_Eval & T_Query --> Engine
-    T_Direct --> Router
-    T_Direct --> Feas
+    T_Sim --> Router
+    T_Diag --> Feas
+    T_Diag --> Router
+    T_Vis --> Render
     Engine -->|"Refuse impossible specs before any state is written"| Feas
     Engine --> IR
     Engine --> Robust
@@ -69,7 +75,9 @@ flowchart TB
     Engine -->|"Execute candidate sim"| Router
     Router -->|"Subprocess"| LTSpice
     Router -->|"In-memory"| Analytic
+    Router --> SweepEngine
     LTSpice -->|"Parse .log / .raw"| MeasParser
+    SweepEngine --> MeasParser
     Analytic --> MeasParser
     MeasParser -->|"Extracted metrics & failure status"| Engine
 
@@ -82,6 +90,7 @@ flowchart TB
     Rep -->|"Re-simulate the winner for waveforms & corners"| Robust
     Rep -->|"Write DESIGN_REPORT.md + figures"| RepDir
     ASC -.->|"Round-trip verification"| LTSpice
+    Render -.->|"Parse .asy symbol definitions"| FS
 ```
 
 ## Install
@@ -111,17 +120,20 @@ Register with your MCP client:
 State lands in `$SPICEMCP_PROJECT/.ltspice-mcp/`:
 
 ```
-state.db      authoritative state
+state.db      authoritative state (SQLite WAL)
 candidates/   cand_XXXX.cir, byte-exact netlists for rollback
-simulations/  LTspice working dirs and logs
-cache/  reports/
+simulations/  LTspice working dirs, logs, and raw waveforms
+reports/      Markdown design reports and iteration traces
+plots/        Rendered Bode, transient, and THD figures
 ```
 
 ## Metrics come from `.meas`
 
-There is no `.raw` waveform parser. Every metric you want to optimize is a `.meas`
-directive in the netlist, and the server reads the values back from LTspice's `.log`.
-The metric definitions then live with the circuit, versioned alongside it.
+Every metric you optimize on is a `.meas` directive in the netlist, and the server reads
+the values back from LTspice's `.log`. The metric definitions then live with the circuit,
+versioned alongside it. Waveforms are a separate concern: `spicemcp.raw` parses the binary
+`.raw` for the report's plots and for a sweep with no `.meas`, but nothing in the search
+loop scores a candidate off a wave.
 
 ```spice
 .ac dec 100 1 10Meg
@@ -226,8 +238,8 @@ start_optimization(
   param_space={"R1": {"min": 1e3, "max": 100e3},
                "C1": {"values": [1e-9, 4.7e-9, 1e-8]}},
   objectives=[{"metric": "gain_db",   "direction": "max"},
-              {"metric": "bandwidth", "direction": "max"},
-              {"metric": "power",     "direction": "min"}],
+               {"metric": "bandwidth", "direction": "max"},
+               {"metric": "power",     "direction": "min"}],
   constraints={"bandwidth": ">100000", "power": "<0.005"},
   seed=42)
 
@@ -283,6 +295,79 @@ real knob, not a formality — on a 10 kHz Sallen-Key, going from an effectively
 `GBW=1G` to the block's own `GBW=10Meg` default moves the corner 1.55 Hz and the step
 overshoot from 5.76 % to 5.81 %.
 
+`connect(a, b)` is the general form: same axis is a straight wire, and two pins that share
+neither axis get a two-segment L through one corner — `HV` across then up, `VH` up then
+across, `auto` the longer leg first. Never a diagonal, because LTspice draws a diagonal
+line without connecting anything at either end, and `auto` is a function of the two
+coordinates alone, so re-running a generator writes the same `.asc`.
+
+## Rendering a schematic
+
+`render_schematic` draws the `.asc` that is on disk. Every symbol's geometry comes out of
+its own `.asy` transformed by that instance's orientation, so a resistor is the zig-zag
+LTspice draws and an op-amp has its inverting input where the symbol puts it — nothing is
+re-imagined from a netlist. Wires, junction dots, net labels, power rails, grounds, ports,
+pin names, designators, values and directives all come from the file.
+
+```python
+render_schematic("f.asc", "f.svg")                       # vector, stdlib only
+render_schematic("f.asc", "f.png", "classic", dpi=300)    # PNG needs matplotlib
+```
+
+Three styles over identical geometry:
+- **`tech_minimal`** (default): charcoal ink, colour only where it carries information — an input, an output, a feedback path.
+- **`classic`**: monochrome, engineered for crisp print and formal publication.
+- **`sketch`**: engineering notebook on graph paper with a slightly imperfect line, while topology remains exact.
+
+The canvas is computed from the schematic's own bounding box, so nothing is cropped and there is no
+empty page. Same file and style produce the same bytes every time — `sketch`'s wobble is
+hashed from the geometry, not drawn from an RNG. Label collisions are automatically detected and avoided.
+
+## Visual style & colour palette
+
+`get_visual_style` exposes the exact design tokens and colour ramp used across all schematic
+renders and waveform plots. Read this instead of guessing colours when composing figures,
+documentation, or web interfaces that sit alongside SpiceMCP output.
+
+```python
+get_visual_style()
+# returns: default_style, schematic_styles, series, series_roles, chrome, fonts
+```
+
+Waveform plots (`generate_design_report`, `spicemcp.plots`) draw their traces from a unified
+five-colour data visualization ramp and their chrome from `tech_minimal`:
+
+| role | token | default | usage |
+|---|---|---|---|
+| Primary trace | `C_TRACE` | `#1E56A0` | Main response curves (gain, step output, THD fundamental) |
+| Secondary trace & bars | `C_TRACE2` | `#38A3A5` | Phase curves, input signals, FFT harmonic bars |
+| Measured points | `C_MARK` | `#D9534F` | −3 dB points, overshoot peaks, unity-gain crossings |
+| Limits & specifications | `C_LIMIT` | `#E07A5F` | Target thresholds, mask boundaries, upper/lower bounds |
+| Margin bands & tolerance | `C_BAND` | `#F2CC8F` | Settling error bands (±1%, ±0.1%), tolerance envelopes |
+
+The series ramp is a monotonic lightness sweep that degrades cleanly in greyscale printing,
+while maintaining maximum hue contrast between the first two traces for dual-axis plots.
+
+## Sweeping a parameter
+
+`simulate_sweep` runs one LTspice launch for the whole sweep via `.step`, and resolves the
+parameter name against the deck so an ordinary netlist can be swept without being
+re-authored as a template:
+
+```python
+simulate_sweep(netlist, "temp", [-40, 27, 125])      # .step temp list ...
+simulate_sweep(netlist, "{GAIN}", [10, 20, 50])      # already parametric
+simulate_sweep(netlist, "R1", [1e3, 2e3, 5e3])       # R1's literal value is stepped
+```
+
+One row per point, and each row's `value` is read back from what LTspice itself reported
+rather than from what was asked for — a point the simulator skipped cannot shift the rest
+of the table onto the wrong values. `value_source` says which evidence it came from: the
+log's `.step` echo, the `.raw` sweep axis (a stepped `.op` leaves no echo at all, so the
+axis is the only record), or `requested` for a row nothing reported. A deck with no `.meas`
+still returns its points and its `raw_path`, plus a warning saying why the metrics are
+empty.
+
 ## The final design report
 
 `generate_design_report` writes the whole thing — six sections of Markdown, every number
@@ -326,21 +411,36 @@ pipeline. Two more places it refuses to fill a gap:
   of a different circuit — pass `schematic=` an image you drew with `spicemcp.asc` and
   round-tripped through `asc.check()`.
 
-### Tools
+### Tools Reference
 
-| lifecycle | evaluation | state queries |
+| category | tool | purpose |
 |---|---|---|
-| `start_optimization` | `evaluate_candidate` | `get_best_candidate` |
-| `stop_optimization` | `run_optimization` | `get_pareto_frontier` |
-| `get_optimization_status` | `select_next_experiment` | `get_optimization_history` |
-| `list_runs` | `simulate_netlist` | `get_candidate` / `get_previous_candidates` |
-| | `check_ltspice` | `compare_candidates` / `get_similar_candidates` |
-| | `check_feasibility` | `get_parameter_sensitivity` |
-| | | `get_explored_parameter_range` |
-| | | `get_failed_candidates` |
-| | | `get_optimization_trace` |
-| | | `generate_design_report` |
-| | | `rollback_to_candidate` |
+| **Lifecycle** | `start_optimization` | Create a persistent run with pre-flight gating and parameter bounds |
+| | `stop_optimization` | Conclude an active run while retaining all state |
+| | `get_optimization_status` | Return compact summary of incumbent, constraints, and search progress |
+| | `list_runs` | List all runs persisted in `state.db` |
+| **Evaluation & Search** | `run_optimization` | Execute $N$ coordinate descent iterations locally; return single summary |
+| | `evaluate_candidate` | Simulate one candidate with dedup, lineage tracking, and pure scoring |
+| | `select_next_experiment` | Propose next parameter candidate based on empirical sensitivity |
+| **Simulation & Sweeps** | `simulate_netlist` | Ad-hoc netlist simulation with `.meas` extraction and zero state mutation |
+| | `simulate_sweep` | Single-launch `.step` multi-point parameter/temperature sweep |
+| **Diagnostics & Feasibility** | `check_feasibility` | Zero-sim 3-tier check (static, template, physics) across 3 modes |
+| | `check_ltspice` | Query detected LTspice binary, state directory, and analytic backends |
+| **Schematics & Visuals** | `render_schematic` | Render `.asc` to SVG/PNG using real `.asy` geometry in 3 styles |
+| | `get_visual_style` | Query house styles, 5-colour series ramp, and semantic net colours |
+| **State Queries & Trace** | `get_best_candidate` | Retrieve overall best and best-feasible candidate |
+| | `get_pareto_frontier` | Compute non-dominated candidates across all objectives |
+| | `get_parameter_sensitivity` | Retrieve measured sensitivities (causal FD or correlational OLS) |
+| | `get_optimization_history` | Paged history of optimization iterations |
+| | `get_previous_candidates` | Candidate lineage tree with parent IDs and generation counts |
+| | `get_candidate` | Full candidate record with netlist, hashes, and simulation logs |
+| | `compare_candidates` | Side-by-side metric and parameter deltas |
+| | `get_similar_candidates` | Nearest evaluated designs in normalized parameter distance |
+| | `get_explored_parameter_range`| Explored parameter intervals and widest untried gap |
+| | `get_failed_candidates` | Classified failures (convergence, singular matrix, structural) |
+| | `get_optimization_trace` | Human-readable per-iteration progress trace |
+| | `rollback_to_candidate` | Restore byte-exact past circuit and metrics |
+| | `generate_design_report` | Render six-section Markdown report with BOM, plots, and PVT audit |
 
 ## Guarantees worth knowing
 
@@ -378,7 +478,7 @@ pipeline. Two more places it refuses to fill a gap:
 
 | skipped | add when |
 |---|---|
-| `.raw` waveform parsing | a metric can't be expressed as `.meas` |
+| scoring a candidate off a waveform (`raw.py` parses `.raw`, but objectives are `.meas`) | a metric genuinely can't be expressed as `.meas` — then the search needs a wave-to-scalar step, not a bigger parser |
 | Bayesian optimization / GP surrogate | a single sim is slow enough that ~30 wasted evals beats a surrogate's complexity |
 | step halving on stagnation, not a line search or trust region | a sim is slow enough that the evaluations spent bracketing cost more than the bookkeeping |
 | one parameter moves per iteration (coordinate descent, not a full compass poll) | the metric surface has strong parameter interactions the per-coordinate view misses |
@@ -391,11 +491,13 @@ pipeline. Two more places it refuses to fill a gap:
 | pre-flight metric recognition is by name (`power`, `pwr`, `p_total` → power), since objectives carry no unit metadata | a metric name collides with a different quantity — then add an explicit `kind` to the objective rather than more aliases |
 | `check_feasibility` reads the deck's element letters, not a netlisted circuit: a two-pole op-amp subcircuit counts as one active element, not as two poles | you need loop-gain feasibility, which needs the small-signal model — that is a simulation, and `robustness` already runs those |
 | the W/L aspect-ratio check only fires when both a `W`- and an `L`-named parameter exist | device geometry arrives as a single `size` parameter or a `.model` line |
+| `render_schematic` moves a colliding label to the first clear one of a few fixed offsets — greedy, one pass, so a dense sheet can still keep a crossing label | a real placement solver is worth writing to move text 8 units |
+| the renderer draws what the `.asc` says and never lays anything out: no auto-placement, no rats-nest routing, no colour per component | that placer exists — the same one the report section wants |
+| `simulate_sweep` steps one parameter per launch, and a metric is whatever a `.meas` reports | you need a 2-D grid — then call it once per outer point rather than teaching it nested `.step` |
 
-## The hallucination-loop test
+## Test suites & verification
 
-`tests/test_hallucination_loop.py` drives the sequence that makes memory-based agents
-panic — improve, improve, **best**, worse, worse, improve — and asserts the incumbent
-survives it, that it also legitimately updates when something is genuinely better, that
-duplicates aren't re-simulated, that sensitivities match closed-form derivatives, and
-that a simulated process restart loses nothing.
+- **Hallucination-Loop Test** (`tests/test_hallucination_loop.py`): drives the adversarial sequence that breaks memory-based agent loops — improve, improve, **best**, worse, worse, improve — and asserts the incumbent survives, candidate identities are immutable, duplicates are rejected without re-simulating, and sensitivities match analytical derivatives.
+- **Visual Gallery** (`tests/gallery.py`): renders side-by-side comparison sheets of every schematic style and plot type into `gallery/index.html` using real `.asy` parts.
+- **Pre-flight & Report Testing** (`tests/test_feasibility.py`, `tests/test_report.py`, `tests/test_robustness.py`): verifies 3-tier feasibility boundary conditions, Monte Carlo yield/Cpk mathematics, DC bias audits, and complete report generation.
+- **Rendering & Sweeps** (`tests/test_render.py`, `tests/test_sweep.py`, `tests/test_asc.py`): validates deterministic SVG/PNG rendering, orientation transforms, collision offsets, and single-launch parameter sweeps.

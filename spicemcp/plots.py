@@ -13,6 +13,12 @@ extra (`pip install 'spicemcp[plots]'`): the server must keep importing on a mac
 that has no matplotlib, and `raw.py` does every metric with stdlib `struct` and `math`
 for exactly that reason. Agg matters too -- the default backend on Windows tries to
 open a window, which in a stdio MCP server means a hang with no error.
+
+**One palette.** Traces come from `render.SERIES` and the chrome (background, ink,
+typeface, grid) from `render.STYLES[STYLE]`, so a Bode plot, a step response and a
+schematic in the same report are one document instead of three tools' defaults. The
+colours are named by what they *mean* below; a figure that maps "the trace" and "the
+limit it is judged against" to two arbitrary hexes has to be re-learned every time.
 """
 
 from __future__ import annotations
@@ -21,11 +27,39 @@ import math
 import os
 from pathlib import Path
 
-from . import raw
+from . import raw, render
 
 MAX_LIST = 32              # a returned list longer than this is a waveform, not a metric
 FIGSIZE = (9.0, 6.0)
 DPI = 110
+
+# The schematic style whose background, ink and typeface the plots borrow. Same default
+# as `render`, so nothing has to be passed through to keep a report consistent.
+STYLE = render.DEFAULT_STYLE
+
+# Five roles for the five palette entries, in ramp order. One colour, one meaning --
+# reused across every figure rather than chosen per figure:
+#   C_TRACE   the primary trace
+#   C_TRACE2  a second trace on the same figure (phase), and histogram bars
+#   C_MARK    a measured point the plot calls out (-3 dB, UGF, peak, settling, mean)
+#   C_LIMIT   a limit the design is judged against (spec bounds, +-3 sigma, harmonics)
+#   C_BAND    margin brackets and tolerance bands
+C_TRACE, C_TRACE2, C_MARK, C_LIMIT, C_BAND = render.SERIES
+
+
+def _chrome() -> dict:
+    """Background, ink, grid and typeface, read off the schematic style.
+
+    Derived rather than duplicated: changing `tech_minimal`'s ink moves the plots with it,
+    and there is no second copy of the palette to drift out of step.
+    """
+    st = render.style(STYLE)
+    r = st["roles"]
+    return {"bg": st["bg"], "ink": r["wire"]["c"], "faint": r["value"]["c"],
+            "grid": (st.get("grid") or {}).get("c") or "#DDDDDD",
+            "sans": r["net"]["font"], "mono": r["value"]["font"]}
+
+
 # A harmonic this far below the fundamental is float noise, not distortion: the 4th of
 # a 3-tone fixture measures -187 dBc. Drawing it at all implies a harmonic that is not
 # there. -120 dBc is 1 ppm, below any real simulated circuit and above float64 grass.
@@ -42,9 +76,11 @@ class PlotError(RuntimeError):
 
 
 def _plt():
-    """matplotlib on the Agg backend, or a clear error saying how to install it.
+    """matplotlib on the Agg backend, styled, or a clear error saying how to install it.
 
     `use()` has to run before `pyplot` is imported, or the backend is already chosen.
+    The rcParams go on here rather than in each plot: one place to set them means a new
+    figure cannot be added that quietly uses matplotlib's blue-on-white defaults.
     """
     try:
         import matplotlib
@@ -53,6 +89,24 @@ def _plt():
                         "pip install 'spicemcp[plots]'") from e
     matplotlib.use("Agg", force=True)
     import matplotlib.pyplot as plt
+    c = _chrome()
+    plt.rcParams.update({
+        "figure.facecolor": c["bg"], "axes.facecolor": c["bg"],
+        "savefig.facecolor": c["bg"],
+        "font.family": "sans-serif", "font.sans-serif": c["sans"],
+        "text.color": c["ink"], "axes.labelcolor": c["ink"],
+        "xtick.color": c["ink"], "ytick.color": c["ink"],
+        "axes.edgecolor": c["faint"], "axes.linewidth": 0.8,
+        "axes.titlecolor": c["ink"],
+        "grid.color": c["grid"], "grid.linewidth": 0.7,
+        # Bars and traces over the grid, not under it: matplotlib's default draws
+        # gridlines on top, which puts pale stripes across every filled bar and reads as
+        # a bar that has been cut into segments.
+        "axes.axisbelow": True,
+        "axes.prop_cycle": plt.cycler(color=list(render.SERIES)),
+        "legend.framealpha": 0.92, "legend.edgecolor": c["grid"],
+        "legend.facecolor": c["bg"],
+    })
     return plt
 
 
@@ -117,45 +171,46 @@ def plot_bode(source, out=None, node: str | None = None, step: int = 0,
 
     fig, (a1, a2) = plt.subplots(2, 1, figsize=FIGSIZE, dpi=DPI, sharex=True,
                                  gridspec_kw={"height_ratios": [3, 2]})
-    a1.semilogx(f, mag, lw=1.6, color="#1f77b4")
+    a1.semilogx(f, mag, lw=1.6, color=C_TRACE)
     a1.set_ylabel(f"|{label}|  (dB)")
-    a1.grid(True, which="both", alpha=0.25)
-    a2.semilogx(f, ph, lw=1.6, color="#d62728")
+    a1.grid(True, which="both", alpha=0.35)
+    a2.semilogx(f, ph, lw=1.6, color=C_TRACE2)
     a2.set_ylabel("phase (deg)")
     a2.set_xlabel("frequency (Hz)")
-    a2.grid(True, which="both", alpha=0.25)
-    a1.axhline(0, color="0.4", lw=0.8, ls=":")
-    a2.axhline(-180, color="0.4", lw=0.8, ls=":")
+    a2.grid(True, which="both", alpha=0.35)
+    ink = _chrome()["faint"]
+    a1.axhline(0, color=ink, lw=0.8, ls=":")
+    a2.axhline(-180, color=ink, lw=0.8, ls=":")
 
     bw, ugf, pm = m["bw_3db_hz"], m["ugf_hz"], m["phase_margin_deg"]
     if bw:
-        a1.axvline(bw, color="#2ca02c", lw=1.0, ls="--")
+        a1.axvline(bw, color=C_MARK, lw=1.0, ls="--")
         a1.annotate(f"-3 dB\n{_eng(bw)}Hz", (bw, m["dc_gain_db"] - 3),
                     textcoords="offset points", xytext=(6, -18), fontsize=8,
-                    color="#2ca02c")
+                    color=C_MARK)
     if ugf:
         for ax in (a1, a2):
-            ax.axvline(ugf, color="#ff7f0e", lw=1.1, ls="--")
-        a1.plot([ugf], [0.0], "o", ms=6, color="#ff7f0e")
+            ax.axvline(ugf, color=C_LIMIT, lw=1.1, ls="--")
+        a1.plot([ugf], [0.0], "o", ms=6, color=C_LIMIT)
         a1.annotate(f"UGF {_eng(ugf)}Hz", (ugf, 0.0), textcoords="offset points",
-                    xytext=(8, 8), fontsize=8, color="#ff7f0e")
+                    xytext=(8, 8), fontsize=8, color=C_LIMIT)
         pha = raw._interp_y(f, ph, ugf, log_x=True)
-        a2.plot([ugf], [pha], "o", ms=6, color="#ff7f0e")
+        a2.plot([ugf], [pha], "o", ms=6, color=C_LIMIT)
         # The bracket from -180 up to the phase at UGF *is* the phase margin.
         a2.annotate("", xy=(ugf, pha), xytext=(ugf, -180),
-                    arrowprops=dict(arrowstyle="<->", color="#7f2fa0", lw=1.4))
+                    arrowprops=dict(arrowstyle="<->", color=C_TRACE, lw=1.4))
         a2.annotate(f"PM = {pm:.1f}°", (ugf, (pha - 180) / 2),
                     textcoords="offset points", xytext=(10, 0), fontsize=9,
-                    color="#7f2fa0", fontweight="bold")
+                    color=C_TRACE, fontweight="bold")
     if m["f_phase_180_hz"] and m["gain_margin_db"] is not None:
         f180, gm = m["f_phase_180_hz"], m["gain_margin_db"]
         a1.annotate("", xy=(f180, 0.0), xytext=(f180, -gm),
-                    arrowprops=dict(arrowstyle="<->", color="#8c564b", lw=1.2))
+                    arrowprops=dict(arrowstyle="<->", color=C_BAND, lw=1.2))
         a1.annotate(f"GM = {gm:.1f} dB", (f180, -gm / 2), textcoords="offset points",
-                    xytext=(8, 0), fontsize=8, color="#8c564b")
+                    xytext=(8, 0), fontsize=8, color=C_BAND)
     else:
         a1.annotate("phase never reaches -180°: no gain margin in this span",
-                    (0.02, 0.05), xycoords="axes fraction", fontsize=7.5, color="0.45")
+                    (0.02, 0.05), xycoords="axes fraction", fontsize=7.5, color=ink)
 
     head = title or f"{Path(str(source)).stem if not isinstance(source, raw.Wave) else label}"
     if w.step_params:
@@ -190,38 +245,41 @@ def plot_transient(source, out=None, node: str | None = None, step: int = 0,
     span = abs(fin - m["initial"]) or 1.0
 
     fig, ax = plt.subplots(figsize=FIGSIZE, dpi=DPI)
-    ax.plot([x * 1e0 for x in t], y, lw=1.5, color="#1f77b4", label=label)
-    ax.axhline(fin, color="0.35", lw=0.9, ls=":")
-    for pct, col in zip(sorted(settle_pct, reverse=True), ("#c7e9c0", "#74c476")):
+    ax.plot([x * 1e0 for x in t], y, lw=1.5, color=C_TRACE, label=label)
+    ax.axhline(fin, color=_chrome()["faint"], lw=0.9, ls=":")
+    # The tighter band is drawn in the stronger colour: it is the one the design is
+    # actually judged on, and the wider one is context around it.
+    for pct, col in zip(sorted(settle_pct, reverse=True), (C_BAND, C_MARK)):
         b = span * pct / 100
-        ax.axhspan(fin - b, fin + b, color=col, alpha=0.55, zorder=0,
+        ax.axhspan(fin - b, fin + b, color=col, alpha=0.16, zorder=0,
                    label=f"±{pct:g}% band")
         key = f"t_settle_{raw._tag(pct)}"
         ts = m.get(key)
         if ts:
-            ax.axvline(ts, color="#31a354", lw=1.0, ls="--")
+            ax.axvline(ts, color=col, lw=1.1, ls="--")
             ax.annotate(f"settle {pct:g}%\n{_eng(ts)}s", (ts, fin - b),
                         textcoords="offset points", xytext=(5, -26), fontsize=8,
-                        color="#217a3c")
+                        color=col)
         elif key in m:
             ax.annotate(f"never settles to {pct:g}% in this run", (0.5, 0.06),
-                        xycoords="axes fraction", fontsize=8, color="#a63603")
+                        xycoords="axes fraction", fontsize=8, color=C_LIMIT)
 
     if m.get("overshoot_pct"):
-        ax.plot([m["t_max"]], [m["v_max"]], "v", ms=7, color="#d62728")
+        ax.plot([m["t_max"]], [m["v_max"]], "v", ms=7, color=C_LIMIT)
         ax.annotate(f"overshoot {m['overshoot_pct']:.2f}%", (m["t_max"], m["v_max"]),
                     textcoords="offset points", xytext=(8, 4), fontsize=9,
-                    color="#d62728")
+                    color=C_LIMIT)
     rise = m.get("t_rise_10_90") or m.get("t_fall_10_90")
     if rise:
         # Bottom-left: the peak annotation owns the top-left on a fast-rising edge.
         ax.annotate(f"10-90% = {_eng(rise)}s\nslew+ = {_eng(m['slew_pos_v_per_s'])}V/s",
                     (0.02, 0.04), xycoords="axes fraction", fontsize=8.5,
-                    color="#333333", va="bottom",
-                    bbox=dict(boxstyle="round", fc="white", ec="0.75", alpha=0.9))
+                    color=_chrome()["ink"], va="bottom",
+                    bbox=dict(boxstyle="round", fc=_chrome()["bg"],
+                              ec=_chrome()["grid"], alpha=0.92))
     ax.set_xlabel("time (s)")
     ax.set_ylabel(label)
-    ax.grid(True, alpha=0.25)
+    ax.grid(True, alpha=0.35)
     ax.legend(fontsize=8, loc="lower right")
     head = title or (Path(str(source)).stem if not isinstance(source, raw.Wave) else label)
     if w.step_params:
@@ -258,34 +316,36 @@ def plot_thd(source, out=None, node: str | None = None, step: int = 0,
     absent = [k for k in ks if k not in present]
 
     fig, ax = plt.subplots(figsize=FIGSIZE, dpi=DPI)
+    c = _chrome()
     floor = (min(present.values()) - 15) if present else -60.0
     ax.set_ylim(floor, 8)
     ax.set_xlim(ks[0] - 0.7, ks[-1] + 0.7)     # room for the outermost bar's labels
     if present:
         ax.bar(list(present), [v - floor for v in present.values()], bottom=floor,
-               color="#d62728", width=0.6)
+               color=C_LIMIT, width=0.6)
         for k, v in present.items():
             ax.annotate(f"{v:.1f}", (k, v), textcoords="offset points", xytext=(0, 3),
                         ha="center", fontsize=8)
     for k in absent:
         ax.annotate(f"< {SILENT:.0f}", (k, floor), textcoords="offset points",
-                    xytext=(0, 6), ha="center", fontsize=7, color="0.55", rotation=90)
-    ax.axhline(0.0, color="#1f77b4", lw=1.8)
+                    xytext=(0, 6), ha="center", fontsize=7, color=c["faint"],
+                    rotation=90)
+    ax.axhline(0.0, color=C_TRACE, lw=1.8)
     # Axes-fraction x, data y: pinned to the 0 dBc line wherever the x limits land.
     ax.annotate(f"fundamental {_eng(fund)}V  (0 dBc ref)", (0.02, 0.0),
                 xycoords=("axes fraction", "data"), textcoords="offset points",
-                xytext=(0, 5), fontsize=8, color="#1f77b4")
+                xytext=(0, 5), fontsize=8, color=C_TRACE)
 
     ax.set_xticks(ks)
     ax.set_xticklabels([f"{k}\n{_eng(k * m['f0_hz'])}Hz" for k in ks], fontsize=8)
     ax.set_xlabel("harmonic")
     ax.set_ylabel("amplitude (dBc)")
-    ax.grid(True, axis="y", alpha=0.25)
+    ax.grid(True, axis="y", alpha=0.35)
     ax.annotate(f"THD = {m['thd_pct']:.4f}%"
                 + (f"\nSINAD = {m['sinad_db']:.2f} dB" if m["sinad_db"] else "")
                 + f"\nf0 = {_eng(m['f0_hz'])}Hz, {m['cycles']} cycles",
                 (0.98, 0.95), xycoords="axes fraction", ha="right", va="top",
-                fontsize=9, bbox=dict(boxstyle="round", fc="#fff8e1", ec="0.7"))
+                fontsize=9, bbox=dict(boxstyle="round", fc=c["bg"], ec=c["grid"]))
     head = title or (Path(str(source)).stem if not isinstance(source, raw.Wave) else "THD")
     ax.set_title(head, fontsize=10)
     return {"plot_path": _save(plt, fig, _out(source, out, "thd", project)),
@@ -311,22 +371,22 @@ def plot_histogram(values: list[float], out=None, label: str = "metric",
     sd = math.sqrt(sum((v - mu) ** 2 for v in values) / (n - 1))
 
     fig, ax = plt.subplots(figsize=FIGSIZE, dpi=DPI)
-    ax.hist(values, bins=min(bins, n), color="#6baed6", edgecolor="#2171b5", alpha=0.9)
-    ax.axvline(mu, color="#08306b", lw=1.6, label=f"mean {mu:.6g}")
+    ax.hist(values, bins=min(bins, n), color=C_TRACE2, edgecolor=C_TRACE, alpha=0.9)
+    ax.axvline(mu, color=C_TRACE, lw=1.6, label=f"mean {mu:.6g}")
     for s in (-3, 3):
-        ax.axvline(mu + s * sd, color="#08306b", lw=1.0, ls="--",
+        ax.axvline(mu + s * sd, color=C_MARK, lw=1.0, ls="--",
                    label=f"{s:+d}σ" if s > 0 else None)
     inside = n
     if spec:
         lo, hi = spec
         for v, name in ((lo, "spec lo"), (hi, "spec hi")):
             if v is not None:
-                ax.axvline(v, color="#d62728", lw=1.6, label=name)
+                ax.axvline(v, color=C_LIMIT, lw=1.6, label=name)
         inside = sum(1 for v in values
                      if (lo is None or v >= lo) and (hi is None or v <= hi))
     ax.set_xlabel(label)
     ax.set_ylabel("count")
-    ax.grid(True, axis="y", alpha=0.25)
+    ax.grid(True, axis="y", alpha=0.35)
     ax.legend(fontsize=8)
     # The yield belongs in the title: the plot is what a human reads, and "27/30 pass"
     # is the sentence the histogram exists to say.

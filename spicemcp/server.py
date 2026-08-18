@@ -11,7 +11,7 @@ import os
 
 from mcp.server.fastmcp import FastMCP
 
-from . import db, engine, feasibility, report, sim
+from . import db, engine, feasibility, plots, render, report, sim
 
 mcp = FastMCP("spicemcp")
 
@@ -55,6 +55,107 @@ def check_ltspice() -> dict:
     return {"ltspice_exe": sim.find_ltspice(), "project": PROJECT,
             "state_dir": str(db.state_root(PROJECT)),
             "analytic_models": sorted(sim.ANALYTIC_MODELS)}
+
+
+@mcp.tool()
+def simulate_sweep(netlist: str, param_name: str, values: list[float],
+                   timeout_s: float = 120.0) -> dict:
+    """Execute a multi-point LTspice parameter/corner sweep and return aggregated results.
+
+    One LTspice launch for the whole sweep, via `.step`. `param_name` is resolved against
+    the netlist, so an ordinary deck can be swept without being re-authored as a template:
+
+      "temp"   -> `.step temp list ...`           corner / PVT sweep
+      "{GAIN}" -> `.step param GAIN list ...`     the deck is already parametric
+      "R1"     -> R1's literal value is replaced by a stepped parameter
+
+    Returns `metrics_table`: one row per point, `{"step", "value", "metrics"}`. The metric
+    names are whatever the netlist's own `.meas` directives are called -- none are assumed.
+    Each row's `value` is read back from what LTspice itself reported, so a point the
+    simulator skipped cannot shift the rest of the table onto the wrong values;
+    `value_source` says where it came from (`log`, `raw`, or `requested` for a row nothing
+    reported).
+
+    A deck with no `.meas` still returns its points and `raw_path` (read it with `raw.py`)
+    plus a warning saying so. `values` needs at least two distinct finite numbers.
+    """
+    root = db.state_root(PROJECT) / "simulations" / "sweep"
+    try:
+        return sim.simulate_sweep(netlist, param_name, values, root, "sweep",
+                                  {"timeout_s": timeout_s})
+    except sim.SweepError as e:
+        return {"status": "failed", "failure_type": sim.STRUCTURAL_ERROR,
+                "failure_message": str(e), "sweep_param": {"name": param_name,
+                                                           "values": values},
+                "metrics_table": [], "raw_path": None}
+
+
+@mcp.tool()
+def render_schematic(asc_path: str, output_path: str = "schematic.png",
+                     style: str = render.DEFAULT_STYLE, dpi: int = 300) -> dict:
+    """Render an LTspice .asc schematic into a professional PNG or SVG.
+
+    Draws the schematic that is in the file: each symbol's geometry comes from its own
+    `.asy`, transformed by that instance's orientation, so the parts are the standard
+    electrical symbols LTspice draws and not generic boxes. Wires, junction dots, net
+    labels, power rails, grounds, ports, pin names, designators, values and SPICE
+    directives all come from the file.
+
+    Format follows the extension: `.svg` (vector, needs nothing) or `.png` (needs
+    matplotlib, honours `dpi`). Both are emitted from the same geometry, so they are the
+    same drawing. The canvas is computed from the schematic's own bounding box plus a
+    small margin -- nothing is cropped and there is no empty page.
+
+    styles: `tech_minimal` (the default -- modern EDA, charcoal ink, colour only on
+    input/output/feedback nets), `classic` (monochrome, print and publication),
+    `sketch` (engineering notebook: graph paper and a slightly imperfect line, with the
+    topology still exact). Same geometry in all three.
+
+    Waveform plots (`generate_design_report`, the `plot_*` helpers) draw their traces
+    from one five-colour data-visualisation ramp and their chrome from `tech_minimal`,
+    so a schematic and its plots are one document rather than three tools' defaults.
+
+    Deterministic: the same file and style produce the same image every time.
+    """
+    try:
+        return render.render(asc_path, output_path, style, dpi)
+    except (render.RenderError, OSError, ValueError) as e:
+        return {"success": False, "error": f"{type(e).__name__}: {e}",
+                "output_path": None}
+
+
+@mcp.tool()
+def get_visual_style() -> dict:
+    """The house style: the schematic styles available, and the plot colour ramp.
+
+    Read this instead of guessing a hex when composing a figure, a diagram or an HTML
+    page that has to sit beside this server's output. `series` is ordered, and each entry
+    already has a job -- reusing one for something else is what makes a set of figures
+    stop reading as one document.
+    """
+    st = render.style(render.DEFAULT_STYLE)
+    return {
+        "default_style": render.DEFAULT_STYLE,
+        "schematic_styles": sorted(render.STYLES),
+        "series": list(render.SERIES),
+        "series_roles": {
+            "trace": plots.C_TRACE,
+            "trace_secondary_and_bars": plots.C_TRACE2,
+            "measured_point": plots.C_MARK,
+            "limit_or_spec": plots.C_LIMIT,
+            "margin_or_band": plots.C_BAND,
+        },
+        "chrome": {"background": st["bg"], "ink": st["roles"]["wire"]["c"],
+                   "faint": st["roles"]["value"]["c"],
+                   "grid": (st.get("grid") or {}).get("c"),
+                   "net_in": st["roles"]["net_in"]["c"],
+                   "net_out": st["roles"]["net_out"]["c"],
+                   "net_fb": st["roles"]["net_fb"]["c"]},
+        "fonts": {"sans": render.SANS, "mono": render.MONO},
+        "note": "The ramp is one monotonic lightness sweep, so it survives greyscale "
+                "printing; the first two entries are far enough apart in hue to carry a "
+                "two-trace plot alone.",
+    }
 
 
 @mcp.tool()

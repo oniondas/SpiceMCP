@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from . import ir, raw
+
 # --- failure taxonomy (spec S9) -------------------------------------------------
 
 SIMULATION_FAILURE = "simulation_failure"
@@ -359,3 +361,227 @@ def simulate(netlist: str, params: dict, sim_config: dict, workdir: Path,
         return _run_ltspice(netlist, workdir, stem, sim_config)
     return SimResult(status="failed", failure_type=STRUCTURAL_ERROR,
                      failure_message=f"unknown backend {backend!r}")
+
+
+# --- parametric / corner sweep --------------------------------------------------
+#
+# One LTspice launch, not one per point. `.step` is what the simulator is for: it reuses
+# the parsed circuit and writes every dataset into one `.raw`, and the per-run `.meas`
+# tables `parse_meas_steps` already reads come out of the same log. N launches would be
+# N process starts and N licence checks for the same answer.
+#
+# Three kinds of sweep, decided by what the netlist already says -- so a caller does not
+# have to describe its own deck:
+#
+#   temp        `.step temp list ...`                  (corner / PVT sweeps)
+#   {NAME}      `.step param NAME list ...`            (the deck is already parametric)
+#   R1          rewrite `R1`'s value to `{R1_sweep}`, then step that
+#
+# The third is the one worth having: a plain netlist off the LLM has literal component
+# values, and asking the caller to re-author it as a template just to sweep it is how
+# a sweep ends up hand-rolled as a loop with a different netlist per point.
+
+_STEP_LINE = re.compile(r"^\s*\.step\b", re.I)
+_END_LINE = re.compile(r"^\s*\.end\s*$", re.I)
+# An element line: name, then its nodes, then the value. Two nodes covers R/C/L/V/I,
+# which is every component anyone sweeps; a 3+ terminal device is swept through its
+# model, not its value.
+_ELEMENT = re.compile(r"^(\s*(\w+)\s+\S+\s+\S+\s+)([^\s;]+)(.*)$")
+
+
+class SweepError(ValueError):
+    """A sweep that cannot be built. Raised before LTspice is launched, never after."""
+
+
+def sweep_netlist(netlist: str, param_name: str,
+                  values: list[float]) -> tuple[str, str, dict]:
+    """-> (netlist with a `.step`, the stepped symbol, what was rewritten).
+
+    Existing `.step` lines are dropped: two of them are a nested sweep, and the caller
+    asked for one axis.
+    """
+    if not param_name or not str(param_name).strip():
+        raise SweepError("param_name is empty")
+    name = str(param_name).strip()
+    if not re.fullmatch(r"[A-Za-z_][\w$]*", name):
+        raise SweepError(f"{name!r} is not a usable parameter or component name")
+    nums = []
+    for v in values:
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            raise SweepError(f"sweep value {v!r} is not a number") from None
+        if f != f or f in (float("inf"), float("-inf")):
+            raise SweepError(f"sweep value {v!r} is not finite")
+        nums.append(f)
+    if len(nums) < 2:
+        raise SweepError(f"a sweep needs at least 2 values, got {len(nums)}")
+    if len(set(nums)) != len(nums):
+        raise SweepError(f"duplicate sweep values: {nums}")
+
+    body = [ln for ln in netlist.splitlines()
+            if not _STEP_LINE.match(ln) and not _END_LINE.match(ln)]
+    lit = " ".join(ir.fmt_value(v) for v in nums)
+    note: dict = {}
+
+    if name.lower() == "temp":
+        return _deck(body, f".step temp list {lit}"), "temp", {"kind": "temperature"}
+
+    if re.search(r"\{\s*" + re.escape(name) + r"\s*\}", netlist, re.I):
+        return (_deck(body, f".step param {name} list {lit}"), name,
+                {"kind": "param", "placeholder": f"{{{name}}}"})
+
+    # Neither -- so it has to be a component whose literal value we replace. The
+    # substituted parameter gets its own name so `.step param R1` cannot collide with a
+    # `.param R1` the deck already defines for something else.
+    sub, hit = f"{name}_sweep", None
+    for i, ln in enumerate(body):
+        m = _ELEMENT.match(ln)
+        if m and m.group(2).lower() == name.lower():
+            hit = {"kind": "component", "line": ln.strip(), "was": m.group(3),
+                   "now": f"{{{sub}}}"}
+            body[i] = f"{m.group(1)}{{{sub}}}{m.group(4)}"
+            break
+    if hit is None:
+        raise SweepError(
+            f"nothing to sweep: {name!r} is not `temp`, has no {{{name}}} placeholder in "
+            f"the netlist, and is not a two-terminal element in it. Either add "
+            f"{{{name}}} where the value goes, or name a component that is there.")
+    note = hit
+    return _deck(body, f".param {sub}={ir.fmt_value(nums[0])}",
+                 f".step param {sub} list {lit}"), sub, note
+
+
+def _deck(lines: list[str], *what: str) -> str:
+    """Assemble a runnable deck with a title line and one `.end`.
+
+    SPICE ignores a deck's first line -- it is the title. Without this guard a netlist
+    starting with `V1 in 0 5` loses its source to the title slot and simulates a circuit
+    with no supply, which LTspice runs without complaining.
+    """
+    body = list(lines)
+    if not (body and body[0].strip().startswith("*")):
+        body.insert(0, "* spicemcp sweep deck")
+    return "\n".join(body + list(what) + [".end", ""])
+
+
+def _step_value(label: str, symbol: str) -> float | None:
+    """The swept number out of a `.step r1_sweep=1000` log line.
+
+    Reads the named parameter rather than assuming the log's order matches the values
+    asked for -- and `.step temp=-40deg` carries a unit suffix, which `parse_value`
+    tolerates.
+    """
+    for tok in re.finditer(r"([\w$]+)\s*=\s*(\S+)", label):
+        if tok.group(1).lower() == symbol.lower():
+            return ir.parse_value(tok.group(2))
+    return None
+
+
+def _raw_axis_values(raw_path: str, warnings: list[str]) -> list[float]:
+    """The swept values read out of the `.raw` itself, for a log that named none.
+
+    A stepped `.op` gets no `.step` echo in the log at all (verified against
+    tests/fixtures/temp_op.log) -- and LTspice stores it as one dataset whose sweep axis
+    *is* the step variable, so the axis holds the values the log withheld. Counting
+    datasets would say 1 where the run did 3; reading the axis says 3, with the numbers.
+    Any other stepped analysis is one dataset per point, so the axis is not the values
+    and the dataset count is.
+    """
+    try:
+        waves = raw.read_raw(raw_path)
+    except (ValueError, OSError, KeyError) as e:
+        warnings.append(f"could not read {raw_path} for step values: {e}")
+        return []
+    if len(waves) == 1 and waves[0].analysis == "op":
+        return [float(v) for v in waves[0].x]
+    return [None] * len(waves)
+
+
+def simulate_sweep(netlist: str, param_name: str, values: list[float],
+                   workdir: Path, stem: str = "sweep",
+                   sim_config: dict | None = None) -> dict:
+    """Run a one-launch `.step` sweep and return one row of metrics per point.
+
+    Metrics are whatever the netlist's own `.meas` directives are named -- nothing here
+    knows or invents a metric name. A deck with no `.meas` still returns its points, with
+    the `.raw` path and a warning, because a waveform sweep is a legitimate thing to ask
+    for; it does not get silently reported as a sweep that measured nothing.
+
+    Each row's `value_source` says where its value came from: `log` (LTspice's own `.step`
+    echo), `raw` (the stepped-`.op` sweep axis, which is the only evidence such a run
+    leaves) or `requested` (nothing reported it, so the asked-for value is used and the
+    row is flagged).
+    """
+    cfg = dict(sim_config or {})
+    cfg.setdefault("backend", "ltspice")
+    cfg["require_meas"] = False          # the stepped tables are read below, not by parse_meas
+    deck, symbol, rewrote = sweep_netlist(netlist, param_name, values)
+    asked = [float(v) for v in values]
+
+    res = _run_ltspice(deck, Path(workdir), stem, cfg)
+    out: dict = {"sweep_param": {"name": param_name, "symbol": symbol,
+                                 "values": asked},
+                 "metrics_table": [], "raw_path": res.raw_path,
+                 "log_path": res.log_path, "netlist": deck,
+                 "rewrote": rewrote, "warnings": list(res.warnings)}
+    if res.status != "ok":
+        out.update(status="failed", failure_type=res.failure_type,
+                   failure_message=res.failure_message,
+                   failure_detail=res.failure_detail)
+        return out
+
+    log_text = Path(res.log_path).read_text(errors="replace") if res.log_path else ""
+    tables = parse_meas_steps(log_text)
+    scalar, _ = parse_meas(log_text) if not tables else ({}, [])
+
+    # Which value each run actually used, taken from the log's own `.step` lines rather
+    # than from the order we asked for. A run LTspice skipped would otherwise shift every
+    # later row onto the wrong value -- a sweep that reads as smooth and is wrong.
+    labels = []
+    if res.raw_path and Path(res.raw_path).is_file():
+        labels = raw._step_labels(Path(res.raw_path))
+    if not labels:
+        labels = re.findall(r"^\.step\s+(.+?)\s*$", log_text, re.M)
+    from_log = [_step_value(ln, symbol) for ln in labels]
+    src = "log"
+    if not labels and res.raw_path and Path(res.raw_path).is_file():
+        from_log = _raw_axis_values(res.raw_path, out["warnings"])
+        src = "raw"
+
+    n = max([len(v) for v in tables.values()] + [len(from_log)] + [0])
+    if not n:
+        out.update(status="failed", failure_type=SIMULATION_FAILURE,
+                   failure_message="the run produced no sweep points: no stepped .meas "
+                                   "table, no .step lines in the log and no .raw datasets",
+                   failure_detail={"hint": "check that .step survived into the deck",
+                                   "log_tail": log_text[-400:]})
+        return out
+
+    for i in range(n):
+        val = from_log[i] if i < len(from_log) else None
+        row = {"step": i + 1,
+               "value": val if val is not None else (asked[i] if i < len(asked) else None),
+               "value_source": src if val is not None else "requested",
+               "metrics": {k: v[i] for k, v in tables.items() if i < len(v)}}
+        if val is None:
+            row["warning"] = "value not reported by LTspice; taken from the request"
+        out["metrics_table"].append(row)
+
+    if n != len(asked):
+        out["warnings"].append(
+            f"asked for {len(asked)} points, LTspice ran {n} -- the sweep is incomplete")
+    missing = [r["step"] for r in out["metrics_table"] if not r["metrics"]]
+    if not tables:
+        out["warnings"].append(
+            "no stepped .meas results in the log: add .meas directives to get metrics per "
+            "point, or read the waveforms from raw_path"
+            + (f" (the deck measured {sorted(scalar)} once, not per step)" if scalar
+               else ""))
+    elif missing:
+        out["warnings"].append(f"steps with no metrics at all: {missing}")
+
+    out.update(status="ok", points=n,
+               metrics=sorted(tables),
+               complete=(n == len(asked) and not missing))
+    return out

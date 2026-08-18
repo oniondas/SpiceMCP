@@ -31,3 +31,6 @@ htmlcov/
 
 # Tool-specific configs
 .claude/
+
+# gallery output
+gallery/

@@ -16,13 +16,14 @@ LTspice installed.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-from spicemcp import plots, raw
+from spicemcp import plots, raw, render
 
 FX = Path(__file__).parent / "fixtures"
 mpl = pytest.importorskip  # rendering tests call mpl("matplotlib") first
@@ -150,6 +151,49 @@ def test_histogram_refuses_one_sample_instead_of_dividing_by_zero(tmp_path):
     mpl("matplotlib")
     with pytest.raises(plots.PlotError, match=">=2 samples"):
         plots.plot_histogram([1.0], out=tmp_path / "h.png")
+
+
+# ------------------------------------------------------------------------ house palette
+
+def test_every_plot_colour_comes_from_the_one_palette():
+    """No figure may introduce a hex of its own.
+
+    The point of a shared palette is that a schematic and its plots read as one document,
+    and that breaks silently: a hardcoded `#1f77b4` still draws a correct curve. So the
+    check is on the source -- every literal colour in `plots.py` must be a palette entry
+    or a chrome colour derived from the schematic style.
+    """
+    src = Path(plots.__file__).read_text(encoding="utf-8")
+    allowed = {c.lower() for c in render.SERIES}
+    found = {m.lower() for m in re.findall(r'"(#[0-9a-fA-F]{3,8})"', src)}
+    # `_chrome`'s own fallback grid colour is the one literal that is not a trace.
+    assert found - allowed <= {"#dddddd"}, found - allowed
+
+
+def test_the_palette_is_the_requested_ramp_and_each_entry_has_one_job():
+    assert render.SERIES == ("#003d5c", "#594e90", "#bc4c96", "#ff5f66", "#ffa600")
+    roles = (plots.C_TRACE, plots.C_TRACE2, plots.C_MARK, plots.C_LIMIT, plots.C_BAND)
+    assert roles == render.SERIES, "roles must map to the ramp in order"
+    assert len(set(roles)) == 5, "two roles sharing a colour makes the figure ambiguous"
+
+
+def test_plot_chrome_tracks_the_default_schematic_style():
+    """Derived, not duplicated: move the style's ink and the plots move with it."""
+    assert plots.STYLE == render.DEFAULT_STYLE == "tech_minimal"
+    st = render.style(render.DEFAULT_STYLE)
+    c = plots._chrome()
+    assert c["bg"] == st["bg"] and c["ink"] == st["roles"]["wire"]["c"]
+    assert c["sans"] == render.SANS
+
+
+def test_the_style_tool_reports_the_palette_it_actually_draws_with():
+    from spicemcp import server                          # noqa: PLC0415
+    s = server.get_visual_style()
+    assert s["default_style"] == "tech_minimal"
+    assert s["series"] == list(render.SERIES)
+    assert set(s["series_roles"].values()) == set(render.SERIES)
+    assert s["schematic_styles"] == sorted(render.STYLES)
+    assert s["chrome"]["background"] == render.style("tech_minimal")["bg"]
 
 
 # ------------------------------------------------------------------- engineering units
