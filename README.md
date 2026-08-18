@@ -3,14 +3,14 @@
 LTspice MCP server where **the server owns the optimization state, not the LLM**.
 
 The model contributes topology and strategy. Candidate identity, simulation history,
-dedup, best so far, sensitivities and rollback all live in SQLite and are re-derived
+dedup, best so far, sensitivities and rollback all live in SQLite and are re derived
 on every call, so a long optimization can't drift into remembering a circuit that
 never existed.
 
 > ### Prototype Status & Live Example
 > **SpiceMCP is currently an experimental prototype.**
 >
-> Below is a demonstration of what SpiceMCP generated and analyzed autonomously for **Chua's Chaotic Circuit**—showcasing automated `.asc` schematic generation, batch LTspice simulations, binary `.raw` waveform parsing, parameter sweeps, and publication-ready visualization:
+> Below is a demonstration of what SpiceMCP generated and analyzed autonomously for **Chua's Chaotic Circuit** showcasing automated `.asc` schematic generation, batch LTspice simulations, binary `.raw` waveform parsing, parameter sweeps, and visualization:
 >
 > | **Schematic Rendering (`render_schematic`)** | **3D Double-Scroll Attractor** |
 > | :---: | :---: |
