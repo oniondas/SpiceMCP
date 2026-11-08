@@ -150,7 +150,7 @@ Cinj out inj 1k
 # --- 8. Current sense (low-side shunt) -------------------------------------------------
 
 def _current_sense(s: dict) -> Design:
-    imax, vfs, pmax, bw = s["imax"], s["vout_fs"], s["shunt_w"], s["bw"]
+    imax, vfs, pmax, bw, err = s["imax"], s["vout_fs"], s["shunt_w"], s["bw"], s["err_pct"]
     if vfs > 3.0:
         raise TemplateError("current_sense: vout_fs above 3 V does not fit the op-amp's "
                             "output swing on +-5 V")
@@ -199,8 +199,8 @@ Cinj inn inj 1k
               {"name": "R1", "min": 100.0, "max": 100e3},
               {"name": "R2", "min": max(r2 / 10, 100.0), "max": max(r2 * 10, 1e4)}],
         goals=[{"metric": "param_rs", "direction": "min", "ref": rs}],
-        limits=[{"metric": "err_fs_pct", "min": -1.0, "max": 1.0},
-                {"metric": "err_10_pct", "min": -5.0, "max": 5.0},
+        limits=[{"metric": "err_fs_pct", "min": -err, "max": err},
+                {"metric": "err_10_pct", "min": -max(5.0, 2.5 * err), "max": max(5.0, 2.5 * err)},
                 {"metric": "param_rs", "max": pmax / imax ** 2},
                 {"metric": "bw", "min": bw}, {"metric": "pm_deg", "min": PM_MIN}],
         start={"RS": rs, "R1": r1, "R2": max(r2, 100.0)},
@@ -208,8 +208,9 @@ Cinj inn inj 1k
                  f"100 mV drop: RS = {_eng(rs, 'Ω')}, dissipating {imax ** 2 * rs:.3g} W.",
                  f"Gain = vout_fs / (imax·RS) = {g:.4g}: a non-inverting amplifier, "
                  f"R1 = {_eng(r1, 'Ω')}, R2 = R1·(G − 1) = {_eng(r2, 'Ω')}.",
-                 "Accuracy is checked at full scale (±1%) and at 10% of full scale "
-                 f"(±5%). At 10% the shunt drops only {imax * rs * 100:.3g} mV, so the "
+                 f"Accuracy is checked at full scale (±{err:g}%, over temperature the "
+                 "op-amp's gain falls, so 1% is out of reach for this amplifier) and at 10% "
+                 f"of full scale (±{max(5.0, 2.5 * err):g}%). At 10% the shunt drops only {imax * rs * 100:.3g} mV, so the "
                  "op-amp's offset dominates: 0.2 mV is 3% there. A zero-drift amplifier "
                  "(find_part) brings it under 0.1%.",
                  f"Bandwidth ≈ GBW / G; op-amp GBW {_eng(gbw, 'Hz')} for {_eng(bw, 'Hz')}.",
@@ -661,7 +662,8 @@ MORE: list[Template] = [
              [SpecField("imax", "A", "full-scale current"),
               SpecField("vout_fs", "V", "output at full scale", 2.5),
               SpecField("shunt_w", "W", "shunt power rating", 0.25),
-              SpecField("bw", "Hz", "minimum bandwidth", 10e3)], _current_sense, ("opamp",)),
+              SpecField("bw", "Hz", "minimum bandwidth", 10e3),
+              SpecField("err_pct", "%", "max full-scale error", 2)], _current_sense, ("opamp",)),
     Template("adc_driver", "ADC driver (buffer + charge-bucket RC)", "opamp",
              "Op-amp buffer and RC that settle a step to 1/2 LSB within acquisition.",
              [SpecField("fs", "S/s", "ADC sample rate"),

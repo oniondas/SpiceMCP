@@ -36,7 +36,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from . import (buildable, db, engine, feasibility, layout, opamp, plots, progress, render,
                report, sim, topologies)
 from . import parts as partlib
-from . import stress
+from . import bom, ir, stress
 
 INSTRUCTIONS = """\
 SpiceMCP designs circuits with LTspice. Typical flow:
@@ -496,6 +496,18 @@ def _details_path(rid: str) -> Path:
     return db.state_root(PROJECT) / "simulations" / rid / "details.json"
 
 
+def _write_bom(rid: str, fin: dict, parts_chosen: dict | None) -> dict | None:
+    """bom.csv and bom.xlsx of the finished design, next to its simulations."""
+    run = engine.get_run(con(), rid)
+    vals = {**{n: p["value"] for n, p in fin["parts"].items()}, **fin["other_values"]}
+    try:
+        net, _ = ir.render(run["netlist_template"], vals)
+        return bom.write(bom.rows(net, fin, parts_chosen),
+                         db.state_root(PROJECT) / "simulations" / rid)
+    except (OSError, ValueError, KeyError):
+        return None
+
+
 def _load_details(rid: str) -> dict:
     try:
         return json.loads(_details_path(rid).read_text(encoding="utf-8"))
@@ -907,6 +919,7 @@ def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "
         rating_check = stress.against_ratings(out.get("stress") or {}, chosen)
         if rating_check:
             out["rating_check"] = rating_check
+        out["bom"] = _write_bom(run_id, out, det.get("parts"))
         _save_details(run_id, finish=out)
         out = _short_finish(out)
         if rating_check:
@@ -987,6 +1000,7 @@ def _short_finish(out: dict) -> dict:
         "nearest_values_meet_limits": out["nearest_values_meet_limits"],
         "yield": short_y,
         **_short_stress(out.get("stress")),
+        **({"parts_list": out["bom"]["csv"]} if out.get("bom") else {}),
         "more": f"query_run(run_id='{out['run_id']}', what='details')",
     }
 

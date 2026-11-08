@@ -260,3 +260,12 @@ def test_amplifier_and_filter_report_output_noise(tmp_path):
         assert lo < r.metrics["vn_uv"] < hi, (name, r.metrics)
     d = T.get("noninverting_amp").design({"gain": 10, "bw": 1e5, "noise_uv": 100})
     assert {"metric": "vn_uv", "max": 100} in d.limits
+
+
+def test_finish_writes_the_parts_list_to_order(project):
+    _rc_run("rc", 980, 1020)
+    out = server.finish_design("rc", yield_runs=3)
+    with open(out["parts_list"], encoding="utf-8-sig") as f:
+        text = f.read()
+    assert "Resistor" in text and "Capacitor" in text and "E96 series" in text
+    assert out["parts_list"].endswith("bom.csv")
