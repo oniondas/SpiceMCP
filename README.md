@@ -288,6 +288,14 @@ A two-sided bound is one entry: `{"metric": "fc", "min": 9500, "max": 10500}`. L
 are inclusive (`>=` / `<=`). Inputs are strict: a misspelled key, `min` above `max`, or
 the old string form `"<0.005"` is rejected before anything runs.
 
+How the search works: it first spreads a few points over the whole range (a Latin
+hypercube, 2 per parameter), then refines the best one. Any positive range of 10x or more
+is searched in log steps (`"scale": "auto"`, or force `"log"` / `"linear"` per param), so
+1 Ω..1 MΩ gets equal effort per decade. When limits are coupled (a Sallen-Key's fc and Q),
+the engine measures each metric's log slope against each part and solves one joint move
+that lands all of them inside their windows. Evaluate a hand-sized start point first and
+the global sample is skipped. Benchmarks: `docs/reports/step2/REPORT.md`.
+
 `run_optimization` returns a summary rather than an entire transcript: best candidate, constraint
 status, the strongest measured sensitivity, the most promising unexplored region,
 `step_frac_final` (how far the step had to shrink), and `at_param_space_bound` (which

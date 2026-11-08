@@ -8,6 +8,7 @@ and the best candidate can never be demoted by a later, worse iteration.
 from __future__ import annotations
 
 import json
+import math
 import random
 import re
 import statistics
@@ -502,6 +503,45 @@ def _span(spec: dict) -> float:
     return float(spec.get("max", 1)) - float(spec.get("min", 0))
 
 
+LOG_RATIO = 10.0     # scale="auto" searches a range in log space once max/min >= this
+
+
+def is_log(spec: dict) -> bool:
+    """Search this parameter in log space?
+
+    Component values are ratio quantities: 1k -> 2k matters as much as 100k -> 200k.
+    A linear step of 25% of a 1k..1M range is 250k, so the whole bottom decade (where
+    most real answers live) is crossed in a single step and never sampled. Searching
+    log(value) gives every decade the same share of the budget, as every sizing tool
+    does. `auto` (the default) picks log for any positive range spanning 10x or more.
+    """
+    if "values" in spec:
+        return False
+    lo, hi = float(spec["min"]), float(spec["max"])
+    mode = spec.get("scale", "auto")
+    if mode == "linear" or lo <= 0:
+        return False
+    return mode == "log" or hi / lo >= LOG_RATIO
+
+
+def _to_unit(spec: dict, v: float) -> float:
+    """Position of `v` inside a continuous range, 0..1, in the search's own scale."""
+    lo, hi = float(spec["min"]), float(spec["max"])
+    if hi == lo:
+        return 0.0
+    if is_log(spec):
+        return math.log(max(v, lo) / lo) / math.log(hi / lo)
+    return (v - lo) / (hi - lo)
+
+
+def _from_unit(spec: dict, u: float) -> float:
+    lo, hi = float(spec["min"]), float(spec["max"])
+    u = max(0.0, min(1.0, u))
+    if is_log(spec):
+        return lo * (hi / lo) ** u
+    return lo + (hi - lo) * u
+
+
 def _ok_points(con, run_id: str) -> list[tuple[dict, dict]]:
     rows = con.execute(
         "SELECT d.params AS params, e.metrics AS metrics FROM experiments e"
@@ -632,10 +672,14 @@ def _largest_gap(vals: list[float], spec: dict) -> dict | None:
     edges = sorted(set(edges))
     if len(edges) < 2:
         return None
-    a, b = max(zip(edges, edges[1:]), key=lambda t: t[1] - t[0])
+    # widest in the search's own scale: in log space 1k..10k is as wide as 10k..100k
+    a, b = max(zip(edges, edges[1:]), key=lambda t: _to_unit(spec, t[1]) - _to_unit(spec, t[0]))
+    frac = _to_unit(spec, b) - _to_unit(spec, a)
     if b - a <= 0:
         return None
-    return {"low": a, "high": b, "width": b - a, "midpoint": (a + b) / 2}
+    mid = _from_unit(spec, (_to_unit(spec, a) + _to_unit(spec, b)) / 2)
+    return {"low": a, "high": b, "width": b - a, "width_frac": frac, "midpoint": mid,
+            "scale": "log" if is_log(spec) else "linear"}
 
 
 def _clamp(v: float, spec: dict) -> float:
@@ -707,8 +751,26 @@ def select_next(con, run_id: str, step_frac: float = STEP_FRAC) -> dict:
         " ON d.candidate_id=e.candidate_id WHERE e.run_id=? AND e.status!='ok'",
         (run_id,)).fetchall()}
 
+    # (0) global sample first: a space-filling Latin-hypercube spread over the whole
+    # box (log-spaced where the range is), so the local search starts from the best
+    # basin found rather than from wherever one random seed landed. Local descent from
+    # a single start can only find the optimum nearest to it.
+    # Skipped once the caller evaluated a design of its own: a hand-sized start point
+    # is better information than a blind sample, so refine from it instead.
+    k = n_global_samples(space)
+    own = con.execute("SELECT 1 FROM designs WHERE run_id=? AND origin!='engine' LIMIT 1",
+                      (run_id,)).fetchone()
+    if n_designs < k and not own:
+        params = lhs_point(space, run["seed"], n_designs, k)
+        return _propose(con, run_id, params, None,
+                        f"global sample {n_designs + 1}/{k}: spreading points over the "
+                        f"whole range before refining the best one", "global_sample",
+                        known, bad, rng, space)
+
     best = get_best(con, run_id)
     base_row = best["best_feasible"] or _least_violating(con, run_id, cons)
+    if best["best_feasible"]:
+        base_row = _repair_target(con, run_id, best["best_feasible"], objs, cons) or base_row
     if base_row is None:
         params = {n: _seed_value(s, rng) for n, s in space.items()}
         return _propose(con, run_id, params, None, "no evaluated candidate yet:"
@@ -739,8 +801,23 @@ def select_next(con, run_id: str, step_frac: float = STEP_FRAC) -> dict:
     # (2) violated constraints next, worst relative miss first -- nudging a 1% miss
     # while an 80x one stands is how a run burns its budget without becoming feasible.
     template = run["netlist_template"]
-    for c in sorted((c for c in base_row.get("constraints", []) if not c.get("passed")),
-                    key=_rel_miss, reverse=True):
+    failing = sorted((c for c in base_row.get("constraints", []) if not c.get("passed")),
+                     key=_rel_miss, reverse=True)
+    if failing:
+        incumbent = best["best_feasible"]
+        frozen = set()
+        if incumbent and incumbent["candidate_id"] != base_id:
+            inc = db.jloads(get_candidate(con, incumbent["candidate_id"]), "params")
+            frozen = {n for n in base if inc.get(n) != base[n]}   # the knob just pushed
+        points = _ok_points(con, run_id)
+        hit = _newton_repair(base, space, cons, base_row["metrics"], points, frozen)
+        if hit:
+            params, why = hit
+            p, fp = _fp_of(template, params)
+            if fp not in known and fp not in bad:
+                return _propose(con, run_id, p, base_id, why, "newton_repair",
+                                known, bad, rng, space)
+    for c in failing:
         met = c.get("constraint") or c.get("metric")
         want_up = _wants_increase(c.get("required", ""))
         ranked = [(n, s["estimated_sensitivity"], want_up,
@@ -763,7 +840,7 @@ def select_next(con, run_id: str, step_frac: float = STEP_FRAC) -> dict:
             if (s and s["confidence"] > 0 and name in base
                     and _can_move(base[name], space[name],
                                   s["estimated_sensitivity"], want_up)):
-                gain = _leverage(s, space[name]) * o["weight"] / o["ref"]
+                gain = _leverage(s, space[name], base[name]) * o["weight"] / o["ref"]
                 if gain > 0:                       # a measured-dead knob wastes a turn
                     scored.append((gain, name, o, s))
     scored.sort(reverse=True, key=lambda t: t[0])
@@ -781,7 +858,7 @@ def select_next(con, run_id: str, step_frac: float = STEP_FRAC) -> dict:
     gaps = [(v["largest_unexplored_gap"], n) for n, v in tried.items()
             if v["largest_unexplored_gap"] and "midpoint" in v["largest_unexplored_gap"]]
     if gaps:
-        g, name = max(gaps, key=lambda t: t[0]["width"] / (_span(space[t[1]]) or 1))
+        g, name = max(gaps, key=lambda t: t[0]["width_frac"])
         params = dict(base)
         params[name] = g["midpoint"]
         return _propose(con, run_id, params, base_id,
@@ -791,6 +868,185 @@ def select_next(con, run_id: str, step_frac: float = STEP_FRAC) -> dict:
     params = {n: _seed_value(s, rng) for n, s in space.items()}
     return _propose(con, run_id, params, base_id, "no signal yet: random probe",
                     "random", known, bad, rng, space)
+
+
+REPAIR_MAX_VIOLATION = 20.0   # relative miss small enough to be worth repairing
+
+
+def _objective_only(metrics: dict, objs: list[dict]) -> float | None:
+    s = score(metrics, objs, [])
+    return s
+
+
+def _repair_target(con, run_id: str, incumbent: dict, objs: list[dict],
+                   cons: list[dict]) -> dict | None:
+    """The latest experiment, if it beat the incumbent's objective but broke a limit
+    by a little. Repairing it is how the search slides ALONG a constraint.
+
+    Coordinate moves from the best feasible point cannot follow a coupled limit: on an
+    RC filter, fc = 1/(2*pi*R*C), so shrinking C alone always breaks the fc window and
+    the run sits on its first feasible point forever. "Push one knob, then repair the
+    limit with another" is the zig-zag that walks the fc line toward the smaller C.
+    """
+    last = con.execute("SELECT * FROM experiments WHERE run_id=? ORDER BY iteration DESC"
+                       " LIMIT 1", (run_id,)).fetchone()
+    if not last or last["status"] != "ok" or last["feasible"] or last["score"] is None:
+        return None
+    m = db.jloads(last, "metrics")
+    viol = _violation(m, cons)
+    better = (_objective_only(m, objs) or float("-inf")) > (
+        _objective_only(incumbent["metrics"], objs) or float("-inf"))
+    if better and 0 < viol <= REPAIR_MAX_VIOLATION:
+        return _with_id(last)
+    return None
+
+
+def _elasticity(points, param: str, metric: str) -> float | None:
+    """d ln(metric) / d ln(param), median over clean finite-difference pairs.
+
+    Most circuit laws are power laws in their component values (fc ~ 1/RC, gain ~
+    R2/R1, SR ~ I/C), and a power law's log-log slope is the same everywhere. So one
+    clean pair anywhere in the space predicts the move needed here, which a linear
+    per-ohm slope cannot do across decades.
+    """
+    usable = [(p, m) for p, m in points
+              if p.get(param, 0) > 0 and (m.get(metric) or 0) > 0]
+    es = []
+    for i, (pi, mi) in enumerate(usable):
+        for pj, mj in usable[i + 1:]:
+            if pi[param] == pj[param] or any(
+                    pi.get(k) != pj.get(k) for k in set(pi) | set(pj) if k != param):
+                continue
+            es.append(math.log(mj[metric] / mi[metric]) / math.log(pj[param] / pi[param]))
+    return statistics.median(es) if es else None
+
+
+def _window(cons: list[dict], metric: str) -> tuple[float | None, float | None]:
+    lo = max((c["value"] for c in cons if c["metric"] == metric and c["op"] in (">", ">=")),
+             default=None)
+    hi = min((c["value"] for c in cons if c["metric"] == metric and c["op"] in ("<", "<=")),
+             default=None)
+    return lo, hi
+
+
+def _target(cons: list[dict], metric: str, cur: float) -> float | None:
+    """Where a repair should aim: the window centre, or 2% inside a one-sided limit."""
+    lo, hi = _window(cons, metric)
+    if lo is not None and hi is not None:
+        return math.sqrt(lo * hi) if lo > 0 else None
+    if lo is not None:
+        return lo * 1.02 if lo > 0 and cur < lo * 1.02 else None
+    if hi is not None:
+        return hi * 0.98 if hi > 0 and cur > hi * 0.98 else None
+    return None
+
+
+def _solve(a: list[list[float]], b: list[float]) -> list[float] | None:
+    """Gaussian elimination with partial pivoting; None if singular. Pure Python so the
+    engine keeps its no-numpy import."""
+    n = len(b)
+    m = [row[:] + [b[i]] for i, row in enumerate(a)]
+    for col in range(n):
+        piv = max(range(col, n), key=lambda r: abs(m[r][col]))
+        if abs(m[piv][col]) < 1e-12:
+            return None
+        m[col], m[piv] = m[piv], m[col]
+        for r in range(n):
+            if r != col:
+                f = m[r][col] / m[col][col]
+                m[r] = [x - f * y for x, y in zip(m[r], m[col])]
+    return [m[i][n] / m[i][i] for i in range(n)]
+
+
+def _newton_repair(base: dict, space: dict, cons: list[dict], metrics: dict, points,
+                   frozen: set) -> tuple[dict, str] | None:
+    """One joint move that puts every limited metric back in its window.
+
+    Linear in log space: d ln(metric) = sum_j E[metric][j] * d ln(param_j), with E the
+    measured log elasticities. Several coupled limits (a Sallen-Key's fc AND Q) need a
+    joint solve: fixing fc with one knob and then Q with another just undoes fc. The
+    minimum-norm solution moves as little as possible; knobs the last push touched are
+    weighted down so the repair continues the slide instead of reversing it.
+    """
+    names = [n for n, sp in space.items()
+             if "values" not in sp and n in base and base[n] > 0 and is_log(sp)]
+    rows, rhs, used = [], [], []
+    for met in sorted({c["metric"] for c in cons}):
+        cur = metrics.get(met)
+        if not cur or cur <= 0:
+            continue
+        tgt = _target(cons, met, cur)
+        if tgt is None:
+            continue
+        e = [_elasticity(points, n, met) or 0.0 for n in names]
+        if not any(abs(x) > 0.05 for x in e):
+            continue
+        rows.append(e)
+        rhs.append(math.log(tgt / cur))
+        used.append(met)
+    if not rows or not any(abs(x) > 1e-3 for x in rhs):
+        return None
+    free = [k for k, n in enumerate(names) if n not in frozen]
+    if frozen and not any(abs(r[k]) > 0.05 for r in rows for k in free):
+        return None   # only the pushed knob is measured: repairing would just undo it
+    w = [0.05 if n in frozen else 1.0 for n in names]
+    # Active set: a knob pinned at a bound cannot deliver its share of the step, so
+    # drop it and re-solve with the rest -- otherwise the same unreachable move is
+    # proposed again and again with a few ppm of difference.
+    for _ in range(len(names)):
+        gram = [[sum(ri[k] * w[k] * rj[k] for k in range(len(names)))
+                 + (1e-6 if i == j else 0) for j, rj in enumerate(rows)]
+                for i, ri in enumerate(rows)]
+        y = _solve(gram, rhs)
+        if y is None:
+            return None
+        step = [w[k] * sum(rows[i][k] * y[i] for i in range(len(rows)))
+                for k in range(len(names))]
+        params = dict(base)
+        pinned = []
+        for k, (n, d) in enumerate(zip(names, step)):
+            want = base[n] * math.exp(d)
+            params[n] = _clamp(want, space[n])
+            if w[k] and abs(math.log(params[n] / want)) > 1e-6:
+                pinned.append(k)
+        if not pinned:
+            break
+        for k in pinned:
+            w[k] = 0.0
+        if not any(w):
+            break
+    if all(abs(math.log(params[n] / base[n])) < 1e-3 for n in names):
+        return None
+    moved = ", ".join(f"{n} -> {params[n]:.4g}" for n in names if params[n] != base[n])
+    return params, (f"solve for {', '.join(used)} inside their limits using measured log "
+                    f"elasticities: {moved}")
+
+
+def n_global_samples(space: dict) -> int:
+    """Size of the opening global sample: two points per parameter, 4..12."""
+    return min(12, max(4, 2 * len(space)))
+
+
+def lhs_point(space: dict, seed: int, i: int, k: int) -> dict:
+    """Point `i` of a seeded k-point Latin hypercube over `space` (deterministic).
+
+    Each parameter's range is cut into k equal slices in its search scale, and every
+    slice is used exactly once across the k points, so no decade is left unvisited.
+    Recomputed from the seed on every call: nothing to store, nothing to drift.
+    """
+    rng = random.Random(seed * 7919 + 17)
+    out = {}
+    for name in sorted(space):
+        perm = rng.sample(range(k), k)
+        jitter = [rng.random() for _ in range(k)]
+        u = (perm[i] + jitter[i]) / k
+        spec = space[name]
+        if "values" in spec:
+            vals = sorted(spec["values"])
+            out[name] = vals[min(int(u * len(vals)), len(vals) - 1)]
+        else:
+            out[name] = _from_unit(spec, u)
+    return out
 
 
 def _wants_increase(required: str) -> bool:
@@ -825,7 +1081,8 @@ def _move(spec: dict, cur: float, frac: float, slope: float, want_up: bool) -> f
         if not side:
             return cur
         return side[min(max(1, round(frac / STEP_FRAC)), len(side)) - 1]
-    return _clamp(cur + _step(spec, frac, slope, want_up), spec)
+    sign = 1.0 if up else -1.0
+    return _clamp(_from_unit(spec, _to_unit(spec, cur) + sign * frac), spec)
 
 
 def _fp_of(template: str, params: dict) -> tuple[dict, str]:
@@ -881,7 +1138,7 @@ def _rel_miss(c: dict) -> float:
     return abs(float(c["actual"]) - v) / (abs(v) or 1.0)
 
 
-def _leverage(s: dict, spec: dict) -> float:
+def _leverage(s: dict, spec: dict, base_val: float | None = None) -> float:
     """How much of `metric` a full-range move of this parameter buys, times confidence.
 
     Ranking on raw d(metric)/d(param) is meaningless across parameters, because it
@@ -889,7 +1146,13 @@ def _leverage(s: dict, spec: dict) -> float:
     outranks a resistor's per-ohm figure by ~1e8 regardless of which knob actually
     does more. Multiplying by the range makes the comparison scale-free -- the real
     question is what one move can achieve, not what one farad could.
+
+    For a log-scaled parameter the full move is a factor, not a distance, so the
+    local estimate is slope * value * ln(max/min): what sweeping every decade buys.
     """
+    if base_val and is_log(spec):
+        reach = abs(base_val) * math.log(float(spec["max"]) / float(spec["min"]))
+        return abs(s["estimated_sensitivity"]) * reach * s["confidence"]
     return abs(s["estimated_sensitivity"]) * (_span(spec) or 1.0) * s["confidence"]
 
 
@@ -899,11 +1162,11 @@ def _ranked_for(sens: dict, space: dict, metric: str, want_up: bool, base: dict)
     Zero leverage is excluded: a parameter measured to have no effect on this metric
     cannot repair it, and with coordinate rotation it would otherwise consume a turn.
     """
-    cands = [(_leverage(s, space[n]), n, s)
+    cands = [(_leverage(s, space[n], base.get(n)), n, s)
              for (n, m), s in sens.items()
              if m == metric and n in space and s["confidence"] > 0
              and n in base
-             and _leverage(s, space[n]) > 0
+             and _leverage(s, space[n], base.get(n)) > 0
              and _can_move(base[n], space[n], s["estimated_sensitivity"], want_up)]
     return [(n, s) for _, n, s in sorted(cands, reverse=True, key=lambda t: t[0])]
 
@@ -911,7 +1174,7 @@ def _ranked_for(sens: dict, space: dict, metric: str, want_up: bool, base: dict)
 def _seed_value(spec: dict, rng: random.Random):
     if "values" in spec:
         return rng.choice(spec["values"])
-    return rng.uniform(float(spec["min"]), float(spec["max"]))
+    return _from_unit(spec, rng.random())
 
 
 def _other_value(spec: dict, cur: float, rng: random.Random) -> float:
@@ -923,9 +1186,9 @@ def _other_value(spec: dict, cur: float, rng: random.Random) -> float:
     if "values" in spec:
         others = [v for v in spec["values"] if v != cur]
         return rng.choice(others) if others else cur
-    lo, hi = float(spec["min"]), float(spec["max"])
-    far = hi if abs(hi - cur) > abs(cur - lo) else lo   # halfway into the roomier side
-    return _clamp(cur + (far - cur) * 0.5, spec)
+    u = _to_unit(spec, cur)
+    far = 1.0 if 1.0 - u > u else 0.0                   # halfway into the roomier side
+    return _clamp(_from_unit(spec, u + (far - u) * 0.5), spec)
 
 
 def _propose(con, run_id, params, parent_id, why, method, known, bad, rng,

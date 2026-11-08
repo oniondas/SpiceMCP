@@ -59,6 +59,8 @@ class Param(_Strict):
     min: float | None = Field(None, description="Lowest value, SI units")
     max: float | None = Field(None, description="Highest value, SI units")
     values: list[float] | None = Field(None, description="Allowed values instead of a range")
+    scale: Literal["auto", "log", "linear"] = Field(
+        "auto", description="auto = log steps when max/min >= 10 (R, C, L, I)")
 
     @model_validator(mode="after")
     def _shape(self):
@@ -74,8 +76,12 @@ class Param(_Strict):
         return self
 
     def spec(self) -> dict:
-        return {"values": self.values} if self.values is not None else {
-            "min": self.min, "max": self.max}
+        if self.values is not None:
+            return {"values": self.values}
+        out = {"min": self.min, "max": self.max}
+        if self.scale != "auto":
+            out["scale"] = self.scale
+        return out
 
 
 class Goal(_Strict):

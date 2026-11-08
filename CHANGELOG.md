@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+
+Optimizer (see `docs/reports/step2/REPORT.md`): Sallen-Key fc+Q benchmark 0/10 -> 9/10,
+RC fc benchmark 7/10 -> 10/10.
+
+- Log-scale search for ranges spanning 10x or more (`scale` per param: auto/log/linear).
+- Opening Latin-hypercube global sample (skipped after a user-evaluated start point).
+- Joint Newton repair of all limited metrics from measured log elasticities, with an
+  active set for parts pinned at a bound.
+- Repairs continue from a push that improved the goal, so the search slides along a limit.
+
 ## 0.6.0
 
 Tool surface rebuilt so small models can use it (see `docs/reports/step1/REPORT.md`).

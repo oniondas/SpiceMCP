@@ -11,6 +11,7 @@ Run: pytest -q
 from __future__ import annotations
 
 import json
+import math
 
 import pytest
 
@@ -201,7 +202,7 @@ def test_constraint_repair_moves_the_right_parameter(tmp_path):
     assert engine.get_best(con, "tight")["best_feasible"] is None
 
     nxt = engine.select_next(con, "tight")
-    assert nxt["method"] == "constraint_repair", nxt
+    assert nxt["method"] in ("constraint_repair", "newton_repair"), nxt
     assert "bandwidth" in nxt["rationale"]
     # bandwidth rises as R1 falls, so the proposal must reduce R1
     base = engine.get_best(con, "tight")["best"]["candidate_id"]
@@ -516,7 +517,7 @@ def _narrow_run(con):
     the objective pulls away from it."""
     engine.start_run(
         con, "narrow", NETLIST,
-        param_space={"R1": {"min": 10e3, "max": 110e3},
+        param_space={"R1": {"min": 10e3, "max": 110e3, "scale": "linear"},
                      "C1": {"min": 5e-9, "max": 15e-9}},
         objectives=[{"metric": "gain_db", "direction": "max"}],
         constraints=[{"metric": "bandwidth", "op": ">", "value": 149e3},
@@ -623,9 +624,14 @@ def test_directed_step_on_a_discrete_list_actually_moves():
     # at the end of the list there is nowhere to go; _can_move is what avoids this
     assert engine._move(e12, 10e-9, 0.25, 1.0, True) == pytest.approx(10e-9)
     # continuous parameters keep the fractional step
-    cont = {"min": 500.0, "max": 20e3}
+    cont = {"min": 500.0, "max": 20e3, "scale": "linear"}
     assert engine._move(cont, 10e3, 0.25, 1.0, True) == pytest.approx(14875.0)
     assert engine._move(cont, 10e3, 1.0, 1.0, False) == pytest.approx(500.0)  # clamped
+    # a 40x range searches in log space by default: a 0.25 step is a fixed *factor*
+    # (40**0.25 = 2.515), the same from 1k as from 10k
+    auto = {"min": 500.0, "max": 20e3}
+    assert engine._move(auto, 4e3, 0.25, 1.0, True) == pytest.approx(4e3 * 40 ** 0.25)
+    assert engine._move(auto, 1e3, 0.25, 1.0, True) == pytest.approx(1e3 * 40 ** 0.25)
 
 
 def test_lint_catches_silent_db_conversion():
@@ -660,3 +666,61 @@ def test_topology_fp_ignores_values_design_fp_does_not():
     assert ir.design_fp(a, {"R1": 10e3}) != ir.design_fp(b, {"R1": 20e3})
     # comments and whitespace are not identity
     assert ir.design_fp("* hi\nR1 a b 1k\n", {}) == ir.design_fp("r1  a b 1k", {})
+
+
+def test_global_sample_covers_every_decade_once_per_slice():
+    """The opening Latin hypercube: each of the k slices of each range is used exactly
+    once, slices are equal in log space for a wide range, and lists are sampled too."""
+    space = {"R1": {"min": 100.0, "max": 1e6}, "C1": {"values": [1e-9, 1e-8, 1e-7, 1e-6]},
+             "G": {"min": 0.0, "max": 1.0}}
+    k = engine.n_global_samples(space)
+    pts = [engine.lhs_point(space, 3, i, k) for i in range(k)]
+    assert pts == [engine.lhs_point(space, 3, i, k) for i in range(k)]   # deterministic
+    for name in ("R1", "G"):
+        slices = sorted(int(engine._to_unit(space[name], p[name]) * k) for p in pts)
+        assert slices == list(range(k)), (name, slices)
+    decades = {int(math.log10(p["R1"])) for p in pts}
+    assert decades == {2, 3, 4, 5}, decades          # linear spacing would give only 5
+    assert {p["C1"] for p in pts} == set(space["C1"]["values"])
+
+
+def test_a_hand_sized_start_skips_the_global_sample(tmp_path):
+    con = db.connect(tmp_path)
+    engine.start_run(con, "hs", NETLIST,
+                     param_space={"R1": {"min": 10e3, "max": 110e3},
+                                  "C1": {"min": 5e-9, "max": 15e-9}},
+                     objectives=[{"metric": "gain_db", "direction": "max"}],
+                     sim_config={"backend": "analytic", "model": "test_amp"})
+    assert engine.select_next(con, "hs")["method"] == "global_sample"
+    engine.evaluate(con, "hs", {"R1": 60e3, "C1": 10e-9})
+    assert engine.select_next(con, "hs")["method"] != "global_sample"
+
+
+@sim.register_analytic("sk_lowpass")
+def _sk_lowpass(p):
+    r1, r2, c1, c2 = p["R1"], p["R2"], p["C1"], p["C2"]
+    w = 1 / math.sqrt(r1 * r2 * c1 * c2)
+    return {"fc": w / (2 * math.pi),
+            "q": math.sqrt(r1 * r2 * c1 * c2) / (c2 * (r1 + r2)),
+            "c_nf": (c1 + c2) * 1e9}
+
+
+def test_coupled_limits_are_met_by_a_joint_log_space_repair(tmp_path):
+    """A Sallen-Key needs fc AND Q inside narrow windows, with values spanning four
+    decades. Fixing one with one knob breaks the other; only a joint solve on the
+    measured log elasticities lands both. The pre-0.7 engine met this in 0 of 10 seeds."""
+    met = 0
+    for seed in range(5):
+        con = db.connect(tmp_path / f"s{seed}")
+        engine.start_run(
+            con, "sk", "* sk\n",
+            {"R1": {"min": 100.0, "max": 1e6}, "R2": {"min": 100.0, "max": 1e6},
+             "C1": {"min": 100e-12, "max": 1e-6}, "C2": {"min": 100e-12, "max": 1e-6}},
+            [{"metric": "c_nf", "direction": "min"}],
+            [{"metric": "fc", "op": ">=", "value": 9700},
+             {"metric": "fc", "op": "<=", "value": 10300},
+             {"metric": "q", "op": ">=", "value": 0.672},
+             {"metric": "q", "op": "<=", "value": 0.742}],
+            {"backend": "analytic", "model": "sk_lowpass"}, seed)
+        met += engine.optimize(con, "sk", 60)["best_is_feasible"]
+    assert met >= 4, met
