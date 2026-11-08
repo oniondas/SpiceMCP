@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0
+
+- The templates use real devices instead of ideal controlled sources. A transistor-level
+  two-stage CMOS op-amp (`opamp.py`, MOSFETs on real supply rails) replaces the `E`
+  sources in the Sallen-Key and non-inverting amplifier and the behavioural error
+  amplifier in the LDO. The buck switches a P-channel power MOSFET from a gate driver
+  instead of an ideal switch. See `docs/reports/step6/REPORT.md`.
+- The schematic drawer places 5-pin op-amp subcircuits (`opamp2` symbol, rail labels on
+  the supply pins) and 3-pin power MOSFETs (`VDMOS`), and writes the op-amp's `.subckt`
+  beside the `.asc` as a `.lib`.
+
 ## 0.10.0
 
 - `finish_design` replaces `stop_optimization`. It ends a run and turns the best design

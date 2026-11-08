@@ -49,22 +49,22 @@
    "atten10_db <= -39"
   ],
   "optimised": {
-   "C1": 2.2507907903927646e-09,
-   "C2": 1.1253953951963827e-09,
+   "C1": 1.94910452e-09,
+   "C2": 1.1253954e-09,
    "R1": 10000.0,
    "R2": 10000.0
   },
   "nearest": {
-   "C1": 2.2e-09,
+   "C1": 1.8e-09,
    "C2": 1.2e-09,
    "R1": 10000.0,
    "R2": 10000.0
   },
   "chosen": {
-   "C1": 2.7e-09,
-   "C2": 1.2e-09,
-   "R1": 8660.0,
-   "R2": 10000.0
+   "C1": 2.2e-09,
+   "C2": 1e-09,
+   "R1": 13300.0,
+   "R2": 9310.0
   },
   "series": {
    "C1": "E12",
@@ -80,34 +80,34 @@
   },
   "nearest_meets": false,
   "chosen_meets": true,
-  "chosen_margin_pct": 2.716,
-  "yield_nearest": 10.0,
-  "yield_chosen": 65.0,
+  "chosen_margin_pct": 2.447,
+  "yield_nearest": 0.0,
+  "yield_chosen": 67.5,
   "yield_tight": 100.0,
   "supply_tol_pct": 0,
   "spread_chosen": {
    "peak_db": {
-    "min": 0.006986834,
-    "max": 0.1474189,
+    "min": 0.0004616605,
+    "max": 0.1072962,
     "limit": "<=0.1"
    },
    "f3db": {
-    "min": 9567.593,
-    "max": 10425.71,
+    "min": 9495.99,
+    "max": 10355.97,
     "limit": "<=10300"
    },
    "g_half_db": {
-    "min": -0.2236826,
-    "max": 0.10854,
+    "min": -0.2834433,
+    "max": 0.04762977,
     "limit": ">=-0.5"
    },
    "atten10_db": {
-    "min": -41.61071,
-    "max": -40.33906,
+    "min": -41.64086,
+    "max": -40.37737,
     "limit": "<=-39"
    }
   },
-  "combinations": 56
+  "combinations": 62
  },
  "noninverting_amp": {
   "limits": [
@@ -137,20 +137,20 @@
   },
   "nearest_meets": true,
   "chosen_meets": true,
-  "chosen_margin_pct": 0.115,
+  "chosen_margin_pct": 0.129,
   "yield_nearest": 50.0,
   "yield_chosen": 50.0,
   "yield_tight": 100.0,
   "supply_tol_pct": 0,
   "spread_chosen": {
    "gain_db": {
-    "min": 19.9378,
-    "max": 20.21967,
+    "min": 19.93488,
+    "max": 20.21665,
     "limit": "<=20.1"
    },
    "bw": {
-    "min": 992806.5,
-    "max": 1024390.0,
+    "min": 1052379.0,
+    "max": 1085955.0,
     "limit": ">=100000"
    }
   },
@@ -179,24 +179,24 @@
   },
   "nearest_meets": true,
   "chosen_meets": true,
-  "chosen_margin_pct": 0.767,
+  "chosen_margin_pct": 0.66,
   "yield_nearest": 100.0,
   "yield_chosen": 100.0,
   "yield_tight": 100.0,
   "supply_tol_pct": 5,
   "spread_chosen": {
    "vout": {
-    "min": 3.271564,
-    "max": 3.311304,
+    "min": 3.268096,
+    "max": 3.307805,
     "limit": "<=3.333"
    },
    "vout_low": {
-    "min": 3.26532,
-    "max": 3.265321,
+    "min": 3.267068,
+    "max": 3.273148,
     "limit": ">=3.234"
    }
   },
-  "combinations": 39
+  "combinations": 30
  },
  "buck": {
   "limits": [
@@ -205,16 +205,16 @@
    "ripple_mv <= 50"
   ],
   "optimised": {
-   "C": 9.6283763e-07,
-   "L": 3.24293277e-05
+   "C": 1.8749999999999998e-06,
+   "L": 2.032258064516129e-05
   },
   "nearest": {
-   "C": 1e-06,
-   "L": 3.3e-05
+   "C": 1.8e-06,
+   "L": 2.2e-05
   },
   "chosen": {
-   "C": 1e-06,
-   "L": 3.3e-05
+   "C": 2.2e-06,
+   "L": 2.2e-05
   },
   "series": {
    "C": "E12",
@@ -226,23 +226,23 @@
   },
   "nearest_meets": true,
   "chosen_meets": true,
-  "chosen_margin_pct": 1.957,
-  "yield_nearest": 30.0,
-  "yield_chosen": 32.5,
-  "yield_tight": 37.5,
+  "chosen_margin_pct": 1.776,
+  "yield_nearest": 42.5,
+  "yield_chosen": 40.0,
+  "yield_tight": 40.0,
   "supply_tol_pct": 5,
   "spread_chosen": {
    "vout": {
-    "min": 4.748487,
-    "max": 5.260464,
+    "min": 4.736494,
+    "max": 5.245093,
     "limit": "<=5.1"
    },
    "ripple_mv": {
-    "min": 36.292,
-    "max": 58.955,
+    "min": 26.596,
+    "max": 42.371,
     "limit": "<=50"
    }
   },
-  "combinations": 46
+  "combinations": 40
  }
 }

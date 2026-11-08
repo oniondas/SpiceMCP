@@ -40,7 +40,8 @@ G = asc.GRID
 CX, RY = 288, 224              # column pitch and row pitch, sheet units
 LANE = 112                     # spacing of the bypass lanes above/below the main rows
 NODES = {"R": 2, "C": 2, "L": 2, "D": 2, "V": 2, "I": 2, "B": 2,
-         "E": 4, "G": 4, "S": 4, "M": 4}
+         "E": 4, "G": 4, "S": 4, "M": 4, "X": 5}
+OPAMP_SYM = "OpAmps/opamp2"    # in+ in- V+ V- out, the 5-pin op-amp convention
 SYM = {"R": "res", "C": "cap", "L": "ind", "D": "diode", "V": "voltage",
        "I": "current", "B": "bv", "E": "e", "G": "g", "S": "sw"}
 
@@ -62,6 +63,8 @@ class El:
     inputs: list[str] = dataclasses.field(default_factory=list)
     out: str = ""
     ground_pin: int = -1        # for a shunt with more than two pins
+    out_pin: int = -1           # spice index of the output pin, where it is fixed
+    supply_pins: tuple = ()     # spice indices drawn with a rail label, not a wire
     part: asc.Part | None = None
 
 
@@ -71,8 +74,25 @@ def _gnd(n: str) -> bool:
 
 # ---------------------------------------------------------------- parse
 
+def subcircuits(netlist: str) -> dict[str, str]:
+    """`.subckt` blocks by name (lower case) -> their full text."""
+    out, cur = {}, None
+    for raw in netlist.splitlines():
+        s = raw.strip()
+        m = re.match(r"\.subckt\s+(\S+)", s, re.I)
+        if m:
+            cur = m.group(1)
+            out[cur.lower()] = []
+        if cur is not None:
+            out[cur.lower()].append(raw.rstrip())
+            if re.match(r"\.ends\b", s, re.I):
+                cur = None
+    return {k: "\n".join(v) + "\n" for k, v in out.items()}
+
+
 def parse(netlist: str) -> tuple[list[El], list[str], list[str]]:
-    """Elements, directives and comment lines. Continuation lines (`+`) are joined."""
+    """Elements, directives and comment lines. Continuation lines (`+`) are joined.
+    `.subckt` blocks are skipped: they are drawn as a symbol and shipped as a library."""
     lines: list[str] = []
     for raw in netlist.splitlines():
         s = raw.strip()
@@ -82,7 +102,14 @@ def parse(netlist: str) -> tuple[list[El], list[str], list[str]]:
             lines.append(s)
     els, dirs, notes = [], [], []
     models = {}
+    subs = {k: v for k, v in subcircuits(netlist).items()}
+    inside = False
     for s in lines:
+        if re.match(r"\.subckt\b", s, re.I):
+            inside = True
+        if inside:
+            inside = not re.match(r"\.ends\b", s, re.I)
+            continue
         if s.startswith("*"):
             notes.append(s.lstrip("* ").strip())
         elif s.startswith("."):
@@ -90,7 +117,8 @@ def parse(netlist: str) -> tuple[list[El], list[str], list[str]]:
                 dirs.append(s)
             m = re.match(r"\.model\s+(\S+)\s+(\w+)", s, re.I)
             if m:
-                models[m.group(1).lower()] = m.group(2).upper()
+                models[m.group(1).lower()] = m.group(2).upper() + (
+                    " PCHAN" if re.search(r"\bpchan\b", s, re.I) else "")
         else:
             els.append(s)
     out = []
@@ -103,6 +131,10 @@ def parse(netlist: str) -> tuple[list[El], list[str], list[str]]:
                 f"{tok[0]}: element type {kind!r} is not supported by the auto-placer "
                 f"(supported: {''.join(sorted(NODES))}). Draw this part by hand.")
         n = NODES[kind]
+        if kind == "X":
+            n = _x_nodes(tok, subs)
+        elif kind == "M" and len(tok) >= 5 and "VDMOS" in models.get(tok[4].lower(), ""):
+            n = 3                                # power MOSFET: drain gate source
         if len(tok) < n + 1:
             raise LayoutError(f"{tok[0]}: needs {n} nodes, line is {s!r}")
         el = El(tok[0], kind, tok[1:1 + n], " ".join(tok[1 + n:]))
@@ -121,12 +153,33 @@ def parse(netlist: str) -> tuple[list[El], list[str], list[str]]:
     return out, dirs, notes
 
 
+def _x_nodes(tok: list[str], subs: dict) -> int:
+    """Node count of a subcircuit instance: everything before the subcircuit's name.
+    Only the 5-pin op-amp (in+ in- V+ V- out) has a symbol here."""
+    args = [t for t in tok[1:] if "=" not in t and t.lower() != "params:"]
+    names = [i for i, t in enumerate(args) if t.lower() in subs]
+    n = names[0] if names else len(args) - 1
+    if n != 5:
+        raise LayoutError(
+            f"{tok[0]}: only 5-pin op-amp subcircuits (in+ in- V+ V- out) can be "
+            f"auto-placed; this one has {n} pins. Draw it by hand.")
+    return n
+
+
 def _classify(el: El, models: dict) -> None:
     k, n = el.kind, el.nodes
+    if k == "X":
+        el.sym, el.pin_nodes = OPAMP_SYM, list(n)
+        el.out, el.out_pin, el.supply_pins = n[4], 4, (2, 3)
+        el.role, el.main = "amp", (n[4],)
+        el.inputs = [x for x in n[:2] if not _gnd(x) and x != n[4]]
+        return
     if k == "M":
         typ = models.get(el.rest.split()[0].lower(), "NMOS") if el.rest else "NMOS"
-        ch = "pmos" if "PMOS" in typ else "nmos"
-        if n[3] == n[2]:                         # bulk tied to source: 3-pin symbol
+        ch = "pmos" if "PMOS" in typ or "PCHAN" in typ else "nmos"
+        if len(n) == 3:                          # VDMOS power device
+            el.sym, el.pin_nodes = ch, list(n)
+        elif n[3] == n[2]:                       # bulk tied to source: 3-pin symbol
             el.sym, el.pin_nodes = ch, n[:3]
         else:
             el.sym, el.pin_nodes = ch + "4", list(n)
@@ -416,16 +469,33 @@ class _Placer:
             self._series(sheet, e, meta, idx)
         elif e.role == "amp":
             want = {}
-            for i, n in idx.items():
-                if i == 0:
-                    want[i] = (0.4, -1.0)
-                elif i == 1:
-                    want[i] = (0.4, 1.0)
+            if e.kind == "X":                    # in+ in- V+ V- out
+                ip, im = e.nodes[0], e.nodes[1]
+                # in- goes on the side its feedback arrives from: on top for a
+                # follower (loop over the top), below when the divider sits lower
+                if im == e.out:                  # follower: where else does out go?
+                    far = [x for o in self.els if o is not e and e.out in o.nodes
+                           for x in o.nodes if x != e.out and not _gnd(x)]
+                    low = any(self.row.get(x, 0) > self.row.get(ip, 0) for x in far)
                 else:
-                    want[i] = (-1.0, -0.4 if i == 2 else 0.4)
+                    low = not _gnd(ip) and not _gnd(im) and \
+                        self.row.get(im, 0) > self.row.get(ip, 0)
+                low = low and not _gnd(e.nodes[3])  # a flip would hang ground upward
+                s = -1.0 if low else 1.0
+                want = {0: (-1.0, 0.4 * s), 1: (-1.0, -0.4 * s), 4: (1.0, 0.0)}
+                if not low:                      # flipped, the rails swap ends too
+                    want.update({2: (0.0, -1.0), 3: (0.0, 1.0)})
+            else:
+                for i, n in idx.items():
+                    if i == 0:
+                        want[i] = (0.4, -1.0)
+                    elif i == 1:
+                        want[i] = (0.4, 1.0)
+                    else:
+                        want[i] = (-1.0, -0.4 if i == 2 else 0.4)
             rot = _orient(meta, want)
             out = e.out
-            pin = order[e.nodes.index(out)]
+            pin = order[e.out_pin if e.out_pin >= 0 else e.nodes.index(out)]
             px, py = asc.ORIENT[rot](*meta["pins"][pin])
             tx, ty = self.X(out) - 64, self.Y(out)
             if self.col[out] > 0:
@@ -712,9 +782,14 @@ class Drawing:
     elements: list[El]
     labels: list[str]
     score: dict | None = None
+    libs: dict = dataclasses.field(default_factory=dict)   # file name -> text
 
     def write(self, path) -> Path:
-        return self.sheet.write(path)
+        """The `.asc`, plus any subcircuit library it names, written beside it."""
+        out = self.sheet.write(path)
+        for name, text in self.libs.items():
+            (out.parent / name).write_text(text, encoding="utf-8")
+        return out
 
 
 def draw(netlist: str, values: dict | None = None, label_nets=None) -> Drawing:
@@ -732,6 +807,7 @@ def draw(netlist: str, values: dict | None = None, label_nets=None) -> Drawing:
         raise LayoutError("no elements in the netlist")
     col = _columns(els)
     row = _rows(els, col, _stacks(els, col))
+    _tuck_rails(els, col, row)
     if label_nets is None:
         # what the user is looking at (.meas) and what a behavioural source reads: a
         # B source has no input pins, so the label is the only visible link to it
@@ -750,11 +826,37 @@ def draw(netlist: str, values: dict | None = None, label_nets=None) -> Drawing:
         if k == 0:
             break
     d = best[1]
+    used = {e.rest.split()[0].lower() for e in els if e.kind == "X" and e.rest}
+    for name, text in subcircuits(netlist).items():
+        if name in used:
+            fname = f"{text.split()[1]}.lib"
+            d.libs[fname] = text
+            d.sheet.directive(f".lib {fname}")
     problems = verify(d.sheet, netlist)
     if problems:
         raise LayoutError("auto-placed drawing does not match the netlist: "
                           + "; ".join(problems))
     return d
+
+
+def _tuck_rails(els: list[El], col: dict, row: dict) -> None:
+    """A supply that only feeds op-amp supply pins is drawn the usual way: its sources
+    in a column of their own at the left, joined to the op-amp by rail labels."""
+    use: dict[str, set] = {}
+    for e in els:
+        for i, n in enumerate(e.pin_nodes):
+            if not _gnd(n):
+                use.setdefault(n, set()).add("rail" if i in e.supply_pins else
+                                             ("src" if e.kind == "V" else "other"))
+    rails = sorted(n for n, u in use.items() if u == {"rail", "src"})
+    if not rails:
+        return
+    for c in set(col.values()):                  # close the gaps the rails leave
+        here = sorted((n for n in col if col[n] == c and n not in rails), key=row.get)
+        for r, n in enumerate(here):
+            row[n] = r
+    for i, n in enumerate(rails):
+        col[n], row[n] = -1, i
 
 
 def _badness(d: Drawing) -> float:
@@ -770,9 +872,13 @@ def _attempt(els, dirs, notes, col, row, order, label_nets) -> Drawing:
     for e in sorted(els, key=lambda e: (rank[e.role], e.name)):
         pl.put(sheet, e)
     r = _Router(els)
+    # op-amp supply pins take a rail label, as on any drawn schematic, not a wire
+    rail_pins = [(e.part[e.part.meta["order"][i]], e.pin_nodes[i])
+                 for e in els for i in e.supply_pins if not _gnd(e.pin_nodes[i])]
+    skip = {pt for pt, _ in rail_pins}
     nets: dict[str, list] = {}
     for pt, n, _ in r.pins:
-        if not _gnd(n):
+        if not _gnd(n) and pt not in skip:
             nets.setdefault(n, [])
             if pt not in nets[n]:
                 nets[n].append(pt)
@@ -811,6 +917,11 @@ def _attempt(els, dirs, notes, col, row, order, label_nets) -> Drawing:
     for n in label_nets:
         if n in nets and not any(f[1] == n for f in r.flags):
             _label(r, n, _label_spot(r, n, nets[n]))
+    for _, n in rail_pins:
+        if n in nets and not any(f[1] == n for f in r.flags):
+            _label(r, n, _label_spot(r, n, nets[n]))
+    for pt, n in rail_pins:
+        _ground(r, pt, n)
     for pt, n, e in r.pins:                          # every ground pin gets a symbol
         if _gnd(n):
             _ground(r, pt)
@@ -835,10 +946,21 @@ def _label_spot(r: _Router, net: str, pins: list) -> tuple:
         min(pool, key=lambda q: (q[0], q[1]))
 
 
-def _ground(r: _Router, pt: tuple) -> None:
+def _ground(r: _Router, pt: tuple, name: str = "0") -> None:
     """A ground symbol at a pin. A pin that faces sideways or up gets a short stub
-    first, so the symbol hangs below the wire instead of sitting on the part."""
+    first, so the symbol hangs below the wire instead of sitting on the part.
+    With a `name`, a rail label on a short stub in the pin's own direction."""
     d = r.escape.get(pt, (0, 1))
+    if name != "0":
+        q = (pt[0] + d[0] * 2 * G, pt[1] + d[1] * 2 * G)
+        path = _cells(pt, q)
+        if all(c not in r.blocked or c == pt for c in path[1:]) and not any(
+                r.wire_at.get(c) or (c in r.pin_at and c != pt) for c in path[1:]):
+            r.add_path(name, path)
+            r.flags.append((q, name))
+        else:
+            r.flags.append((pt, name))
+        return
     if d == (0, 1):
         r.flags.append((pt, "0"))
         return

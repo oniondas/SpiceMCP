@@ -1,0 +1,78 @@
+{
+ "sallen_key_lowpass": {
+  "ideal": {
+   "f3db": 10000.08,
+   "peak_db": -8.731052e-06,
+   "atten10_db": -40.00044,
+   "g_half_db": -0.2633701
+  },
+  "real": {
+   "f3db": 9997.778,
+   "peak_db": 0.0007390078,
+   "atten10_db": -40.2568,
+   "g_half_db": -0.2433592
+  },
+  "at_1MHz": {
+   "ideal": -80.0000087,
+   "real": -43.2851557
+  },
+  "readability": 100
+ },
+ "noninverting_amp": {
+  "ideal": {
+   "gain_db": 19.99913,
+   "bw": 999919.3
+  },
+  "real": {
+   "gain_db": 19.99619,
+   "bw": 1059967.0
+  },
+  "readability": 100
+ },
+ "ldo": {
+  "ideal": {
+   "vout": 3.304493,
+   "vout_low": 3.301264,
+   "vout_high": 3.305534
+  },
+  "real": {
+   "vout": 3.300584,
+   "vout_low": 3.300325,
+   "vout_high": 3.300728
+  },
+  "readability": 97
+ },
+ "buck": {
+  "ideal": {
+   "vout": 4.981944,
+   "vmax": 5.001194,
+   "vmin": 4.961039,
+   "iin": -0.436452,
+   "ripple_mv": 40.155,
+   "eff": 0.9477852
+  },
+  "real": {
+   "vout": 5.023076,
+   "vmax": 5.043629,
+   "vmin": 5.001196,
+   "iin": -0.4444865,
+   "ripple_mv": 42.433,
+   "eff": 0.9460839
+  },
+  "readability": 100
+ },
+ "opamp": {
+  "1e+06": {
+   "a0_db": 87.28957,
+   "gbw_hz": 1062190.0,
+   "slew_v_per_us": 0.9934588265796098,
+   "supply_ma": 1.08
+  },
+  "1e+07": {
+   "a0_db": 87.49888,
+   "gbw_hz": 10621900.0,
+   "slew_v_per_us": 9.934588265796098,
+   "supply_ma": 1.08
+  }
+ }
+}

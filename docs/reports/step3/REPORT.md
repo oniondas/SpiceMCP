@@ -1,15 +1,17 @@
 # Step 3 report: topology library with hand-calculated starting values
 
+> Re-simulated in step 6: the op-amp circuits now use a transistor-level op-amp and the buck a power MOSFET (see `../step6/REPORT.md`). The numbers below are from that version.
+
 Five ready-made circuits. Each turns a short spec into a netlist with the measurements
 already written, sizes it with the textbook equations, and simulates that start point.
 
 | template | spec you give | hand-sized result (simulated) |
 |---|---|---|
 | `rc_lowpass` | fc | fc 1000.0 Hz for 1 kHz |
-| `sallen_key_lowpass` | fc, Q (0.707) | f(−3 dB) 10000 Hz; −0.26 dB at fc/2 |
-| `noninverting_amp` | gain, bw, op-amp GBW | 20.00 dB; 1 MHz bandwidth |
-| `ldo` | vin, vout, iload, dropout | 3.304 V; 3.301 V at dropout |
-| `buck` | vin, vout, iout, fsw, ripple | 4.982 V, 50.4 mV ripple (0.8% over), 94.8% efficient |
+| `sallen_key_lowpass` | fc, Q (0.707) | f(−3 dB) 9998 Hz; −0.24 dB at fc/2 |
+| `noninverting_amp` | gain, bw, op-amp GBW | 20.00 dB; 1.06 MHz bandwidth |
+| `ldo` | vin, vout, iload, dropout | 3.301 V; 3.300 V at dropout |
+| `buck` | vin, vout, iout, fsw, ripple | 5.023 V, 42.4 mV ripple, 94.6% efficient |
 
 ![gallery](template_gallery.png)
 
@@ -20,7 +22,9 @@ calculated start is better than a random one:
 
 - RC: the same 1 kHz with a 10× smaller capacitor (R is allowed up to 100 kΩ).
 - LDO: the pass transistor is 44% smaller and still meets dropout.
-- Buck: the hand-sized ripple was 0.4 mV over spec. The optimizer brought it inside the limit.
+- Sallen-Key: C1 is 14% smaller and the corner stays inside ±3%.
+- Buck: the hand sizing now keeps 20% ripple margin, so the start already meets every
+  limit. The optimizer found no smaller L and C that still did.
 
 ## How to use it
 - `list_templates()` shows the circuits and the spec each needs.

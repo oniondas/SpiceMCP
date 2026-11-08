@@ -9,25 +9,28 @@ from __future__ import annotations
 
 import pytest
 
-from spicemcp import asc, layout, render, server, topologies as T
+from spicemcp import asc, layout, opamp, render, server, topologies as T
 
 from test_topologies import SPECS
 
+OA = opamp.subckt()
+RAILS = "Vcc vcc 0 5\nVee vee 0 -5\n"
 UNSEEN = {
     "ladder5": "V1 in 0 AC 1\n" + "".join(
         f"R{i} {'in' if i == 0 else f'n{i}'} n{i + 1} 1k\nC{i} n{i + 1} 0 1n\n"
         for i in range(5)),
     "bridge": "V1 a 0 10\nR1 a b 1k\nR2 a c 1k\nR3 b 0 1k\nR4 c 0 1.1k\nR5 b c 10k\n",
-    "inverting": "V1 in 0 AC 1\nR1 in inn 1k\nR2 inn out 10k\nE1 out 0 0 inn 1e5\n"
-                 "RL out 0 2k\n",
+    "inverting": "V1 in 0 AC 1\nR1 in inn 1k\nR2 inn out 10k\n"
+                 "X1 0 inn vcc vee out SPMCP_OA\nRL out 0 2k\n" + RAILS + OA,
     "pi_filter": "V1 in 0 AC 1\nRs in a 50\nC1 a 0 1n\nL1 a b 1u\nC2 b 0 1n\n"
                  "RL b out 1\nR9 out 0 50\n",
     "cs_amp": "Vdd vdd 0 5\nVin g 0 AC 1 1.5\nRd vdd d 2k\nM1 d g s s NM\nRs s 0 200\n"
               "Cs s 0 10u\nRL d 0 10k\n.model NM NMOS(KP=1m VTO=1)\n",
-    "two_stage": "V1 in 0 AC 1\nE1 a 0 in fb 1e4\nR1 a b 1k\nC1 b 0 1n\nE2 out 0 b 0 10\n"
-                 "R2 out fb 9k\nR3 fb 0 1k\n",
-    "boost": "Vin in 0 5\nL1 in sw 10u\nS1 sw 0 g 0 SWM\nVg g 0 PULSE(0 5 0 1n 1n 1u 2u)\n"
-             "D1 sw out DS\nC1 out 0 10u\nRL out 0 50\n.model SWM SW(Ron=0.1)\n.model DS D\n",
+    "two_stage": "V1 in 0 AC 1\nX1 in fb vcc vee a SPMCP_OA\nR1 a b 1k\nC1 b 0 1n\n"
+                 "X2 b out vcc vee out SPMCP_OA\nR2 out fb 9k\nR3 fb 0 1k\n" + RAILS + OA,
+    "boost": "Vin in 0 5\nL1 in sw 10u\nM1 sw g 0 NSW\nVg g 0 PULSE(0 5 0 1n 1n 1u 2u)\n"
+             "D1 sw out DS\nC1 out 0 10u\nRL out 0 50\n"
+             ".model NSW VDMOS(Vto=2 Kp=20 Rd=0.05)\n.model DS D\n",
     "lc_tank": "I1 0 t AC 1m\nL1 t 0 1u\nC1 t 0 1n\nR1 t 0 1k\n",
 }
 
@@ -64,7 +67,7 @@ def _filled(d):
 def test_signal_flows_left_to_right_and_ground_hangs_down(tmp_path):
     dr = layout.draw(UNSEEN["inverting"])
     x = {e.name: e.part.at[0] for e in dr.elements}
-    assert x["V1"] < x["R1"] < x["E1"] < x["RL"]
+    assert x["V1"] < x["R1"] < x["X1"] < x["RL"]
     # R2 is feedback: it goes on a lane above the main row, not through the op-amp
     y = {e.name: e.part[e.part.meta["order"][0]][1] for e in dr.elements}
     assert y["R2"] < y["R1"]
