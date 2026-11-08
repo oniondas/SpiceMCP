@@ -114,7 +114,7 @@ def _passes(metrics: dict, cons: list[dict]) -> bool:
 
 def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None,
            yield_runs: int = 30, supply: str | None = None, supply_tol: float = 0.0,
-           seed: int = 0) -> dict:
+           seed: int | None = None) -> dict:
     run = engine.get_run(con, run_id)
     space = db.jloads(run, "param_space")
     cons = db.jloads(run, "constraints", [])
@@ -228,6 +228,8 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
 
     shortlist = [t for t in ranked if t["feasible"]][:YIELD_CANDIDATES] or ranked[:1]
     tols = {n: tol[snapped[n]] for n in names}
+    if seed is None:
+        seed = new_seed()
     if yield_runs > 0:
         for t in shortlist:
             t["yield"] = monte_carlo(con, run_id, t, tols, cons, yield_runs, supply,
@@ -304,10 +306,57 @@ def monte_carlo(con, run_id: str, design: dict, tols: dict, cons: list[dict], n:
         if vals and not k.startswith("param_"):
             spread[k] = {"min": min(vals), "max": max(vals),
                          "limit": f"{c['op']}{c['value']:g}"}
+    lo = yield_lower_bound(passed, n)
     return {"runs": n, "passed": passed, "yield_pct": round(100 * passed / n, 1),
+            "yield_at_least_pct": round(100 * lo, 1), "seed": seed,
+            "statement": yield_statement(passed, n),
             "distribution": "uniform inside each part's tolerance",
-            "resolution_note": f"{n} runs resolve yield to about {100 / n:.0f}%",
             "spread": spread, "samples": rows}
+
+
+CONFIDENCE = 0.95
+
+
+def _binom_cdf(k: int, n: int, p: float) -> float:
+    """P(X <= k) for X ~ Binomial(n, p), summed in log space (n is at most a few
+    thousand, so this is exact enough and needs no scipy)."""
+    if p <= 0:
+        return 1.0
+    if p >= 1:
+        return 1.0 if k >= n else 0.0
+    lp, lq, tot = math.log(p), math.log1p(-p), 0.0
+    for i in range(0, k + 1):
+        tot += math.exp(math.lgamma(n + 1) - math.lgamma(i + 1) - math.lgamma(n - i + 1)
+                        + i * lp + (n - i) * lq)
+    return min(tot, 1.0)
+
+
+def yield_lower_bound(passed: int, n: int, conf: float = CONFIDENCE) -> float:
+    """One-sided Clopper-Pearson lower bound on the true yield: the smallest p for which
+    seeing `passed` or more passes in `n` boards is still at least (1-conf) likely.
+    30 of 30 passing gives 0.905: it proves yield above about 90 %, not 100 %."""
+    if n <= 0 or passed <= 0:
+        return 0.0
+    a, b = 0.0, 1.0                  # P(X >= passed | p) rises with p: bisect on it
+    for _ in range(60):
+        m = (a + b) / 2
+        if 1 - _binom_cdf(passed - 1, n, m) < 1 - conf:
+            a = m
+        else:
+            b = m
+    return a
+
+
+def yield_statement(passed: int, n: int, conf: float = CONFIDENCE) -> str:
+    lo = 100 * yield_lower_bound(passed, n, conf)
+    return (f"{passed}/{n} pass: yield is at least {lo:.0f}% "
+            f"({conf * 100:.0f}% confidence). More yield_runs narrow this.")
+
+
+def new_seed() -> int:
+    """A fresh seed per yield run, so a re-run draws different boards. It is reported,
+    so any run can be repeated exactly."""
+    return random.SystemRandom().randrange(1, 1_000_000)
 
 
 def _scale_supply(netlist: str, name: str, scale: float) -> str:

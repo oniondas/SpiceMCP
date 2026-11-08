@@ -160,3 +160,30 @@ def test_loose_or_misspelled_inputs_are_rejected_by_the_schema(project):
 def test_the_style_moved_to_a_resource():
     res = asyncio.run(server.mcp.list_resources())
     assert "spicemcp://style" in [str(r.uri) for r in res]
+
+
+# --- token budget ----------------------------------------------------------------
+# The tool list is re-sent on every model turn. 9,000 characters of minified JSON is
+# about 2,300 tokens (measured, about 3.9 characters per token);
+# v0.13.0 was 13,490 characters / 4,270 tokens.
+MAX_TOOL_LIST_CHARS = 9000
+
+
+def test_the_tool_list_fits_its_token_budget():
+    tools = [t.model_dump(exclude_none=True, by_alias=True) for t in _tools()]
+    text = json.dumps(tools, separators=(",", ":"))
+    assert len(text) <= MAX_TOOL_LIST_CHARS, len(text)
+
+
+def test_the_tool_list_has_no_auto_titles_and_no_advanced_inputs():
+    text = json.dumps([t.inputSchema for t in _tools()])
+    assert '"title"' not in text
+    for hidden in server.HIDDEN_INPUTS:
+        assert f'"{hidden}"' not in text, hidden
+
+
+def test_answers_are_one_line_json_with_short_numbers(project):
+    res = asyncio.run(server.mcp.call_tool("list_templates", {}))
+    text = res[0].text
+    assert "\n" not in text and text.startswith("{\"")
+    assert server.compact({"x": 3.3329999999999997}) == '{"x":3.333}'

@@ -1,0 +1,21 @@
+{
+ "overhead_before": 4464,
+ "overhead_after": 2748,
+ "billed_before": 575176,
+ "billed_after": 348459,
+ "cached_before": 168132,
+ "cached_after": 102940,
+ "answers_before": 37245,
+ "answers_after": 19167,
+ "per_tool_before": {
+  "start_from_template": 1160,
+  "finish_design": 1174,
+  "list_templates": 715
+ },
+ "per_tool_after": {
+  "start_from_template": 236,
+  "finish_design": 360,
+  "list_templates": 429
+ },
+ "yield_30_of_30_at_least_pct": 90.5
+}

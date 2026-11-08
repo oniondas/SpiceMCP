@@ -15,11 +15,13 @@ Long explanations live in the README, not in the tool list.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import TextContent
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from . import buildable, db, engine, feasibility, layout, plots, render, report, sim, topologies
@@ -37,7 +39,76 @@ Use simulate for a one-off netlist or a sweep. Follow `next_step` in each answer
 Never rebuild a past circuit from memory: use query_run(what="netlist") or
 rollback_to_candidate."""
 
-mcp = FastMCP("spicemcp", instructions=INSTRUCTIONS)
+# Inputs that work when passed but are left out of the published tool list: a model
+# never needs them, and every byte of the list is re-sent on every turn.
+HIDDEN_INPUTS = {"sim_options", "skip_preflight", "seed"}
+
+
+def _slim_schema(node):
+    """Drop what a model does not read: pydantic's auto `title`s (a property *named*
+    title would survive: only the keyword is removed) and hidden inputs."""
+    if isinstance(node, dict):
+        out = {}
+        for k, v in node.items():
+            if k == "title" and isinstance(v, str):
+                continue
+            if k == "properties":
+                out[k] = {n: _slim_schema(x) for n, x in v.items() if n not in HIDDEN_INPUTS}
+            elif k == "required":
+                out[k] = [n for n in v if n not in HIDDEN_INPUTS]
+            else:
+                out[k] = _slim_schema(v)
+        alts = out.get("anyOf")                 # Optional[X] = None  ->  X, not required
+        if (isinstance(alts, list) and len(alts) == 2 and {"type": "null"} in alts
+                and out.get("default", 0) is None):
+            out.pop("anyOf"), out.pop("default")
+            out = {**next(a for a in alts if a != {"type": "null"}), **out}
+        if "$defs" in out:                      # a hidden input's type is now unused
+            used = json.dumps({k: v for k, v in out.items() if k != "$defs"})
+            out["$defs"] = {n: d for n, d in out["$defs"].items()
+                            if f"#/$defs/{n}" in used}
+            if not out["$defs"]:
+                del out["$defs"]
+        return out
+    if isinstance(node, list):
+        return [_slim_schema(x) for x in node]
+    return node
+
+
+def _round(obj):
+    """6 significant digits: 3.3329999999999997 -> 3.333. Far below any part tolerance."""
+    if isinstance(obj, float):
+        return float(f"{obj:.6g}") if obj == obj and abs(obj) != float("inf") else obj
+    if isinstance(obj, dict):
+        return {k: _round(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_round(v) for v in obj]
+    return obj
+
+
+def compact(obj) -> str:
+    """One-line JSON, numbers to 6 digits. Indentation alone was 21% of answer tokens."""
+    return json.dumps(_round(obj), separators=(",", ":"), ensure_ascii=False, default=str)
+
+
+class CompactMCP(FastMCP):
+    """FastMCP with a slimmer tool list and one-line JSON answers."""
+
+    async def list_tools(self):
+        tools = await super().list_tools()
+        for t in tools:
+            t.inputSchema = _slim_schema(t.inputSchema)
+        return tools
+
+    async def call_tool(self, name, arguments):
+        tool = self._tool_manager.get_tool(name)
+        if tool is None:                         # FastMCP raises its own clear error
+            return await super().call_tool(name, arguments)
+        out = await tool.run(arguments, context=self.get_context())
+        return [TextContent(type="text", text=out if isinstance(out, str) else compact(out))]
+
+
+mcp = CompactMCP("spicemcp", instructions=INSTRUCTIONS)
 
 PROJECT = os.environ.get("SPICEMCP_PROJECT", os.getcwd())
 _con = None
@@ -57,13 +128,12 @@ class _Strict(BaseModel):
 
 
 class Param(_Strict):
-    """A tunable value. Give min+max for a range, or values for a fixed list."""
-    name: str = Field(description="Placeholder name in the netlist, e.g. R1 for {R1}")
-    min: float | None = Field(None, description="Lowest value, SI units")
-    max: float | None = Field(None, description="Highest value, SI units")
-    values: list[float] | None = Field(None, description="Allowed values instead of a range")
-    scale: Literal["auto", "log", "linear"] = Field(
-        "auto", description="auto = log steps when max/min >= 10 (R, C, L, I)")
+    """Tunable value: min+max, or values."""
+    name: str = Field(description="R1 for {R1}")
+    min: float | None = None
+    max: float | None = None
+    values: list[float] | None = None
+    scale: Literal["auto", "log", "linear"] = "auto"
 
     @model_validator(mode="after")
     def _shape(self):
@@ -88,17 +158,16 @@ class Param(_Strict):
 
 
 class Goal(_Strict):
-    """Something to maximize or minimize."""
-    metric: str = Field(description="Name of a .meas result, e.g. gain_db")
+    metric: str = Field(description=".meas name")
     direction: Literal["max", "min"] = "max"
-    weight: float = Field(1.0, gt=0, description="Relative importance")
+    weight: float = Field(1.0, gt=0)
 
 
 class Limit(_Strict):
-    """A hard requirement on a metric. Give min, max, or both."""
-    metric: str = Field(description="Name of a .meas result, e.g. power")
-    min: float | None = Field(None, description="Metric must be >= this")
-    max: float | None = Field(None, description="Metric must be <= this")
+    """Hard limit: min and/or max."""
+    metric: str = Field(description=".meas name")
+    min: float | None = None
+    max: float | None = None
 
     @model_validator(mode="after")
     def _shape(self):
@@ -143,8 +212,14 @@ def _objectives(goals: list[Goal]) -> list[dict]:
     return [g.model_dump() for g in goals]
 
 
+def default_backend() -> str:
+    """LTspice unless SPICEMCP_BACKEND=ngspice is set (Linux/macOS without LTspice)."""
+    b = os.environ.get("SPICEMCP_BACKEND", "ltspice").strip().lower()
+    return b if b in ("ltspice", "ngspice") else "ltspice"
+
+
 def _sim_config(opts: SimOptions | None) -> dict:
-    o = (opts or SimOptions()).model_dump(exclude_none=True)
+    o = (opts or SimOptions(backend=default_backend())).model_dump(exclude_none=True)
     if o.get("backend") != "analytic":
         o.pop("model", None)
     return o
@@ -229,7 +304,8 @@ def _after_run(rid: str, s: dict) -> str:
     """What to do after a batch of iterations, read off the compact summary."""
     if not s.get("best_candidate"):
         return f"No candidate simulated cleanly. Call query_run(run_id='{rid}', what='failed')."
-    if s.get("at_param_space_bound"):
+    template = (engine.get_run(con(), rid)["notes"] or "").startswith("template")
+    if s.get("at_param_space_bound") and not (template and s.get("best_is_feasible")):
         return ("Best design sits on a param bound: " + ", ".join(s["at_param_space_bound"])
                 + ". Start a new run with a wider range for those params.")
     if not s.get("best_is_feasible"):
@@ -237,6 +313,38 @@ def _after_run(rid: str, s: dict) -> str:
                 f"iterations=20) again, or relax a limit.")
     return (f"Design meets all limits. Call finish_design(run_id='{rid}') for standard "
             f"part values and yield, then generate_design_report.")
+
+
+# --- details kept out of answers, readable with query_run(what="details") ---------
+
+def _details_path(rid: str) -> Path:
+    return db.state_root(PROJECT) / "simulations" / rid / "details.json"
+
+
+def _save_details(rid: str, **parts) -> None:
+    """Long material (hand calculation, full feasibility report, every finish_design
+    alternative) is stored here instead of being sent in the answer."""
+    f = _details_path(rid)
+    try:
+        old = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(compact({**old, **parts}), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _short_feasibility(v: dict | None) -> dict | None:
+    """status + the warning messages, nothing else. Full report: query_run details."""
+    if not v:
+        return None
+    msgs = [x.get("message") for x in v.get("violations") or [] if x.get("message")]
+    if not msgs:
+        return None                              # nothing to say: leave it out
+    return {"status": v.get("status"), "warnings": msgs[:3]}
+
+
+def _limits_text(cons: list[dict]) -> list[str]:
+    return [f"{c['metric']}{c['op']}{float(c['value']):.6g}" for c in cons]
 
 
 # --- tools: setup and one-off simulation ----------------------------------------
@@ -344,11 +452,27 @@ def start_from_template(run_id: str, template: str, spec: dict[str, float],
             out["schematic_asc"] = str(sch.resolve())
         except (layout.LayoutError, OSError, ValueError):
             pass
-        out.update({"template": template, "hand_calculation": d.working,
-                    "start_point": d.start,
-                    "start_result": {k: first.get(k) for k in
-                                     ("candidate_id", "status", "metrics", "feasible",
-                                      "failure_message")}})
+        _save_details(run_id, template=template, spec=spec,
+                      hand_calculation=d.working, feasibility=out.get("feasibility"))
+        watched = {c["metric"] for c in out["constraints"]} | \
+            {o["metric"] for o in out["objectives"]}
+        m = first.get("metrics") or {}
+        out = {"run_id": run_id, "template": template,
+               "limits": _limits_text(out["constraints"]),
+               "goal": [f"{o['direction']} {o['metric']}" for o in out["objectives"]],
+               "feasibility": _short_feasibility(out.get("feasibility")),
+               "start_point": d.start,
+               "start_result": {"candidate_id": first.get("candidate_id"),
+                                "status": first.get("status", "ok"),
+                                "feasible": first.get("feasible"),
+                                "metrics": {k: v for k, v in m.items() if k in watched},
+                                **({"failure_message": first["failure_message"]}
+                                   if first.get("failure_message") else {})},
+               **({"schematic_asc": out["schematic_asc"]} if "schematic_asc" in out
+                  else {}),
+               "hand_calculation": f"query_run(run_id='{run_id}', what='details')"}
+        if out["feasibility"] is None:
+            del out["feasibility"]
         out["next_step"] = (
             f"Start point already meets every limit. Call run_optimization(run_id="
             f"'{run_id}', iterations=20) to improve the goal, or generate_design_report."
@@ -376,6 +500,11 @@ def start_optimization(run_id: str, netlist: str, params: list[Param], goals: li
             _constraints(limits), _sim_config(sim_options), seed, "",
             {"bypass": skip_preflight, "circuit_type": circuit_type})
         if "error" not in out:
+            if out.get("feasibility"):
+                _save_details(run_id, feasibility=out["feasibility"])
+                out["feasibility"] = _short_feasibility(out["feasibility"])
+                if out["feasibility"] is None:
+                    del out["feasibility"]
             out["next_step"] = f"Call run_optimization(run_id='{run_id}', iterations=20)."
         return out
     return _call("start_optimization", go)
@@ -408,19 +537,20 @@ def evaluate_candidate(run_id: str, params: dict[str, float], force: bool = Fals
 
 QUERIES = ("status", "best", "pareto", "history", "candidates", "candidate", "netlist",
            "compare", "similar", "sensitivity", "explored", "failed", "trace", "next",
-           "runs")
+           "runs", "details")
 
 
 @mcp.tool()
 def query_run(run_id: str = "",
               what: Literal["status", "best", "pareto", "history", "candidates",
                             "candidate", "netlist", "compare", "similar", "sensitivity",
-                            "explored", "failed", "trace", "next", "runs"] = "status",
+                            "explored", "failed", "trace", "next", "runs",
+                            "details"] = "status",
               candidate_id: str = "", candidate_ids: list[str] | None = None,
               parameter: str = "", metric: str = "",
               limit: Annotated[int, Field(ge=1, le=200)] = 20) -> dict:
-    """Read saved run data. Default what="status". "runs" lists all runs.
-    candidate, netlist, similar need candidate_id; compare needs candidate_ids."""
+    """Read saved run data. Default what="status". "runs" lists runs; "details" = hand
+    calc, warnings, alternatives. candidate/netlist/similar need candidate_id."""
     out = _call("query_run", _query, run_id, what, candidate_id, candidate_ids or [],
                 parameter or None, metric or None, limit)
     if "error" in out:                     # show a correct call for THIS `what`
@@ -453,6 +583,12 @@ def _query(rid, what, cid, cids, parameter, metric, limit) -> dict:
     engine.get_run(c, rid)                     # unknown run -> one clear error
 
     nxt = f"Call generate_design_report(run_id='{rid}') when the design is good."
+    if what == "details":
+        f = _details_path(rid)
+        out = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+        return {**out, "next_step": "These are the long-form details of this run."
+                if out else "No details stored: this run has no template, warnings or "
+                            "finished design yet."}
     if what == "status":
         out = engine.summary(c, rid)
         return {**out, "next_step": _after_run(rid, out)}
@@ -528,20 +664,23 @@ def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "
                   inductors: Series = "E12",
                   tolerance_pct: dict[Literal["R", "C", "L"], float] | None = None,
                   yield_runs: Annotated[int, Field(ge=0, le=500)] = 30,
-                  supply: str = "", supply_tol_pct: float = 0.0) -> dict:
+                  supply: str = "", supply_tol_pct: float = 0.0,
+                  seed: int | None = None) -> dict:
     """End a run: snap the best design to standard part values, check yield under
     part tolerance, return the parts list. Default tolerance R 1%, C 5%, L 20%."""
     def go():
         out = buildable.finish(
             con(), run_id, {"R": resistors, "C": capacitors, "L": inductors},
             {k: v / 100 for k, v in (tolerance_pct or {}).items()}, yield_runs,
-            supply or None, supply_tol_pct / 100)
+            supply or None, supply_tol_pct / 100, seed)
         y = out.get("yield")
         if y:
             f = db.state_root(PROJECT) / "simulations" / run_id / "yield" / "samples.json"
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(db.jdumps(y.pop("samples")), encoding="utf-8")
             y["samples_path"] = str(f)
+        _save_details(run_id, finish=out)
+        out = _short_finish(out)
         ok = out["meets_all_limits"]
         pct = (y or {}).get("yield_pct")
         out["next_step"] = (
@@ -553,6 +692,31 @@ def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "
             "(E96, E24) or relax the limit that fails.")
         return out
     return _call("finish_design", go)
+
+
+def _short_finish(out: dict) -> dict:
+    """The parts list, pass/fail and yield. Alternatives, the optimiser's own metrics
+    and the per-metric spread go to query_run(what='details')."""
+    run = engine.get_run(con(), out["run_id"])
+    watched = {c["metric"] for c in db.jloads(run, "constraints", [])}
+    y = out.get("yield")
+    short_y = None if not y else {
+        k: y[k] for k in ("runs", "passed", "yield_pct", "yield_at_least_pct", "seed",
+                          "statement", "samples_path") if k in y}
+    return {
+        "run_id": out["run_id"],
+        "buildable_candidate": out["buildable_candidate"],
+        "parts": {n: {"value": p["value"], "label": p["label"], "series": p["series"],
+                      "tolerance_pct": p["tolerance_pct"], "change_pct": p["change_pct"]}
+                  for n, p in out["parts"].items()},
+        **({"other_values": out["other_values"]} if out["other_values"] else {}),
+        "metrics": {k: v for k, v in out["metrics"].items() if k in watched},
+        "meets_all_limits": out["meets_all_limits"],
+        "worst_margin_pct": out["worst_margin_pct"],
+        "nearest_values_meet_limits": out["nearest_values_meet_limits"],
+        "yield": short_y,
+        "more": f"query_run(run_id='{out['run_id']}', what='details')",
+    }
 
 
 @mcp.tool()
