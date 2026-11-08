@@ -36,7 +36,7 @@ def load(name):
 def yields(path):
     b, a, f = load("before.json"), load("after.json"), load("ldo_fixed.json")
     ids = list(NAMES)
-    fig, ax = plt.subplots(figsize=(10.5, 3.6))
+    fig, ax = plt.subplots(figsize=(10.5, 3.9))
     w = 0.27
     out = {}
     for i, k in enumerate(ids):
@@ -58,7 +58,7 @@ def yields(path):
                     fontsize=8, color=FIXED)
     ax.set_xticks(range(len(ids)), [NAMES[k] for k in ids])
     ax.set_ylabel("boards passing every limit, %")
-    ax.set_ylim(0, 115)
+    ax.set_ylim(0, 108)
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
     ax.yaxis.grid(True, color=GRID)
@@ -66,7 +66,8 @@ def yields(path):
     ax.bar(0, 0, color=BEFORE, label="v0.15.0: part tolerance, 27 °C")
     ax.bar(0, 0, color=AFTER, label="v0.16.0: + supply ±5 %, -40 / 25 / 85 °C")
     ax.bar(0, 0, color=FIXED, label="LDO after the fix the corners called for")
-    ax.legend(loc="upper left", fontsize=8, frameon=False, ncol=3)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), fontsize=8, frameon=False,
+              ncol=3)
     ax.set_title("Yield of each ready-made circuit, 30 random boards, same seed", fontsize=10,
                  loc="left")
     fig.tight_layout()
@@ -75,13 +76,21 @@ def yields(path):
     return out
 
 
+LABEL = {"dissipates_w": "dissipates {} W", "peak_v": "peak {} V", "reverse_v": "reverse {} V",
+         "vds_v": "Vds {} V", "vgs_v": "Vgs {} V", "rms_a": "RMS {} A", "avg_a": "average {} A",
+         "peak_a": "peak {} A"}
+
+
+def _g(v):
+    return f"{v * 1000:.2g} m" if abs(v) < 0.1 else f"{v:.3g} "
+
+
 def stress_table(a):
     rows = []
     for k in ("buck", "ldo"):
         st = a[k]["stress"] or {}
         for part, p in (st.get("parts") or {}).items():
-            meas = ", ".join(f"{q.replace('_', ' ')} {v:.3g}" for q, v in p.items()
-                             if q != "buy")
+            meas = ", ".join(LABEL[q].format(_g(v)) for q, v in p.items() if q in LABEL)
             rows.append([NAMES[k], part, meas, p["buy"]])
     return rows
 

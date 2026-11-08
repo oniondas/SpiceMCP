@@ -1,0 +1,400 @@
+{
+ "rc": {
+  "template": "rc_lowpass",
+  "spec": {
+   "fc": 1000
+  },
+  "parts": null,
+  "start_metrics": {
+   "fc": 1000.019,
+   "param_c1": 1.5915494309189534e-08
+  },
+  "seconds": 0.8,
+  "answer": {
+   "run_id": "rc",
+   "buildable_candidate": "cand_0018",
+   "parts": {
+    "C1": {
+     "value": 1.5e-08,
+     "label": "15n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -5.75
+    },
+    "R1": {
+     "value": 10700.0,
+     "label": "10.7k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 7.0
+    }
+   },
+   "metrics": {
+    "fc": 991.6688
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.191,
+   "nearest_values_meet_limits": false,
+   "yield": {
+    "runs": 30,
+    "passed": 14,
+    "yield_pct": 46.7,
+    "yield_at_least_pct": 30.8,
+    "seed": 11,
+    "statement": "14/30 pass: yield is at least 31% (95% confidence). More yield_runs narrow this.",
+    "samples_path": "/tmp/tmp01xkao0h/.ltspice-mcp/simulations/rc/yield/samples.json"
+   },
+   "more": "query_run(run_id='rc', what='details')",
+   "next_step": "Standard values meet the limits but yield is low: tighten tolerance_pct (e.g. 1% capacitors) or relax a limit."
+  },
+  "stress": null,
+  "spread": {
+   "fc": {
+    "min": 947.565,
+    "max": 1047.55,
+    "limit": "<=1020"
+   }
+  }
+ },
+ "sk": {
+  "template": "sallen_key_lowpass",
+  "spec": {
+   "fc": 10000
+  },
+  "parts": null,
+  "start_metrics": {
+   "f3db": 9997.794,
+   "peak_db": 0.0007431806,
+   "atten10_db": -40.25223,
+   "g_half_db": -0.2432995,
+   "pm_deg": 85.95744,
+   "param_c1": 2.2507907903927646e-09
+  },
+  "seconds": 3.6,
+  "answer": {
+   "run_id": "sk",
+   "buildable_candidate": "cand_0042",
+   "parts": {
+    "C1": {
+     "value": 2.2e-09,
+     "label": "2.2n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -2.26
+    },
+    "C2": {
+     "value": 1.2e-09,
+     "label": "1.2n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 6.63
+    },
+    "R1": {
+     "value": 10500.0,
+     "label": "10.5k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 5.0
+    },
+    "R2": {
+     "value": 8450.0,
+     "label": "8.45k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -15.5
+    }
+   },
+   "metrics": {
+    "f3db": 9878.671,
+    "peak_db": -6.000278e-05,
+    "atten10_db": -39.59766,
+    "g_half_db": -0.3993405,
+    "pm_deg": 85.97091
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.532,
+   "nearest_values_meet_limits": false,
+   "yield": {
+    "runs": 30,
+    "passed": 19,
+    "yield_pct": 63.3,
+    "yield_at_least_pct": 46.7,
+    "seed": 11,
+    "statement": "19/30 pass: yield is at least 47% (95% confidence). More yield_runs narrow this.",
+    "samples_path": "/tmp/tmpqvlstxgq/.ltspice-mcp/simulations/sk/yield/samples.json"
+   },
+   "more": "query_run(run_id='sk', what='details')",
+   "next_step": "Standard values meet the limits but yield is low: tighten tolerance_pct (e.g. 1% capacitors) or relax a limit."
+  },
+  "stress": null,
+  "spread": {
+   "peak_db": {
+    "min": -0.000139213,
+    "max": -1.93482e-06,
+    "limit": "<=0.1"
+   },
+   "pm_deg": {
+    "min": 85.9657,
+    "max": 85.9753,
+    "limit": ">=45"
+   },
+   "f3db": {
+    "min": 9373.73,
+    "max": 10414.9,
+    "limit": "<=10300"
+   },
+   "g_half_db": {
+    "min": -0.580826,
+    "max": -0.268352,
+    "limit": ">=-0.5"
+   },
+   "atten10_db": {
+    "min": -40.3021,
+    "max": -38.8238,
+    "limit": "<=-39"
+   }
+  }
+ },
+ "amp": {
+  "template": "noninverting_amp",
+  "spec": {
+   "gain": 10,
+   "bw": 100000.0
+  },
+  "parts": null,
+  "start_metrics": {
+   "gain_db": 19.99619,
+   "bw": 1119545.0,
+   "pm_deg": 85.34539
+  },
+  "seconds": 0.9,
+  "answer": {
+   "run_id": "amp",
+   "buildable_candidate": "cand_0027",
+   "parts": {
+    "R1": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 0.0
+    },
+    "R2": {
+     "value": 90900.0,
+     "label": "90.9k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 1.0
+    }
+   },
+   "metrics": {
+    "gain_db": 20.07398,
+    "bw": 1128372.0,
+    "pm_deg": 85.38713
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.129,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 30,
+    "passed": 23,
+    "yield_pct": 76.7,
+    "yield_at_least_pct": 60.6,
+    "seed": 11,
+    "statement": "23/30 pass: yield is at least 61% (95% confidence). More yield_runs narrow this.",
+    "samples_path": "/tmp/tmplq109eof/.ltspice-mcp/simulations/amp/yield/samples.json"
+   },
+   "more": "query_run(run_id='amp', what='details')",
+   "next_step": "Standard values meet the limits but yield is low: tighten tolerance_pct (e.g. 1% capacitors) or relax a limit."
+  },
+  "stress": null,
+  "spread": {
+   "gain_db": {
+    "min": 19.9676,
+    "max": 20.1574,
+    "limit": "<=20.1"
+   },
+   "bw": {
+    "min": 1116280.0,
+    "max": 1137540.0,
+    "limit": ">=100000"
+   },
+   "pm_deg": {
+    "min": 85.33,
+    "max": 85.4323,
+    "limit": ">=45"
+   }
+  }
+ },
+ "ldo": {
+  "template": "ldo",
+  "spec": {
+   "vin": 5,
+   "vout": 3.3,
+   "iload": 0.1
+  },
+  "parts": null,
+  "start_metrics": {
+   "vout": 3.300584,
+   "vout_low": 3.300325,
+   "pm_deg": 72.18096,
+   "step_mv": 38.514,
+   "kick_mv": 33.605,
+   "param_w": 0.003636363636363638
+  },
+  "seconds": 4.9,
+  "answer": {
+   "run_id": "ldo",
+   "buildable_candidate": "cand_0038",
+   "parts": {
+    "R1": {
+     "value": 174000.0,
+     "label": "174k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.57
+    },
+    "RZ": {
+     "value": 0.825,
+     "label": "825m",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.58
+    }
+   },
+   "other_values": {
+    "W": 0.002250121424749604
+   },
+   "metrics": {
+    "vout": 3.288572,
+    "vout_low": 3.277968,
+    "pm_deg": 68.34874,
+    "step_mv": 47.581,
+    "kick_mv": 39.985
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.66,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 30,
+    "passed": 30,
+    "yield_pct": 100.0,
+    "yield_at_least_pct": 90.5,
+    "seed": 11,
+    "statement": "30/30 pass: yield is at least 90% (95% confidence). More yield_runs narrow this.",
+    "samples_path": "/tmp/tmpyxvbtbat/.ltspice-mcp/simulations/ldo/yield/samples.json"
+   },
+   "more": "query_run(run_id='ldo', what='details')",
+   "next_step": "Buildable design found. Call generate_design_report(run_id='ldo')."
+  },
+  "stress": null,
+  "spread": {
+   "vout": {
+    "min": 3.26896,
+    "max": 3.30793,
+    "limit": "<=3.333"
+   },
+   "vout_low": {
+    "min": 3.2684,
+    "max": 3.278,
+    "limit": ">=3.234"
+   },
+   "pm_deg": {
+    "min": 68.0378,
+    "max": 68.6857,
+    "limit": ">=45"
+   },
+   "step_mv": {
+    "min": 47.39,
+    "max": 47.804,
+    "limit": "<=99"
+   },
+   "kick_mv": {
+    "min": 39.807,
+    "max": 40.141,
+    "limit": "<=99"
+   }
+  }
+ },
+ "buck": {
+  "template": "buck",
+  "spec": {
+   "vin": 12,
+   "vout": 3.3,
+   "iout": 1
+  },
+  "parts": null,
+  "start_metrics": {
+   "vout": 3.299444,
+   "ripple_mv": 31.021,
+   "param_l": 1.7306451612903222e-05,
+   "param_c": 2.4671052631578943e-06
+  },
+  "seconds": 475.5,
+  "answer": {
+   "run_id": "buck",
+   "buildable_candidate": "cand_0036",
+   "parts": {
+    "C": {
+     "value": 2.2e-06,
+     "label": "2.2u",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -10.83
+    },
+    "CI": {
+     "value": 2.2e-08,
+     "label": "22n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -1.8
+    },
+    "L": {
+     "value": 1.5e-05,
+     "label": "15u",
+     "series": "E12",
+     "tolerance_pct": 20.0,
+     "change_pct": -13.33
+    },
+    "R1": {
+     "value": 17400.0,
+     "label": "17.4k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.57
+    }
+   },
+   "metrics": {
+    "vout": 3.28744,
+    "ripple_mv": 39.644
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.652,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 30,
+    "passed": 30,
+    "yield_pct": 100.0,
+    "yield_at_least_pct": 90.5,
+    "seed": 11,
+    "statement": "30/30 pass: yield is at least 90% (95% confidence). More yield_runs narrow this.",
+    "samples_path": "/tmp/tmpgdtmyvv1/.ltspice-mcp/simulations/buck/yield/samples.json"
+   },
+   "more": "query_run(run_id='buck', what='details')",
+   "next_step": "Buildable design found. Call generate_design_report(run_id='buck')."
+  },
+  "stress": null,
+  "spread": {
+   "vout": {
+    "min": 3.26712,
+    "max": 3.30579,
+    "limit": "<=3.366"
+   },
+   "ripple_mv": {
+    "min": 32.416,
+    "max": 48.345,
+    "limit": "<=50"
+   }
+  }
+ }
+}

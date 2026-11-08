@@ -682,7 +682,7 @@ def build():
         "below its limit at minimum input. The regulator is now sized and checked hot, and "
         f"passes {ldo['fixed'][0]}/30 over every corner.",
         "<b>Worst-case summary.</b> When boards fail, the answer names the limit, the "
-        "temperature and the part whose tolerance drives it (\"f3db at -40 °C, R2 high\"), "
+        "temperature and the part whose tolerance drives it (\"gain at -40 °C, R2 high\"), "
         "and what to change.",
         "<b>The rating to buy for every part.</b> Each resistor's power, each capacitor's "
         "voltage, the inductor's current, the diode's and transistor's voltage and current "
@@ -705,12 +705,15 @@ def build():
     if rc:
         st += [Spacer(1, 6), P("A real diode, checked against its datasheet", "h2"),
                table([["choice", "result"]] +
-                     [[k.replace("_", " "), "; ".join(f"{p}: {t}" for p, t in v.items())]
-                      for k, v in rc.items() if v], [30 * mm, 144 * mm])]
+                     [[p, t] for v in rc.values() if v for p, t in v.items()
+                      if p.startswith("D1")], [30 * mm, 144 * mm]), Spacer(1, 4)]
     st += bullets([
         "A 1 A Schottky looks right for a 1 A buck, but the diode carries the load current "
         "for the whole off-time; with the usual 1.5× margin it needs more than its rating. "
         "The 3 A part passes. This is the check a reviewer does by hand.",
+        "The switch's current is rated by its RMS value (a datasheet's continuous Id is a "
+        "heating limit); the short spikes at each switching edge are listed separately "
+        "as the pulsed rating Idm, which real MOSFETs carry several times over.",
         f"Tokens re-sent every turn: {s11['tokens_every_turn']['before']:,} → "
         f"{s11['tokens_every_turn']['after']:,} for one more command and the new inputs.",
         "Limits, honestly: temperature only changes transistors and diodes (the simulator's "
