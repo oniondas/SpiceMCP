@@ -30,7 +30,7 @@ never existed.
 
 ## Circuits built so far
 
-**17 circuits.** Every one with its schematic, simulated plot and key result: [docs/circuits/SpiceMCP_Circuit_Catalog.pdf](docs/circuits/SpiceMCP_Circuit_Catalog.pdf). Text list: [docs/CIRCUITS.md](docs/CIRCUITS.md).
+**25 circuits.** Every one with its schematic, simulated plot and key result: [docs/circuits/SpiceMCP_Circuit_Catalog.pdf](docs/circuits/SpiceMCP_Circuit_Catalog.pdf). Text list: [docs/CIRCUITS.md](docs/CIRCUITS.md).
 
 | No. | Circuit | Key result |
 |---:|---|---|
@@ -256,7 +256,7 @@ measurement, which plots as a plausible straight line.
 ## Topology library: start from a known circuit
 
 Most designs start from a known topology sized by textbook equations. `list_templates`
-shows five ready-made circuits, and `start_from_template` turns a short spec into a run.
+shows thirteen ready-made circuits, and `start_from_template` turns a short spec into a run.
 It writes the netlist with its measurements, sizes the parts by hand equations (the
 working comes back line by line), and simulates that start point:
 
@@ -273,6 +273,14 @@ run_optimization(run_id="buck_001", iterations=20)
 | `noninverting_amp` | `gain`, `bw`, `gbw` (op-amp, default 10 MHz), `cload` (100 pF) |
 | `ldo` | `vin`, `vout`, `iload`, `dropout` (0.3 V), `cout` (1 µF), `step_pct` (3 %) |
 | `buck` (closed loop, `vin` 4 to 20 V) | `vin`, `vout`, `iout`, `fsw` (500 kHz), `ripple_mv` (50) |
+| `inverting_amp` | `gain`, `bw`, `rin` (10 kΩ), `gbw` (10 MHz), `cload` (100 pF) |
+| `bandpass` (multiple feedback) | `f0`, `q` (5), `gain` (1) |
+| `current_sense` (low-side shunt) | `imax`, `vout_fs` (2.5 V), `shunt_w` (0.25 W), `bw` (10 kHz), `err_pct` (2 %) |
+| `adc_driver` | `fs`, `bits` (12), `vstep` (2 V) |
+| `voltage_reference` (bandgap) | `vout` (1.25 to 3.5 V), `tc_ppm` (50), `acc_pct` (1 %) |
+| `protection` (reverse diode + TVS) | `vin`, `vsurge`, `vmax`, `iload`, `drop_max` (1 V) |
+| `boost` (closed loop, `vin` 4 to 20 V) | `vin`, `vout`, `iout`, `fsw` (300 kHz), `ripple_mv` (100) |
+| `flyback` (closed loop, `vin` 8 to 20 V) | `vin`, `vout`, `iout`, `fsw` (200 kHz), `ripple_mv` (100), `vds_max` (60 V) |
 
 Goals and limits can name a part directly as `param_<NAME>` (for example "smallest
 `param_c1`"). Each template's hand-sized start is simulated in the test suite.
@@ -473,6 +481,10 @@ finish_design(run_id="ldo_001", supply="Vin", supply_tol_pct=5)
    `seed`, which is reported; pass `seed=` to repeat a run exactly.
 5. The answer is kept short. The spread of every metric, the alternatives and the
    optimiser's own numbers are on `query_run(run_id, what="details")`.
+6. The parts list to order is written next to the run as `bom.csv` and `bom.xlsx`: one
+   line per distinct part with the quantity, reference designators, value, tolerance,
+   the rating to buy at least, and the part number when one was chosen with `find_part`.
+   Sources, loads and test fixtures are left out.
 
 On the templates, plain rounding to the nearest standard value breaks the RC and the
 Sallen-Key filters (the corner frequency leaves its window), and `finish_design` finds
@@ -639,7 +651,7 @@ to the model on every turn. Every answer ends with `next_step` (the call that mo
 | `evaluate_candidate` | Simulate one exact parameter set, with dedup and scoring |
 | `query_run` | Read stored state: `what` = status, best, pareto, history, candidates, candidate, netlist, compare, similar, sensitivity, explored, failed, trace, next, runs, details (hand calculation, full feasibility report, finish_design alternatives) |
 | `rollback_to_candidate` | Restore a byte exact past circuit and its metrics |
-| `finish_design` | End a run: standard part values (E6 to E96), re-centred; yield over part tolerance, supply and temperature, the worst case, and the rating to buy for each part |
+| `finish_design` | End a run: standard part values (E6 to E96), re-centred; yield over part tolerance, supply and temperature, the worst case, the rating to buy for each part, and a CSV/Excel parts list |
 | `generate_design_report` | Six section Markdown report with BOM, plots, DC/PVT/Monte Carlo |
 | `render_schematic` | Draw a `.asc`, or auto-place and check a netlist, as SVG/PNG in 3 styles |
 

@@ -247,11 +247,13 @@ CF adc 0 {{CF}}
 * {bits}-bit ADC at {fs:g} S/s: a {vstep:g} V step must settle to 1/2 LSB in {tacq:.3g} s
 .options reltol=1e-5 abstol=1e-12 vntol=1e-8
 V1 in 0 PULSE(0 {vstep:g} {t0:g} 1n 1n 1 2)
-{core}{oa}.tran {tacq / 2000:g} {t0 + 2 * tacq:g} 0 {tacq / 2000:g}
+{core}{oa}.tran {tacq / 2000:g} {t0 + 6 * tacq:g} 0 {tacq / 2000:g}
 .meas TRAN vacq FIND V(adc) AT {t0 + tacq:g}
-.meas TRAN vpk MAX V(adc) FROM {t0:g} TO {t0 + 2 * tacq:g}
-.meas TRAN err_lsb PARAM ({vstep:g}-vacq)/{lsb:.6g}
-.meas TRAN over_lsb PARAM (vpk-{vstep:g})/{lsb:.6g}
+.meas TRAN vend AVG V(adc) FROM {t0 + 5 * tacq:g} TO {t0 + 6 * tacq:g}
+.meas TRAN vpk MAX V(adc) FROM {t0:g} TO {t0 + 6 * tacq:g}
+.meas TRAN err_lsb PARAM (vend-vacq)/{lsb:.6g}
+.meas TRAN over_lsb PARAM (vpk-vend)/{lsb:.6g}
+.meas TRAN offset_lsb PARAM (vend-{vstep:g})/{lsb:.6g}
 .end
 """ + _loop_deck("ADC driver stability", f"""V1 in 0 0
 {SUPPLY}X1 in fbk vcc vee out {opamp.NAME}
@@ -275,8 +277,9 @@ Cinj fbk inj 1k
                  f"sampling capacitor), RF = τ/CF = {_eng(rf, 'Ω')}.",
                  f"RF also isolates the op-amp from CF, which would otherwise make it ring. "
                  f"Op-amp GBW {_eng(gbw, 'Hz')}: ten times faster than the RC.",
-                 f"1 LSB = {_eng(lsb, 'V')}; the limits are the error at the end of "
-                 "acquisition and the overshoot, each within ½ LSB.",
+                 f"1 LSB = {_eng(lsb, 'V')}; the limits are the settling error at the end of "
+                 "acquisition (against the final value) and the overshoot, each within "
+                 "½ LSB. The op-amp's offset is a fixed error, reported as offset_lsb.",
                  "The goal is the largest bucket capacitor that still settles: it absorbs "
                  "the ADC's sampling kick best."],
         circuit_type="opamp", tech={"gbw": gbw})
@@ -285,7 +288,7 @@ Cinj fbk inj 1k
 # --- 10. Voltage reference (bandgap) ---------------------------------------------------
 
 def _reference(s: dict) -> Design:
-    vout, tc_max = s["vout"], s["tc_ppm"]
+    vout, tc_max, acc = s["vout"], s["tc_ppm"], s["acc_pct"] / 100
     if not 1.25 <= vout <= 3.5:
         raise TemplateError("voltage_reference: vout must be 1.25 to 3.5 V")
     n, vt = 8, 0.025852
@@ -329,7 +332,7 @@ RL out 0 10k
               {"name": "R3", "min": r3 / 2, "max": r3 * 2},
               {"name": "RG2", "min": max(rg2 / 3, 100.0), "max": max(rg2 * 3, 1e3)}],
         goals=[{"metric": "tc_ppm", "direction": "min", "ref": tc_max}],
-        limits=[{"metric": "vroom", "min": vout * 0.995, "max": vout * 1.005},
+        limits=[{"metric": "vroom", "min": vout * (1 - acc), "max": vout * (1 + acc)},
                 {"metric": "tc_ppm", "max": tc_max}],
         start={"R1": r1, "R2": r2, "R3": r3, "RG2": max(rg2, 100.0)},
         working=[f"Two transistors, Q2 {n}× the area of Q1, at equal currents: their "
@@ -344,7 +347,9 @@ RL out 0 10k
                  "currents. Rstart (10 MΩ) kicks it out of the zero-current state.",
                  f"Second op-amp: gain 1 + RG2/RG1 = {gain:.4g} to reach {vout:g} V.",
                  "Temperature coefficient: swept from −40 to 85 °C, (max − min)/V/125 °C "
-                 "(the box method datasheets use). The goal pushes it down; R3 trims it."],
+                 "(the box method datasheets use). The goal pushes it down; R3 trims it.",
+                 f"Initial accuracy ±{acc * 100:g}% at 25 °C: untrimmed, 1% resistors move "
+                 "the output by about that much; a tighter spec needs 0.1% resistors."],
         circuit_type="general", tech={})
 
 
@@ -672,7 +677,8 @@ MORE: list[Template] = [
     Template("voltage_reference", "Bandgap voltage reference", "general",
              "Two-transistor bandgap and a gain stage; low drift from -40 to 85 C.",
              [SpecField("vout", "V", "output voltage (1.25 to 3.5)"),
-              SpecField("tc_ppm", "ppm/C", "max temperature coefficient", 50)], _reference),
+              SpecField("tc_ppm", "ppm/C", "max temperature coefficient", 50),
+              SpecField("acc_pct", "%", "initial accuracy at 25 C", 1)], _reference),
     Template("protection", "Input protection (reverse polarity + surge clamp)", "general",
              "Series Schottky, series resistor and TVS clamp for a DC input.",
              [SpecField("vin", "V", "nominal input"),

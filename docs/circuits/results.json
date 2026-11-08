@@ -227,5 +227,109 @@
    "Simulated in LTspice; the output never repeats and traces a double scroll",
    "More plots (bifurcation, butterfly effect) in the README gallery"
   ]
+ },
+ {
+  "no": 18,
+  "title": "Inverting amplifier (template)",
+  "what": "Amplifies by −R2/R1 with a set input resistance; sized from gain, bandwidth and load.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/18_inv_amp_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/18_inv_amp_plot.png",
+  "result": [
+   "Gain 20.00 dB (x−9.995) for a x−10 spec, input resistance 10 kΩ",
+   "Bandwidth 1.01 MHz (spec: at least 100 kHz); phase margin 86°"
+  ]
+ },
+ {
+  "no": 19,
+  "title": "Band-pass filter",
+  "what": "Multiple-feedback band-pass: passes a band around one centre frequency (here 1 kHz, Q = 5).",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/19_bandpass_schematic.png",
+  "readability": 88,
+  "plot": "docs/circuits/figures/19_bandpass_plot.png",
+  "result": [
+   "Centre gain -0.01 dB at 1 kHz for a 0 dB spec (peak -0.01 dB)",
+   "Response at the band edges -2.81 and -3.23 dB (−3 dB ideal, Q = 5); phase margin 90°"
+  ]
+ },
+ {
+  "no": 20,
+  "title": "Current-sense amplifier",
+  "what": "Low-side shunt and difference amplifier: turns a load current (here 0 to 2 A) into a voltage for an ADC.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/20_current_sense_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/20_current_sense_plot.png",
+  "result": [
+   "2.487 V out at 2 A for a 2.5 V full scale (error -0.53%)",
+   "Error at 10% of full scale -3.39% (op-amp offset); bandwidth 104 kHz"
+  ]
+ },
+ {
+  "no": 21,
+  "title": "ADC driver",
+  "what": "Op-amp buffer and RC kick-back filter that settles a sampling ADC's input to half an LSB in time.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/21_adc_driver_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/21_adc_driver_plot.png",
+  "result": [
+   "Settles to 0.06 LSB of its final value within the acquisition time after a 2 V step (spec: half an LSB)",
+   "Overshoot 0.00 LSB; fixed offset -0.40 LSB (the op-amp's); phase margin 87°"
+  ]
+ },
+ {
+  "no": 22,
+  "title": "Bandgap voltage reference",
+  "what": "Two transistors whose temperature drifts cancel: a steady voltage (here 2.5 V) from −40 to 85 °C.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/22_reference_schematic.png",
+  "readability": 59,
+  "plot": "docs/circuits/figures/22_reference_plot.png",
+  "result": [
+   "2.4995 V at 25 °C for a 2.5 V spec",
+   "Drift 13.3 ppm/°C from −40 to 85 °C (spec: 50 ppm/°C)"
+  ]
+ },
+ {
+  "no": 23,
+  "title": "Input protection",
+  "what": "Schottky diode against a reversed supply plus a TVS clamp against surges, in front of a 12 V load.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/23_protection_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/23_protection_plot.png",
+  "result": [
+   "Clamps a 40 V surge to 16.7 V (load max 20 V)",
+   "Drops 0.74 V at 0.5 A; reversed input gives -0.001 V at the load"
+  ]
+ },
+ {
+  "no": 24,
+  "title": "Boost converter (closed loop)",
+  "what": "Switching step-up converter: 5 V in, 12 V out at 0.5 A, with soft start and a duty limit.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/24_boost_schematic.png",
+  "readability": 43,
+  "plot": "docs/circuits/figures/24_boost_plot.png",
+  "result": [
+   "11.997 V out from 5 V in, at 0.5 A, 300 kHz, closed loop",
+   "Ripple 80 mV (limit 100 mV); efficiency 94%; phase margin 88°"
+  ]
+ },
+ {
+  "no": 25,
+  "title": "Flyback converter (closed loop)",
+  "what": "Transformer-based converter: 12 V in, 5 V out at 1 A, with an RCD clamp on the switch.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/25_flyback_schematic.png",
+  "readability": null,
+  "plot": "docs/circuits/figures/25_flyback_plot.png",
+  "result": [
+   "4.997 V out from 12 V in, at 1 A, 200 kHz, closed loop",
+   "Ripple 95 mV (limit 100 mV); switch sees 29.4 V with the RCD clamp (limit 60 V); phase margin 87°"
+  ]
  }
 ]
