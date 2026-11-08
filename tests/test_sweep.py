@@ -179,12 +179,12 @@ def test_the_tool_returns_the_documented_shape(tmp_path, monkeypatch):
     from spicemcp import server                        # noqa: PLC0415
     monkeypatch.setattr(server, "PROJECT", str(tmp_path))
 
-    res = server.simulate_sweep(RC, "R1", [1000.0, 2000.0], timeout_s=60.0)
+    res = server.simulate(RC, sweep_param="R1", sweep_values=[1000.0, 2000.0],
+                          timeout_s=60.0)
     assert res["sweep_param"]["name"] == "R1"
     assert res["sweep_param"]["values"] == [1000.0, 2000.0]
     assert all(set(r) >= {"step", "value", "metrics"} for r in res["metrics_table"])
     assert res["raw_path"] and str(tmp_path) in res["raw_path"]
 
-    bad = server.simulate_sweep(RC, "R9", [1.0, 2.0])
-    assert bad["status"] == "failed" and "nothing to sweep" in bad["failure_message"]
-    assert bad["metrics_table"] == [] and bad["raw_path"] is None
+    bad = server.simulate(RC, sweep_param="R9", sweep_values=[1.0, 2.0])
+    assert "nothing to sweep" in bad["error"] and bad["fix"]

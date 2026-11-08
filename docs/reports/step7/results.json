@@ -1,0 +1,85 @@
+{
+ "ltspice": "C:\\Users\\Shounak Das\\AppData\\Local\\Programs\\ADI\\LTspice\\LTspice.exe",
+ "platform": "Windows-11-10.0.26300-SP0",
+ "fixtures_made": 10,
+ "fixtures_total": 10,
+ "schematics_same_circuit": 13,
+ "schematics_total": 13,
+ "templates": {
+  "rc_lowpass": {
+   "ltspice": {
+    "fc": 1000.01918526,
+    "atten10_db": -20.0432137378,
+    "atten10_db_deg": 0.0
+   },
+   "ngspice": {
+    "fc": 1000.019,
+    "atten10_db": -20.04321
+   },
+   "meets_limits": true
+  },
+  "sallen_key_lowpass": {
+   "ltspice": {
+    "f3db": 9997.72334258,
+    "peak_db": 0.000739005851516,
+    "peak_db_deg": 0.0,
+    "atten10_db": -40.2567998153,
+    "atten10_db_deg": 0.0,
+    "g_half_db": -0.243506081904,
+    "g_half_db_deg": 0.0
+   },
+   "ngspice": {
+    "f3db": 9997.778,
+    "peak_db": 0.0007390078,
+    "atten10_db": -40.2568,
+    "g_half_db": -0.2433592
+   },
+   "meets_limits": true
+  },
+  "noninverting_amp": {
+   "ltspice": {
+    "gain_db": 19.9961904655,
+    "gain_db_deg": 0.0,
+    "bw": 1059931.38866
+   },
+   "ngspice": {
+    "gain_db": 19.99619,
+    "bw": 1059967.0
+   },
+   "meets_limits": true
+  },
+  "ldo": {
+   "ltspice": {
+    "vout": 3.30058383942,
+    "vout_low": 3.30032491684,
+    "vout_high": 3.30072855949
+   },
+   "ngspice": {
+    "vout": 3.300584,
+    "vout_low": 3.300325,
+    "vout_high": 3.300728
+   },
+   "meets_limits": true
+  },
+  "buck": {
+   "ltspice": {
+    "vout": 5.02044016913,
+    "vmax": 5.04054069519,
+    "vmin": 4.99894714355,
+    "iin": -0.444302308684,
+    "ripple_mv": 41.5935516357,
+    "eff": 0.945483101603
+   },
+   "ngspice": {
+    "vout": 5.023076,
+    "vmax": 5.043629,
+    "vmin": 5.001196,
+    "iin": -0.4444865,
+    "ripple_mv": 42.433,
+    "eff": 0.9460839
+   },
+   "meets_limits": true
+  }
+ },
+ "max_difference_pct": 1.98
+}

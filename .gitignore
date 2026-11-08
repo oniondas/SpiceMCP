@@ -28,6 +28,9 @@ htmlcov/
 *.log
 *.net
 *.db
+# LTspice reference outputs the waveform tests read (made by tools/ltspice_check.py)
+!tests/fixtures/*.raw
+!tests/fixtures/*.log
 
 # Tool-specific configs
 .claude/

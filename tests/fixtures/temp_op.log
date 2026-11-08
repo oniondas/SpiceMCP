@@ -1,0 +1,18 @@
+LTspice 26.0.2 for Windows
+Circuit: C:\Users\Shounak Das\SpiceMCP\tests\fixtures\temp_op.cir
+Start Time: Sun Nov  8 16:27:17 2026
+solver = Normal
+Maximum thread count: 16
+tnom = 27
+temp = -40
+method = trap
+Compress1stOrder = true
+Compress2ndOrder = true
+Direct Newton iteration succeeded in finding operating point.
+Direct Newton iteration succeeded in finding operating point.
+Direct Newton iteration succeeded in finding operating point.
+Total elapsed time: 0.086 seconds.
+
+Files loaded:
+C:\Users\Shounak Das\SpiceMCP\tests\fixtures\temp_op.cir
+

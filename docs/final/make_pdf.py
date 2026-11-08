@@ -204,7 +204,7 @@ def footer(c, doc):
     c.saveState()
     c.setFont("Sans", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(18 * mm, 10 * mm, "SpiceMCP 0.11 · engineering report")
+    c.drawString(18 * mm, 10 * mm, "SpiceMCP 0.12 · engineering report")
     c.drawRightString(A4[0] - 18 * mm, 10 * mm, f"page {doc.page}")
     c.restoreState()
 
@@ -221,7 +221,7 @@ def build():
     # ---- cover
     st += [Spacer(1, 18 * mm), P("SpiceMCP", "title"),
            P("From a circuit-simulation prototype to an engineering design tool", "sub"),
-           Spacer(1, 4), P("What changed in versions 0.6 to 0.11, shown with simulations, "
+           Spacer(1, 4), P("What changed in versions 0.6 to 0.12, shown with simulations, "
                           "and what it means for someone designing circuits.", "body"),
            Spacer(1, 10), img(TMP / "scoreboard.png"),
            P("Six headline results. Orange: before this work. Blue: now. Every number is from a "
@@ -242,7 +242,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 1
-    st += section("STEP 1 OF 6", "Easier to drive: fewer, clearer controls",
+    st += section("STEP 1 OF 7", "Easier to drive: fewer, clearer controls",
                   "SpiceMCP is operated through an AI assistant, which picks from a list of "
                   "commands. The old list was long and loosely described, so the assistant "
                   "guessed. Guessing is where wrong circuits come from.")
@@ -264,7 +264,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 2
-    st += section("STEP 2 OF 6", "Finds working part values reliably",
+    st += section("STEP 2 OF 7", "Finds working part values reliably",
                   "Part values span decades (100 Ω to 1 MΩ, 1 pF to 1 µF), and several specs "
                   "pull on the same parts. The old search stepped in straight lines and adjusted "
                   "one spec at a time, so it often got stuck.")
@@ -285,7 +285,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 3
-    st += section("STEP 3 OF 6", "Start from a known circuit, sized by textbook equations",
+    st += section("STEP 3 OF 7", "Start from a known circuit, sized by textbook equations",
                   "Engineers rarely start from a blank page. Now you can name a circuit and a "
                   "spec, and get a netlist sized by the standard design equations, already "
                   "checked in simulation.")
@@ -321,7 +321,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 4
-    st += section("STEP 4 OF 6", "Schematics drawn automatically, and proven correct",
+    st += section("STEP 4 OF 7", "Schematics drawn automatically, and proven correct",
                   "A netlist is a list of connections, not a picture. Before, without someone "
                   "placing every part by hand, parts landed in a row and straight wires joined "
                   "them. In the simulator, a wire that crosses a pin connects to it, so those "
@@ -363,7 +363,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 5
-    st += section("STEP 5 OF 6", "From ideal values to a parts list you can order",
+    st += section("STEP 5 OF 7", "From ideal values to a parts list you can order",
                   "Tuning produces values like C1 = 1.5915 nF. Nobody sells that. Rounding "
                   "every part to the nearest standard value moves all of them at once, and on "
                   "a real board every part is also off by its tolerance. A design that sits on "
@@ -416,7 +416,7 @@ def build():
     # ---- step 6
     s6 = json.load(open(REP / "step6/results.json"))
     st.append(PageBreak())
-    st += section("STEP 6 OF 6", "Real op-amps and switches, not ideal stand-ins",
+    st += section("STEP 6 OF 7", "Real op-amps and switches, not ideal stand-ins",
                   "The amplifier circuits used to model the op-amp as a dependent voltage "
                   "source: one number for its gain, no supply, no limits. The buck used an "
                   "ideal switch. Quick for a first look, but it hides what a real part does.")
@@ -455,20 +455,46 @@ def build():
              "labels, and the power MOSFET. The op-amp's circuit is saved next to the drawing, "
              "so it opens and simulates in LTspice as it is.", "cap")]
 
+    # ---- step 7
+    s7 = json.load(open(REP / "step7/results.json"))
+    st.append(PageBreak())
+    st += section("STEP 7 OF 7", "Proven in LTspice on Windows, and checked on every change",
+                  "Until now every result came from ngspice on Linux. The tool is meant for "
+                  "LTspice on Windows, so it had to be shown working there, on a real install.")
+    st += [img(REP / "step7/ltspice_vs_ngspice.png", max_h=110 * mm),
+           P(f"The five ready-made circuits, simulated in LTspice ({s7['platform'].split('-')[0]} "
+             "11, LTspice 26) and in ngspice from the same files. They agree within "
+             f"{s7['max_difference_pct']:.0f}%; the largest gap is the buck's ripple, "
+             "under 1 mV on a 42 mV figure.", "cap"),
+           P("What was checked in LTspice", "h2")]
+    st += bullets([
+        f"<b>Schematics.</b> {s7['schematics_same_circuit']} of {s7['schematics_total']} drawn "
+        "schematics were read back by LTspice itself and connect exactly the same pins as the "
+        "circuit they were drawn from. That covers the symbols, the op-amp library file and "
+        "every wire.",
+        f"<b>Circuits.</b> All {len(s7['templates'])} ready-made circuits run in LTspice and "
+        "meet their spec at the hand-sized start.",
+        f"<b>Reference files.</b> {s7['fixtures_made']} of {s7['fixtures_total']} LTspice "
+        "result files were produced and are now stored with the project, so the waveform "
+        "readers are tested against real LTspice output.",
+        "<b>Automatic checks.</b> Every change now runs the full test suite on Windows and on "
+        "Linux, with two Python versions each, before it can be merged.",
+        "<b>Version numbers.</b> Semantic versioning: 0.12.0 now. 1.0 will mean the tool "
+        "controls are frozen, so scripts written against it keep working.",
+    ])
+
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]
     st += bullets([
-        "Everything in this report was simulated with ngspice, a second simulator, so the "
-        "results do not depend on one tool. LTspice remains the main target on Windows and "
-        "reads the same circuit files.",
+        "Results were simulated in ngspice and confirmed in LTspice on Windows: the two agree "
+        "within 2%, so they do not depend on one tool.",
         "The automatic schematic handles flat circuits and 5-pin op-amps. Other sub-blocks "
         "(subcircuits) are refused with a clear message rather than drawn wrongly.",
         "The transistor-level op-amp uses simple MOSFET models, so its phase margin is "
         "optimistic. For a stability sign-off, use the vendor model of the part you will buy.",
         "Yield covers part tolerance and supply. Temperature and silicon process corners need "
         "real device models; the design report can run them where models are supplied.",
-        "Test suite: 283 automated checks pass. Another 41 depend on reference files produced by "
-        "LTspice on Windows, which are not stored in the repository.",
+        "Test suite: about 330 automated checks, run on Windows and Linux for every change.",
     ])
     st += [Spacer(1, 6), P("Five terms, in plain words", "h2"),
            table([["term", "meaning"],
@@ -487,7 +513,7 @@ def build():
     doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
                             topMargin=16 * mm, bottomMargin=18 * mm,
                             title="SpiceMCP engineering report",
-                            author="Shounak Das", subject="SpiceMCP 0.6 to 0.11")
+                            author="Shounak Das", subject="SpiceMCP 0.6 to 0.12")
     doc.build(st, onFirstPage=footer, onLaterPages=footer)
     print(OUT)
 
