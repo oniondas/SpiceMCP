@@ -587,6 +587,175 @@ def c_chua():
         "More plots (bifurcation, butterfly effect) in the README gallery"]
 
 
+# --------------------------------------------------------------------------- v0.17 templates
+NEW = {"inverting_amp": {"gain": 10, "bw": 100e3}, "bandpass": {"f0": 1000},
+       "current_sense": {"imax": 2}, "adc_driver": {"fs": 100e3},
+       "voltage_reference": {"vout": 2.5},
+       "protection": {"vin": 12, "vsurge": 40, "vmax": 20, "iload": 0.5},
+       "boost": {"vin": 5, "vout": 12, "iout": 0.5}, "flyback": {"vin": 12, "vout": 5, "iout": 1}}
+
+
+def all_metrics(name):
+    """Every .meas of a template's start point, all decks (loop decks give pm_deg)."""
+    d, net = template(name, NEW[name])
+    r = sim.simulate(net, d.start, {"backend": "ngspice"}, Path(tempfile.mkdtemp()), name)
+    return d, net, r.metrics
+
+
+def pm(m):
+    return f"phase margin {m['pm_deg']:.0f}°" if "pm_deg" in m else "phase margin not measured"
+
+
+def c_t_inverting():
+    d, net, m = all_metrics("inverting_amp")
+    sch, sc = draw(d.netlist, "18_inv_amp", d.start)
+    f, (y,), _ = wave(first_deck(net), "vdb(out)")
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    bode(ax, f, y)
+    ax.axvline(m["bw"], color=ORANGE, ls="--", lw=1)
+    ax.text(m["bw"] * 0.8, 0, f"bandwidth {eng(m['bw'], 'Hz')}", color=ORANGE, fontsize=9,
+            ha="right")
+    clean(ax, "Frequency response (gain −10)")
+    return sch, sc, save(fig, "18_inv_amp"), [
+        f"Gain {m['gain_db']:.2f} dB (x−{10 ** (m['gain_db'] / 20):.3f}) for a x−10 spec, input resistance 10 kΩ",
+        f"Bandwidth {eng(m['bw'], 'Hz')} (spec: at least 100 kHz); {pm(m)}"]
+
+
+def c_t_bandpass():
+    d, net, m = all_metrics("bandpass")
+    sch, sc = draw(d.netlist, "19_bandpass", d.start)
+    f, (y,), _ = wave(first_deck(net), "vdb(out)")
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    bode(ax, f, y)
+    ax.axvline(1000, color=ORANGE, ls="--", lw=1)
+    for e in (1000 * (math.sqrt(1 + 1 / 100) - 0.1), 1000 * (math.sqrt(1 + 1 / 100) + 0.1)):
+        ax.axvline(e, color=MUTED, ls=":", lw=1)
+    clean(ax, "Frequency response: centre 1 kHz, Q = 5 (band 905 Hz to 1.105 kHz)")
+    return sch, sc, save(fig, "19_bandpass"), [
+        f"Centre gain {m['g0_db']:.2f} dB at 1 kHz for a 0 dB spec (peak {m['peak_db']:.2f} dB)",
+        f"Response at the band edges {m['edge_lo_db']:.2f} and {m['edge_hi_db']:.2f} dB "
+        "(−3 dB ideal, Q = 5); " + pm(m)]
+
+
+def c_t_current_sense():
+    d, net, m = all_metrics("current_sense")
+    sch, sc = draw(d.netlist, "20_current_sense", d.start)
+    x, (y,), _ = wave(first_deck(net), "v(out)")
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    ax.plot(x, y, color=BLUE, lw=2)
+    ax.plot([0, 2], [0, 2.5], color=MUTED, ls=":", lw=1)
+    ax.set_xlabel("load current (A)")
+    ax.set_ylabel("output voltage (V)")
+    clean(ax, "Output vs load current (dotted: ideal 1.25 V/A)")
+    return sch, sc, save(fig, "20_current_sense"), [
+        f"{m['vfs']:.3f} V out at 2 A for a 2.5 V full scale (error {m['err_fs_pct']:+.2f}%)",
+        f"Error at 10% of full scale {m['err_10_pct']:+.2f}% (op-amp offset); "
+        f"bandwidth {eng(m['bw'], 'Hz')}"]
+
+
+def c_t_adc_driver():
+    d, net, m = all_metrics("adc_driver")
+    sch, sc = draw(d.netlist, "21_adc_driver", d.start)
+    t, (y,), _ = wave(first_deck(net), "v(adc)")
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    ax.plot([v * 1e6 for v in t], y, color=BLUE, lw=1.6)
+    ax.set_xlabel("time (µs)")
+    ax.set_ylabel("voltage at the ADC pin (V)")
+    clean(ax, "A 2 V step settling on the sample capacitor (100 kS/s, 12 bits)")
+    return sch, sc, save(fig, "21_adc_driver"), [
+        f"Settles to {m['err_lsb']:.2f} LSB of its final value within the acquisition time "
+        "after a 2 V step (spec: half an LSB)",
+        f"Overshoot {m['over_lsb']:.2f} LSB; fixed offset {m['offset_lsb']:.2f} LSB "
+        f"(the op-amp's); {pm(m)}"]
+
+
+def c_t_reference():
+    d, net, m = all_metrics("voltage_reference")
+    sch, sc = draw(d.netlist, "22_reference", d.start)
+    x, (y,), _ = wave(first_deck(net), "v(out)")
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    ax.plot(x, y, color=BLUE, lw=2)
+    ax.set_xlabel("temperature (°C)")
+    ax.set_ylabel("output voltage (V)")
+    ax.ticklabel_format(axis="y", useOffset=False)
+    clean(ax, "Output from −40 °C to 85 °C")
+    return sch, sc, save(fig, "22_reference"), [
+        f"{m['vroom']:.4f} V at 25 °C for a 2.5 V spec",
+        f"Drift {m['tc_ppm']:.1f} ppm/°C from −40 to 85 °C (spec: 50 ppm/°C)"]
+
+
+def c_t_protection():
+    d, net, m = all_metrics("protection")
+    sch, sc = draw(d.netlist, "23_protection", d.start)
+    t, (vi, vo), _ = wave(first_deck(net), "v(in)", "v(out)")
+    fig, ax = plt.subplots(figsize=(7.5, 3.2))
+    ax.plot([v * 1e3 for v in t], vi, color=MUTED, lw=1.2, label="input")
+    ax.plot([v * 1e3 for v in t], vo, color=BLUE, lw=2, label="protected output")
+    ax.axhline(20, color=ORANGE, ls="--", lw=1)
+    ax.text(0.05, 21, "load absolute max 20 V", color=ORANGE, fontsize=8.5)
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel("voltage (V)")
+    ax.legend(frameon=False, fontsize=8)
+    clean(ax, "A 40 V, 1 ms surge on a 12 V input")
+    return sch, sc, save(fig, "23_protection"), [
+        f"Clamps a 40 V surge to {m['vclamp']:.1f} V (load max 20 V)",
+        f"Drops {m['vdrop']:.2f} V at 0.5 A; reversed input gives {m['vrev']:.3f} V at the load"]
+
+
+def _switcher(name, no, vin, vout, results):
+    d, net, m = all_metrics(name)
+    try:
+        sch, sc = draw(d.netlist, f"{no}_{name}", d.start)
+    except layout.LayoutError:
+        sch, sc = netlist_card(d.netlist, f"{no}_{name}"), None
+    t, (v,), _ = wave(first_deck(net), "v(out)")
+    fig, (a, b) = plt.subplots(1, 2, figsize=(9, 3.2))
+    step = max(1, len(t) // 20000)
+    a.plot([x * 1e3 for x in t[::step]], v[::step], color=BLUE, lw=1)
+    a.set_xlabel("time (ms)")
+    a.set_ylabel("output voltage (V)")
+    clean(a, "Soft start")
+    end, span = t[-1], 20 / (300e3 if name == "boost" else 200e3)
+    tt = [(x, y) for x, y in zip(t, v) if x > end - span]
+    b.plot([(x - end + span) * 1e6 for x, _ in tt], [y for _, y in tt], color=BLUE, lw=1.4)
+    b.axhspan(vout * 0.99, vout * 1.01, color=BAND, alpha=0.5, lw=0)
+    b.set_xlabel("time (µs), last 20 cycles")
+    b.set_ylabel("output voltage (V)")
+    clean(b, "Ripple, settled (band: ±1%)")
+    return sch, sc, save(fig, f"{no}_{name}"), results(m)
+
+
+def netlist_card(net: str, name: str) -> Path:
+    """For a circuit the auto-placer cannot draw: the parts list as a picture."""
+    lines = [ln for ln in net.splitlines() if ln[:1].upper() in "VRLCDMKX" and
+             not ln.startswith(".")][:14]
+    fig, ax = plt.subplots(figsize=(7.5, 3.6))
+    ax.axis("off")
+    ax.text(0, 1, "Not drawn: the auto-placer has no symbol for the coupled windings (K1).\n"
+            "Power stage from the netlist:", va="top", fontsize=9.5, color=ORANGE,
+            transform=ax.transAxes)
+    ax.text(0, 0.8, "\n".join(lines), va="top", family="DejaVu Sans Mono", fontsize=8.5,
+            transform=ax.transAxes)
+    p = FIG / f"{name}_schematic.png"
+    fig.savefig(p, dpi=150)
+    plt.close(fig)
+    return p
+
+
+def c_t_boost():
+    return _switcher("boost", 24, 5, 12, lambda m: [
+        f"{m['vout']:.3f} V out from 5 V in, at 0.5 A, 300 kHz, closed loop",
+        f"Ripple {m['ripple_mv']:.0f} mV (limit 100 mV); efficiency {m['eff'] * 100:.0f}%; "
+        f"{pm(m)}"])
+
+
+def c_t_flyback():
+    return _switcher("flyback", 25, 12, 5, lambda m: [
+        f"{m['vout']:.3f} V out from 12 V in, at 1 A, 200 kHz, closed loop",
+        f"Ripple {m['ripple_mv']:.0f} mV (limit 100 mV); switch sees {m['vds_max']:.1f} V "
+        f"with the RCD clamp (limit 60 V); {pm(m)}"])
+
+
 CATALOG = [
     (1, "RC low-pass filter", "First-order passive filter: lets low frequencies through, "
      "cuts high ones at 20 dB per decade.", "ready-made circuit", c_rc),
@@ -622,6 +791,23 @@ CATALOG = [
      "(12 MOSFETs) that can switch a power MOSFET.", "building block", c_comparator),
     (17, "Chua's chaotic circuit", "The simplest electronic circuit that behaves chaotically.",
      "demo", c_chua),
+    (18, "Inverting amplifier (template)", "Amplifies by −R2/R1 with a set input resistance; "
+     "sized from gain, bandwidth and load.", "ready-made circuit", c_t_inverting),
+    (19, "Band-pass filter", "Multiple-feedback band-pass: passes a band around one centre "
+     "frequency (here 1 kHz, Q = 5).", "ready-made circuit", c_t_bandpass),
+    (20, "Current-sense amplifier", "Low-side shunt and difference amplifier: turns a load "
+     "current (here 0 to 2 A) into a voltage for an ADC.", "ready-made circuit",
+     c_t_current_sense),
+    (21, "ADC driver", "Op-amp buffer and RC kick-back filter that settles a sampling ADC's "
+     "input to half an LSB in time.", "ready-made circuit", c_t_adc_driver),
+    (22, "Bandgap voltage reference", "Two transistors whose temperature drifts cancel: a "
+     "steady voltage (here 2.5 V) from −40 to 85 °C.", "ready-made circuit", c_t_reference),
+    (23, "Input protection", "Schottky diode against a reversed supply plus a TVS clamp "
+     "against surges, in front of a 12 V load.", "ready-made circuit", c_t_protection),
+    (24, "Boost converter (closed loop)", "Switching step-up converter: 5 V in, 12 V out at "
+     "0.5 A, with soft start and a duty limit.", "ready-made circuit", c_t_boost),
+    (25, "Flyback converter (closed loop)", "Transformer-based converter: 12 V in, 5 V out at "
+     "1 A, with an RCD clamp on the switch.", "ready-made circuit", c_t_flyback),
 ]
 
 
@@ -695,12 +881,15 @@ def build_pdf(rows: list[dict]) -> None:
                            ("BOTTOMPADDING", (0, 0), (-1, -1), 3)]))
     st += [t, Spacer(1, 6 * mm)]
     st += [Paragraph("How to read the pages", S["kick"]), Spacer(1, 2)]
-    for b in ["<b>Ready-made circuits (1–5)</b>: you give a spec, SpiceMCP sizes the parts.",
+    for b in ["<b>Ready-made circuits (1–5, 18–25)</b>: you give a spec, SpiceMCP sizes "
+              "the parts.",
               "<b>Designed from scratch (6)</b>: built with the general tools, not the library.",
               "<b>Drawing tests (7–14)</b>: circuits the schematic drawer was never tuned on.",
               "<b>Building blocks (15–16)</b>: the transistor-level parts inside the others.",
               "Schematics 1–14 were drawn by SpiceMCP from the simulated netlist and read back "
-              "by LTspice 26 as the same circuit. Plots are ngspice simulations of that netlist."]:
+              "by LTspice 26 as the same circuit; 18–24 are drawn the same way (not yet "
+              "re-read in LTspice). The flyback (25) is not drawn: the auto-placer has no "
+              "transformer symbol. Plots are ngspice simulations of that netlist."]:
         st.append(Paragraph(b, S["bul"], bulletText="•"))
     st.append(PageBreak())
 
@@ -710,11 +899,12 @@ def build_pdf(rows: list[dict]) -> None:
                 Paragraph(r["what"], S["body"]), Spacer(1, 4 * mm)]
         cap = ("Schematic drawn by SpiceMCP" + (f" · readability {r['readability']}/100"
                                                 if r["readability"] is not None else "")
-               if r["no"] <= 14 else
+               if r["no"] <= 14 or r["no"] >= 18 and r["readability"] is not None else
+               "Not drawn by the auto-placer" if r["no"] >= 18 else
                "Transistor-level schematic" if r["no"] <= 16 else "Schematic (gallery)")
         st += head + [img(r["schematic"], 105 * mm), Paragraph(cap, S["cap"]), Spacer(1, 4 * mm),
                       img(r["plot"], 70 * mm),
-                      Paragraph("Simulated response" if r["no"] < 17 else
+                      Paragraph("Simulated response" if r["no"] != 17 else
                                 "Simulated phase portraits: the double scroll", S["cap"]),
                       Spacer(1, 4 * mm), Paragraph("KEY RESULT", S["kick"])]
         st += [Paragraph(x, S["bul"], bulletText="•") for x in r["result"]]
@@ -736,7 +926,21 @@ def build_pdf(rows: list[dict]) -> None:
 
 
 if __name__ == "__main__":
-    if "--pdf-only" in sys.argv:
+    if "--only" in sys.argv:          # re-run some circuits, keep the others' results
+        keep = {int(x) for x in sys.argv[sys.argv.index("--only") + 1].split(",")}
+        FIG.mkdir(exist_ok=True)
+        old = {r["no"]: r for r in json.loads((HERE / "results.json").read_text())}
+        for no, title, what, kind, fn in CATALOG:
+            if no in keep:
+                sch, score, plot, result = fn()
+                old[no] = {"no": no, "title": title, "what": what, "kind": kind,
+                           "schematic": str(Path(sch).relative_to(ROOT)), "readability": score,
+                           "plot": str(Path(plot).relative_to(ROOT)), "result": result}
+                print(no, title, score, result)
+        rows = [old[k] for k in sorted(old)]
+        (HERE / "results.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False))
+        build_pdf(rows)
+    elif "--pdf-only" in sys.argv:
         build_pdf(json.loads((HERE / "results.json").read_text()))
     else:
         build_pdf(make_figures())

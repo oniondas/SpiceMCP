@@ -1,17 +1,19 @@
 # Every circuit built with SpiceMCP
 
-**Total: 17 circuits.**
+**Total: 25 circuits.**
 
 **Picture book:** [circuits/SpiceMCP_Circuit_Catalog.pdf](circuits/SpiceMCP_Circuit_Catalog.pdf) has one page per circuit with its schematic, simulated plot and key result. Rebuild it with `python docs/circuits/make_catalog.py` (needs ngspice).
 
-- **1 to 5**: ready-made circuits. You give a spec, SpiceMCP sizes the parts and simulates them.
+- **1 to 5 and 18 to 25**: ready-made circuits. You give a spec, SpiceMCP sizes the parts and simulates them.
 - **6**: a new circuit designed from scratch with the general tools (not in the library).
 - **7 to 14**: circuits used to test the schematic drawer. It was never tuned on them.
 - **15 to 16**: transistor-level building blocks used inside the circuits above.
 - **17**: the Chua's chaotic circuit demo at the top of the README.
 
 Circuits 1 to 14 were all drawn by SpiceMCP and read back by LTspice 26 on Windows as the
-same circuit, pin by pin. Simulated numbers are from ngspice on the current version (0.13).
+same circuit, pin by pin. Simulated numbers are from ngspice (1 to 17 on version 0.13,
+18 to 25 on 0.17). Circuits 18 to 24 are drawn by the same placer but not yet re-read in
+LTspice; the flyback (25) is not drawn, because the placer has no transformer symbol.
 
 | No. | Circuit | What it does | Key result |
 |---:|---|---|---|
@@ -32,6 +34,14 @@ same circuit, pin by pin. Simulated numbers are from ngspice on the current vers
 | 15 | Two-stage CMOS op-amp | 8 MOSFETs, sized from a target gain-bandwidth | 87.5 dB open-loop gain, 10 MHz unity-gain for a 10 MHz spec, 1.1 mA |
 | 16 | Comparator with gate drive | Op-amp stages plus a tapered inverter buffer (12 MOSFETs) | 0 to 12 V PWM output from a signal-vs-ramp input; drives the buck's power MOSFET directly |
 | 17 | Chua's chaotic circuit | Nonlinear oscillator with a negative-resistance diode | Double-scroll attractor and period-doubling route to chaos (see README gallery) |
+| 18 | Inverting amplifier (template) | Gain −R2/R1 with a set input resistance | 20.00 dB (x−9.995); 1.01 MHz bandwidth; phase margin 86°; drawing 100/100 |
+| 19 | Band-pass filter | Multiple-feedback band-pass, 1 kHz, Q 5 | −0.01 dB at 1 kHz; band edges −2.81 / −3.23 dB; phase margin 90°; drawing 88/100 |
+| 20 | Current-sense amplifier | Low-side shunt + difference amp, 0 to 2 A → 0 to 2.5 V | 2.487 V at 2 A (−0.53%); −3.4% at 10% of full scale (op-amp offset); drawing 100/100 |
+| 21 | ADC driver | Buffer + RC charge bucket for a 12-bit 100 kS/s ADC | Settles to 0.06 LSB in the acquisition time, no overshoot; drawing 100/100 |
+| 22 | Bandgap voltage reference | Two-transistor bandgap, scaled to 2.5 V | 2.4995 V; 13.3 ppm/°C from −40 to 85 °C; drawing 59/100 |
+| 23 | Input protection | Reverse-polarity Schottky + series R + TVS clamp, 12 V | 40 V surge clamped to 16.7 V (load max 20 V); 0.74 V drop at 0.5 A; drawing 100/100 |
+| 24 | Boost converter (closed loop) | 5 V to 12 V at 0.5 A, 300 kHz, soft start | 11.997 V, 80 mV ripple, 94% efficient, phase margin 88°; drawing 43/100 |
+| 25 | Flyback converter (closed loop) | 12 V to 5 V at 1 A, 200 kHz, RCD clamp | 4.997 V, 95 mV ripple, switch peak 29.4 V; phase margin 87°; not drawn |
 
 ## Where each result comes from
 
@@ -40,3 +50,4 @@ same circuit, pin by pin. Simulated numbers are from ngspice on the current vers
 - 7 to 14: `docs/reports/step4/` (drawings), `tests/test_layout.py` and `docs/circuits/` (simulations).
 - 15 to 16: `docs/reports/step6/` and `spicemcp/opamp.py`.
 - 17: `gallery/chua/`.
+- 18 to 25: `docs/reports/step12/` and `docs/circuits/` (simulations).

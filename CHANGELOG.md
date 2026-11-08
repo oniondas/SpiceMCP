@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.17.0
+
+- Eight new ready-made circuits, each sized by hand equations (the working comes back
+  line by line), simulated at its start point in the test suite, and checked for loop
+  stability where it has a loop:
+  - `inverting_amp`: gain, bandwidth and a set input resistance.
+  - `bandpass`: multiple-feedback band-pass from a centre frequency, Q and gain.
+  - `current_sense`: low-side shunt and difference amplifier; the shunt is sized for its
+    power rating, the error is checked at full scale and at 10%.
+  - `adc_driver`: op-amp buffer and RC charge bucket that settles a sampling ADC's input
+    to half an LSB within the acquisition time; the op-amp's offset is reported apart.
+  - `voltage_reference`: two-transistor bandgap scaled to 1.25 to 3.5 V, swept from -40
+    to 85 °C (box-method ppm/°C) with an initial-accuracy limit.
+  - `protection`: Schottky against reversed input, series resistor and TVS clamp against
+    a 1 ms surge; checks the clamp voltage, the drop at load and the reversed case.
+  - `boost`: closed-loop step-up converter with soft start and a duty limit.
+  - `flyback`: closed-loop flyback with a coupled-winding transformer and an RCD clamp
+    sized from the leakage energy; checks the switch's peak voltage.
+- Parts list to order: `finish_design` writes `bom.csv` and `bom.xlsx` next to the run,
+  one line per distinct part with quantity, reference designators, value, tolerance, the
+  rating to buy at least and the part number chosen with `find_part`. Sources, loads and
+  test fixtures are left out; the answer gives the path as `parts_list`. Coupled
+  windings come out as one transformer line; a fixed value the optimiser did not tune is
+  marked as held exact in the yield run, with the nearest standard value when it is off
+  the series.
+- A deck marked `* stress: skip` (a surge or fault test) is left out of the continuous
+  part-stress check; the protection template states its surge (pulse) ratings in the
+  working instead. Leakage-level currents read "any current" rather than "1.5e-06 mA".
+- The schematic drawer places bipolar transistors (NPN and PNP symbols).
+- Circuit list and catalog: 25 circuits (docs/CIRCUITS.md and the catalog PDF).
+- Known limits: the flyback is not drawn (no transformer symbol yet); the boost and the
+  bandgap are drawn but read poorly (43 and 59 out of 100).
+
 ## 0.16.0
 
 - Yield over corners. `finish_design` now checks every board at each temperature in

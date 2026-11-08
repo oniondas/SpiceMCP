@@ -16,7 +16,8 @@ soft-start the templates do not model), with the load resistor and capacitor lef
 Only parts at the top level are checked: the transistors inside a built-in op-amp
 block are the model, not parts anyone buys. AC-only circuits (a filter or amplifier
 checked by its frequency response) have no operating waveform to measure, so they are
-reported as not checked rather than passed.
+reported as not checked rather than passed. A deck with a `* stress: skip` comment
+line (a surge or fault test) is left out.
 """
 from __future__ import annotations
 
@@ -36,6 +37,9 @@ SKIP = {"lbrk", "cinj"}                           # loop-break test fixtures
 _LOAD = re.compile(r"^[rc](l|load)\d*$", re.I)
 
 _ANALYSIS = re.compile(r"^\s*\.(tran|dc)\b", re.I | re.M)
+# A deck that tests a fault (a surge, a short) says so: its peaks are pulse ratings,
+# not continuous ones, and it is left out of the stress check.
+_SKIP_DECK = re.compile(r"^\*\s*stress:\s*skip", re.I | re.M)
 
 
 def _up(x: float, table) -> float:
@@ -46,6 +50,8 @@ def _up(x: float, table) -> float:
 
 
 def _a(x: float) -> str:
+    if x < 1e-3:                        # leakage only: any part of the kind will do
+        return "any current"
     return f"{x:.2g} A" if x >= 0.1 else f"{x * 1000:.2g} mA"
 
 
@@ -116,7 +122,7 @@ def _tran_stop(deck: str) -> float | None:
 def instrument(deck: str) -> str | None:
     """The deck with a stress .meas per part, or None when it has no tran/dc analysis."""
     m = _ANALYSIS.search(deck)
-    if not m:
+    if not m or _SKIP_DECK.search(deck):
         return None
     kind = m.group(1).upper()
     window = ""

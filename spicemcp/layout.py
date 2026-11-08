@@ -40,7 +40,7 @@ G = asc.GRID
 CX, RY = 288, 224              # column pitch and row pitch, sheet units
 LANE = 112                     # spacing of the bypass lanes above/below the main rows
 NODES = {"R": 2, "C": 2, "L": 2, "D": 2, "V": 2, "I": 2, "B": 2,
-         "E": 4, "G": 4, "S": 4, "M": 4, "X": 5}
+         "E": 4, "G": 4, "S": 4, "M": 4, "Q": 3, "X": 5}
 OPAMP_SYM = "OpAmps/opamp2"    # in+ in- V+ V- out, the 5-pin op-amp convention
 SYM = {"R": "res", "C": "cap", "L": "ind", "D": "diode", "V": "voltage",
        "I": "current", "B": "bv", "E": "e", "G": "g", "S": "sw"}
@@ -187,6 +187,11 @@ def _classify(el: El, models: dict) -> None:
             el.sym, el.pin_nodes = ch + "4", list(n)
         el.role, el.main, el.inputs = "pair", (n[2], n[0]), [n[1]]
         return
+    if k == "Q":                                 # collector base emitter, like D G S
+        typ = models.get(el.rest.split()[0].lower(), "NPN") if el.rest else "NPN"
+        el.sym, el.pin_nodes = ("pnp" if "PNP" in typ else "npn"), list(n)
+        el.role, el.main, el.inputs = "pair", (n[2], n[0]), [n[1]]
+        return
     el.sym, el.pin_nodes = SYM[k], list(n)
     if k in "EG" or k == "B":
         ins = n[2:] if k in "EG" else _refs(el.rest)
@@ -326,12 +331,12 @@ def _stacks(els: list[El], col: dict[str, int]) -> list[tuple[str, str]]:
     rails = _rails(els)
     out = []
     for e in els:
-        if e.kind != "M" or e.role != "pair":
+        if e.kind not in "MQ" or e.role != "pair":
             continue
         s_, d_ = e.main
         if s_ in rails or d_ in rails:
             continue
-        p = e.sym.startswith("pmos")
+        p = e.sym.startswith(("pmos", "pnp"))
         col[s_] = col[d_]
         out.append((s_, d_) if p else (d_, s_))
     return out
