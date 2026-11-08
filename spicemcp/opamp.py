@@ -31,6 +31,7 @@ The models are SPICE level 1, so the same deck runs in LTspice and ngspice.
 from __future__ import annotations
 
 import math
+import re
 
 NAME = "SPMCP_OA"
 KPN, KPP, VT = 100e-6, 40e-6, 0.6
@@ -115,3 +116,56 @@ M12 out o2 vss vss {name}_N W=800u L=1u
 .model {name}_P PMOS(KP={KPP:g} VTO=-{VT:g} LAMBDA=0.02{CAPS})
 .ends {name}
 """
+
+
+# --- built-in blocks, by name ---------------------------------------------------------
+# A netlist can place `X1 in+ in- V+ V- out SPMCP_OA` (or SPMCP_CMP) without carrying the
+# subcircuit: the simulator adds it. The built-in copies are biased by a 20 µA current
+# sink instead of a resistor from the supply, so they work on any supply span from 3 V up
+# without being re-sized for it (the templates still size their own copy).
+BLOCKS = {
+    NAME: "op-amp, 2 MHz GBW, pins in+ in- V+ V- out",
+    "SPMCP_CMP": "comparator with gate-drive output, pins in+ in- V+ V- out",
+}
+
+
+def block_subckt(name: str) -> str:
+    n = name.upper()
+    if n == NAME:
+        text = subckt(2e6, 10.0, NAME)
+    elif n == "SPMCP_CMP":
+        text = comparator_subckt(12.0, "SPMCP_CMP")
+    else:
+        raise KeyError(name)
+    return re.sub(r"^Rb pb vss \S+$", f"Ib pb vss {IB:g}", text, flags=re.M)
+
+
+_X_LINE = re.compile(r"^\s*X\S*\s+(.*)$", re.I)
+
+
+def used_blocks(netlist: str) -> list[str]:
+    """Built-in block names the netlist instantiates but does not define."""
+    defined = {m.group(1).upper() for m in
+               re.finditer(r"^\s*\.subckt\s+(\S+)", netlist, re.I | re.M)}
+    used = []
+    for ln in netlist.splitlines():
+        m = _X_LINE.match(ln)
+        if not m:
+            continue
+        toks = [t for t in m.group(1).split() if "=" not in t]
+        if toks and toks[-1].upper() in BLOCKS and toks[-1].upper() not in defined \
+                and toks[-1].upper() not in used:
+            used.append(toks[-1].upper())
+    return used
+
+
+def include_blocks(netlist: str) -> str:
+    """Append the built-in blocks a deck uses, before its `.end`."""
+    need = used_blocks(netlist)
+    if not need:
+        return netlist
+    lines = netlist.rstrip("\n").splitlines()
+    end = next((i for i in range(len(lines) - 1, -1, -1)
+                if lines[i].strip().lower() == ".end"), len(lines))
+    add = "".join(block_subckt(n) for n in need).rstrip("\n").splitlines()
+    return "\n".join(lines[:end] + add + lines[end:]) + "\n"

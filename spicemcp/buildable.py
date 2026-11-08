@@ -34,7 +34,7 @@ import math
 import random
 from pathlib import Path
 
-from . import db, engine, ir, sim
+from . import db, engine, ir, progress, sim
 
 E6 = [1.0, 1.5, 2.2, 3.3, 4.7, 6.8]
 E12 = [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2]
@@ -148,19 +148,34 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
 
     tried: dict[tuple, dict] = {}
 
+    def _key(p):
+        return tuple(sorted((k, float(f"{v:.9g}")) for k, v in p.items()))
+
+    def run_many(choices: list[dict]) -> list[dict]:
+        """Simulate every choice not seen yet, side by side, then look all up."""
+        ps = [{**base, **c} for c in choices]
+        new, seen = [], set()
+        for p in ps:
+            k = _key(p)
+            if k not in tried and k not in seen:
+                seen.add(k)
+                new.append(p)
+        if new:
+            rs = engine.evaluate_many(con, run_id, new, src["candidate_id"], None, False,
+                                      "buildable")
+            for p, r in zip(new, rs):
+                ok = r.get("status", "ok") == "ok"
+                m = r.get("metrics") or {}
+                tried[_key(p)] = {"params": p, "candidate_id": r.get("candidate_id"),
+                                  "metrics": m, "feasible": bool(r.get("feasible")),
+                                  "margin": _margin(m, cons) if ok else -math.inf,
+                                  "score": r.get("score")}
+            progress.report(len(tried), None,
+                            f"standard values: {len(tried)} combinations simulated")
+        return [tried[_key(p)] for p in ps]
+
     def run_combo(choice: dict) -> dict:
-        p = {**base, **choice}
-        key = tuple(sorted((k, float(f"{v:.9g}")) for k, v in p.items()))
-        if key not in tried:
-            r = engine.evaluate(con, run_id, p, src["candidate_id"], None, False,
-                                "buildable")
-            ok = r.get("status", "ok") == "ok"
-            m = r.get("metrics") or {}
-            tried[key] = {"params": p, "candidate_id": r.get("candidate_id"),
-                          "metrics": m, "feasible": bool(r.get("feasible")),
-                          "margin": _margin(m, cons) if ok else -math.inf,
-                          "score": r.get("score")}
-        return tried[key]
+        return run_many([choice])[0]
 
     def rank(t):
         return (t["feasible"], t["margin"], t["score"] if t["score"] is not None
@@ -169,8 +184,8 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
     def combos(fixed: dict, which: list[str], at: dict) -> list[dict]:
         opts = [sorted(set(bracket(float(at[n]), series[snapped[n]]))) for n in which]
         if math.prod(len(o) for o in opts) <= MAX_COMBOS:
-            return [run_combo({**fixed, **dict(zip(which, c))})
-                    for c in itertools.product(*opts)]
+            return run_many([{**fixed, **dict(zip(which, c))}
+                             for c in itertools.product(*opts)])
         cur = {**fixed, **{n: snap(float(at[n]), series[snapped[n]]) for n in which}}
         out = [run_combo(cur)]
         for _ in range(2):                             # greedy walk from nearest
@@ -189,7 +204,9 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
         cur = run_combo({**fixed, **start})
         frac, used = 0.08, 0
         while frac >= 0.0025 and used < budget and free:
-            moved = False
+            # every neighbour (each free value one step up and down) at once, side by
+            # side; move to the best one that improves the worst margin
+            moves = []
             for f in free:
                 spec = space[f]
                 for sgn in (1, -1):
@@ -199,16 +216,16 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
                     else:
                         v = v + sgn * frac * (spec["max"] - spec["min"])
                     v = min(max(v, spec["min"]), spec["max"])
-                    if v == cur["params"][f]:
-                        continue
-                    t = run_combo({**fixed, **{k: cur["params"][k] for k in free}, f: v})
-                    used += 1
-                    if (t["feasible"], t["margin"]) > (cur["feasible"], cur["margin"]):
-                        cur, moved = t, True
-                        break
-                if moved:
-                    break
-            if not moved:
+                    if v != cur["params"][f]:
+                        moves.append({**fixed, **{k: cur["params"][k] for k in free}, f: v})
+            if not moves:
+                break
+            ts = run_many(moves)
+            used += len(moves)
+            top = max(ts, key=lambda t: (t["feasible"], t["margin"]))
+            if (top["feasible"], top["margin"]) > (cur["feasible"], cur["margin"]):
+                cur = top
+            else:
                 frac /= 2
         return cur
 
@@ -283,7 +300,7 @@ def monte_carlo(con, run_id: str, design: dict, tols: dict, cons: list[dict], n:
     template = run["netlist_template"]
     root = db.state_root(engine._project(con)) / "simulations" / run_id / "yield"
     rng = random.Random(seed * 7919 + 17)
-    passed, rows = 0, []
+    boards = []                                  # drawn first, in order: seed-exact
     for i in range(n):
         p = dict(design["params"])
         for k, t in tols.items():
@@ -293,7 +310,19 @@ def monte_carlo(con, run_id: str, design: dict, tols: dict, cons: list[dict], n:
         if supply and supply_tol:
             s = 1 + rng.uniform(-supply_tol, supply_tol)
             net = _scale_supply(net, supply, s)
-        res = sim.simulate(net, p, cfg, Path(root) / str(design["candidate_id"]), f"mc{i:03d}")
+        boards.append((p, s, net))
+    where = Path(root) / str(design["candidate_id"])
+    count = [0]
+
+    def one(i):
+        p, _, net = boards[i]
+        r = sim.simulate(net, p, cfg, where, f"mc{i:03d}")
+        count[0] += 1
+        progress.report(None, None, f"yield: {count[0]} of {n} boards simulated")
+        return r
+
+    passed, rows = 0, []
+    for (p, s, _), res in zip(boards, sim.parallel_map(one, range(n))):
         m = {k.lower(): v for k, v in res.metrics.items()} if res.status == "ok" else {}
         ok = res.status == "ok" and _passes(m, cons)
         passed += ok

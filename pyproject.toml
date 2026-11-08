@@ -1,11 +1,26 @@
 [project]
 name = "spicemcp"
-version = "0.14.0"
-description = "LTspice MCP server with a stateful, anti-hallucination optimization layer"
+version = "0.15.0"
+description = "MCP server that designs, sizes and checks analog and power circuits in LTspice or ngspice"
+readme = "README.md"
+authors = [{ name = "Shounak Das" }]
+keywords = ["mcp", "ltspice", "ngspice", "spice", "circuit", "analog", "electronics", "optimization"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-dependencies = ["mcp>=1.2,<2", "pydantic>=2"]
+dependencies = ["mcp>=1.2,<3", "pydantic>=2", "anyio>=4"]
 
 [project.optional-dependencies]
 # plots only. Keep the core import-clean on a machine with neither: raw.py is stdlib
@@ -13,12 +28,20 @@ dependencies = ["mcp>=1.2,<2", "pydantic>=2"]
 plots = ["matplotlib>=3.9", "numpy>=1.24"]
 dev = ["pytest>=8", "matplotlib>=3.9", "numpy>=1.24"]
 
+[project.urls]
+Homepage = "https://github.com/oniondas/SpiceMCP"
+Changelog = "https://github.com/oniondas/SpiceMCP/blob/main/CHANGELOG.md"
+Issues = "https://github.com/oniondas/SpiceMCP/issues"
+
 [project.scripts]
 spicemcp = "spicemcp.server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = ["spicemcp", "tests", "README.md", "CHANGELOG.md", "LICENSE", "pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

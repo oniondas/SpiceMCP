@@ -29,7 +29,7 @@ from reportlab.platypus import (Image, PageBreak, Paragraph,  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
-NSTEPS = 9                                 # one section per roadmap step
+NSTEPS = 10                                # one section per roadmap step
 VERSION = re.search(r'^version\s*=\s*"([^"]+)"',
                     (HERE.parents[1] / "pyproject.toml").read_text(), re.M).group(1)
 
@@ -619,6 +619,44 @@ def build():
         "each other and would not open. It is now written in one piece, and a test opens "
         "every shipped PDF.",
     ])
+
+    # ---- step 10 (phase 1)
+    s10 = json.load(open(REP / "step10/results.json"))
+    b10, t10 = s10["buck"], s10["tokens"]
+    st.append(PageBreak())
+    st += section(f"STEP 10 OF {NSTEPS}", "No more waiting minutes for one answer",
+                  "Designing the buck converter took 20 minutes, 17 of them inside one "
+                  "call. Most assistant apps give up on a call after about a minute, so the "
+                  "design was lost even though the work was done.")
+    st += [img(REP / "step10/buck_timeline.png", max_h=62 * mm),
+           P("Every tool call of one buck design, end to end, on a 4-core machine with "
+             "ngspice. Each block is one call.", "cap"),
+           P("What changed", "h2")]
+    st += bullets([
+        f"<b>No call runs longer than about a minute</b> (longest {b10['v0.15.0']['longest_s']:.0f} s, "
+        f"was {b10['v0.14.0']['longest_s']:.0f} s). Tuning stops at the limit with its progress "
+        "saved and continues on the next call. Turning the design into parts keeps working in "
+        "the background; asking again picks up the result. Both send progress updates.",
+        f"<b>{b10['v0.14.0']['total_s'] / 60:.0f} → {b10['v0.15.0']['total_s'] / 60:.0f} minutes "
+        "for the buck.</b> Simulations that do not depend on each other now run side by side, "
+        "one per processor core: the yield boards, the standard-value combinations, a "
+        "circuit's stability and load-step checks. On an 8-core laptop it is faster still.",
+        "<b>Built-in op-amp and comparator by name.</b> A circuit can use them without copying "
+        "their transistor model in: the instrumentation amplifier design dropped from "
+        f"{t10['per_circuit']['6']['v0.14.0'] / 1000:.0f}k to "
+        f"{t10['per_circuit']['6']['v0.15.0'] / 1000:.0f}k tokens.",
+        "<b>Works without LTspice.</b> One-off simulations and sweeps follow the chosen "
+        "simulator, so macOS and Linux users with ngspice can use every command.",
+        "<b>Ready for pip install.</b> Packaged for the Python package index, checked in "
+        "every build, and tested with both the current and the new version of the MCP "
+        "library.",
+    ])
+    st += [img(REP / "step10/tokens.png", max_h=66 * mm),
+           P(f"All 17 circuits: {t10['total']['v0.13.0'] / 1000:.0f}k → "
+             f"{t10['total']['v0.15.0'] / 1000:.0f}k input tokens without caching. The one "
+             "that went up is the buck: shorter calls mean more of them, and each re-reads "
+             "the conversation. With caching that costs little (light bars); clients that "
+             "tolerate long calls can raise the time limit.", "cap")]
 
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]

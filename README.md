@@ -160,9 +160,29 @@ flowchart TB
 ## Install
 
 ```bash
-pip install -e ".[dev]"
-pytest -q                                
+pip install spicemcp            # from PyPI, once published
+pip install -e ".[dev]"         # from a clone, with the test tools
+pytest -q
 ```
+
+Settings (environment variables, all optional):
+
+| variable | default | meaning |
+|---|---|---|
+| `SPICEMCP_PROJECT` | current folder | where runs, netlists and reports are kept |
+| `SPICEMCP_BACKEND` | `ltspice` | `ngspice` where LTspice is not installed |
+| `LTSPICE_EXE` | auto-detected | full path to LTspice |
+| `SPICEMCP_WORKERS` | CPU cores, up to 8 | simulations run at the same time |
+| `SPICEMCP_CALL_BUDGET_S` | 50 | longest a tool call blocks before answering |
+
+Long calls: `run_optimization` returns at the time limit with its progress saved (call
+it again to continue). `finish_design` keeps working in the background and answers
+"still running"; call it again for the same run to get the result. Both send MCP
+progress notifications.
+
+Built-in blocks: place `X1 in+ in- V+ V- out SPMCP_OA` (op-amp, 2 MHz) or
+`X1 in+ in- V+ V- out SPMCP_CMP` (comparator with gate drive) in any netlist; the
+subcircuit is added for you.
 
 LTspice is auto-detected (`AppData\Local\Programs\ADI\LTspice\LTspice.exe`,
 `Program Files\LTC\LTspiceXVII\XVIIx64.exe`, …). Override with `LTSPICE_EXE`.

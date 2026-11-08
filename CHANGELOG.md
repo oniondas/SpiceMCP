@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.15.0
+
+- No call blocks for minutes. `run_optimization` stops at a time limit (50 s,
+  `SPICEMCP_CALL_BUDGET_S`) and says to call again; the run's state is saved, so it
+  continues. `finish_design` keeps working in the background: if it is not done in time
+  it answers "still running", and calling it again for the same run returns the result.
+  Both send MCP progress notifications while they work.
+- Simulations run side by side, one per CPU core up to 8 (`SPICEMCP_WORKERS`): the
+  yield boards, the standard-value combinations, the re-centring steps, a netlist's
+  extra decks (stability, load step), the optimiser's first screening moves, and
+  ngspice sweeps.
+- `simulate` and sweeps use the configured backend (`SPICEMCP_BACKEND`) instead of
+  always LTspice; on ngspice a sweep runs one simulation per value.
+- Built-in blocks by name: a netlist that places `X1 in+ in- V+ V- out SPMCP_OA` (op-amp)
+  or `SPMCP_CMP` (comparator) gets the subcircuit added automatically, for simulation
+  and for drawing. No template run and netlist dump to borrow them.
+- The suggested flow no longer calls `check_feasibility` before `start_optimization`
+  (which runs the same check), so a custom netlist is sent once, not twice.
+- Packaging for PyPI (`pip install spicemcp`): metadata, a build check in CI, and a
+  publish workflow on version tags. Works with the `mcp` package 1.x and 2.x (2.x
+  renamed FastMCP to MCPServer); CI tests both.
+
 ## 0.14.0
 
 - MIT license (`LICENSE`, `license` in `pyproject.toml`).
