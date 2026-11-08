@@ -38,7 +38,7 @@ flowchart TB
     subgraph Server ["SpiceMCP Server (FastMCP API)"]
         direction TB
         subgraph ToolEndpoints ["Tool Endpoints (11 Tools)"]
-            T_Life["<b>Lifecycle Tools</b><br/>start_optimization<br/>stop_optimization"]
+            T_Life["<b>Lifecycle Tools</b><br/>start_optimization<br/>finish_design"]
             T_Eval["<b>Evaluation & Search</b><br/>run_optimization<br/>evaluate_candidate"]
             T_Sim["<b>Simulation & Sweeps</b><br/>simulate"]
             T_Diag["<b>Feasibility & System</b><br/>check_feasibility<br/>check_setup"]
@@ -376,6 +376,35 @@ across, `auto` longer leg first). Never a diagonal, because LTspice draws a diag
 line without connecting anything at either end, and `auto` is a pure function of the two
 coordinates, ensuring deterministic schematic output across runs.
 
+## From optimised values to a parts list
+
+An optimiser's best design says `C1 = 1.5915 nF`, and nobody sells that part.
+`finish_design` turns the best design into one you can order, and tells you how many
+boards will work:
+
+```python
+finish_design(run_id="lpf_001")                       # R: E96 1%, C: E12 5%, L: E12 20%
+finish_design(run_id="lpf_001", capacitors="E24", tolerance_pct={"C": 1})
+finish_design(run_id="ldo_001", supply="Vin", supply_tol_pct=5)
+```
+
+1. The coarse-step parts (usually capacitors, E12) are tried at the standard values
+   just below and above their optimised value.
+2. For the best two choices, every remaining free value (the fine-step resistors, a duty
+   cycle, a transistor width) is re-centred to maximise the worst margin to any limit.
+   This is what an engineer does by hand: pick the capacitors, recompute the resistors.
+3. The fine-step parts are then picked from their series the same way.
+4. The best few sets get a Monte Carlo yield run (default 30 boards): every part is
+   drawn uniformly inside its tolerance, and optionally the supply inside its own.
+   The set with the highest yield is returned as a parts list, with the margin and the
+   spread of every limited metric.
+
+On the templates, plain rounding to the nearest standard value breaks the RC and the
+Sallen-Key filters (the corner frequency leaves its window), and `finish_design` finds
+sets that meet every limit. The yield numbers then say what the tolerances allow: a
+±2% corner frequency is not reachable with 5% capacitors (45 to 65% yield), and is
+100% with 1% parts. Report: `docs/reports/step5/REPORT.md`.
+
 ## Drawing a schematic from a netlist
 
 Give `render_schematic` a SPICE netlist (`.cir`, `.net`, `.sp`) and it places and wires
@@ -529,7 +558,7 @@ answer ends with `next_step` (the call that most likely comes next), and every e
 | `evaluate_candidate` | Simulate one exact parameter set, with dedup and scoring |
 | `query_run` | Read stored state: `what` = status, best, pareto, history, candidates, candidate, netlist, compare, similar, sensitivity, explored, failed, trace, next, runs |
 | `rollback_to_candidate` | Restore a byte exact past circuit and its metrics |
-| `stop_optimization` | Stop a run, keeping all state |
+| `finish_design` | End a run: standard part values (E6 to E96), re-centred, with Monte Carlo yield |
 | `generate_design_report` | Six section Markdown report with BOM, plots, DC/PVT/Monte Carlo |
 | `render_schematic` | Draw a `.asc`, or auto-place and check a netlist, as SVG/PNG in 3 styles |
 

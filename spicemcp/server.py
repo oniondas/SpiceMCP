@@ -22,7 +22,7 @@ from typing import Annotated, Literal
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from . import db, engine, feasibility, layout, plots, render, report, sim, topologies
+from . import buildable, db, engine, feasibility, layout, plots, render, report, sim, topologies
 
 INSTRUCTIONS = """\
 SpiceMCP designs circuits with LTspice. Typical flow:
@@ -30,8 +30,9 @@ SpiceMCP designs circuits with LTspice. Typical flow:
 2. start_from_template (filters, amplifier, LDO, buck: sized for you), or
    start_optimization (your own netlist with {PARAM} placeholders and .meas lines)
 3. run_optimization   (the server searches; you do not loop per simulation)
-4. query_run          (status, best, pareto, history ...)
+4. finish_design      (standard part values + yield under tolerance)
 5. generate_design_report
+query_run reads saved state (status, best, history ...) at any time.
 Use simulate for a one-off netlist or a sweep. Follow `next_step` in each answer.
 Never rebuild a past circuit from memory: use query_run(what="netlist") or
 rollback_to_candidate."""
@@ -171,7 +172,7 @@ EXAMPLES = {
     "evaluate_candidate": {"run_id": "rc_001", "params": {"R1": 1000, "C1": 1e-8}},
     "query_run": {"run_id": "rc_001", "what": "best"},
     "rollback_to_candidate": {"run_id": "rc_001", "candidate_id": "cand_0003"},
-    "stop_optimization": {"run_id": "rc_001"},
+    "finish_design": {"run_id": "rc_001", "resistors": "E96", "capacitors": "E12"},
     "generate_design_report": {"run_id": "rc_001", "pvt": True, "monte_carlo": 100},
     "render_schematic": {"path": "amp.cir", "output_path": "amp.png"},
     "list_templates": {},
@@ -194,7 +195,9 @@ def _fix_for(msg: str) -> str:
         return "Pick a new run_id, or keep using the existing run."
     if "unknown candidate" in m or "belongs to run" in m:
         return "Use a candidate_id from query_run(run_id, what='candidates')."
-    if "no successful candidate" in m:
+    if "supply source" in m:
+        return "Set supply to the name of the DC source that feeds the circuit, e.g. Vin."
+    if "no successful candidate" in m or "no design has simulated" in m:
         return "Call run_optimization first, then retry."
     if "cannot be met" in m:
         return "Relax the limits listed under feasibility.violations, then retry."
@@ -232,7 +235,8 @@ def _after_run(rid: str, s: dict) -> str:
     if not s.get("best_is_feasible"):
         return (f"No design meets every limit yet. Call run_optimization(run_id='{rid}', "
                 f"iterations=20) again, or relax a limit.")
-    return f"Design meets all limits. Call generate_design_report(run_id='{rid}')."
+    return (f"Design meets all limits. Call finish_design(run_id='{rid}') for standard "
+            f"part values and yield, then generate_design_report.")
 
 
 # --- tools: setup and one-off simulation ----------------------------------------
@@ -516,14 +520,39 @@ def rollback_to_candidate(run_id: str, candidate_id: str) -> dict:
     return _call("rollback_to_candidate", go)
 
 
+Series = Literal["E6", "E12", "E24", "E48", "E96", "none"]
+
+
 @mcp.tool()
-def stop_optimization(run_id: str) -> dict:
-    """Stop a run. All history and candidates are kept."""
+def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "E12",
+                  inductors: Series = "E12",
+                  tolerance_pct: dict[Literal["R", "C", "L"], float] | None = None,
+                  yield_runs: Annotated[int, Field(ge=0, le=500)] = 30,
+                  supply: str = "", supply_tol_pct: float = 0.0) -> dict:
+    """End a run: snap the best design to standard part values, check yield under
+    part tolerance, return the parts list. Default tolerance R 1%, C 5%, L 20%."""
     def go():
-        out = engine.stop(con(), run_id)
-        out["next_step"] = f"Call generate_design_report(run_id='{run_id}')."
+        out = buildable.finish(
+            con(), run_id, {"R": resistors, "C": capacitors, "L": inductors},
+            {k: v / 100 for k, v in (tolerance_pct or {}).items()}, yield_runs,
+            supply or None, supply_tol_pct / 100)
+        y = out.get("yield")
+        if y:
+            f = db.state_root(PROJECT) / "simulations" / run_id / "yield" / "samples.json"
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(db.jdumps(y.pop("samples")), encoding="utf-8")
+            y["samples_path"] = str(f)
+        ok = out["meets_all_limits"]
+        pct = (y or {}).get("yield_pct")
+        out["next_step"] = (
+            f"Buildable design found. Call generate_design_report(run_id='{run_id}')."
+            if ok and (pct is None or pct >= 90) else
+            "Standard values meet the limits but yield is low: tighten tolerance_pct "
+            "(e.g. 1% capacitors) or relax a limit." if ok else
+            "No standard-value combination meets every limit. Use a finer series "
+            "(E96, E24) or relax the limit that fails.")
         return out
-    return _call("stop_optimization", go)
+    return _call("finish_design", go)
 
 
 @mcp.tool()

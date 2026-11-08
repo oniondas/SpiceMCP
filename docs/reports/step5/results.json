@@ -1,0 +1,248 @@
+{
+ "rc_lowpass": {
+  "limits": [
+   "fc >= 980",
+   "fc <= 1020"
+  ],
+  "optimised": {
+   "C1": 1.59154943e-09,
+   "R1": 100000.0
+  },
+  "nearest": {
+   "C1": 1.5e-09,
+   "R1": 100000.0
+  },
+  "chosen": {
+   "C1": 1.8e-09,
+   "R1": 88700.0
+  },
+  "series": {
+   "C1": "E12",
+   "R1": "E96"
+  },
+  "tolerance_pct": {
+   "C1": 5.0,
+   "R1": 1.0
+  },
+  "nearest_meets": false,
+  "chosen_meets": true,
+  "chosen_margin_pct": 1.722,
+  "yield_nearest": 5.0,
+  "yield_chosen": 45.0,
+  "yield_tight": 100.0,
+  "supply_tol_pct": 0,
+  "spread_chosen": {
+   "fc": {
+    "min": 954.9845,
+    "max": 1050.055,
+    "limit": "<=1020"
+   }
+  },
+  "combinations": 21
+ },
+ "sallen_key_lowpass": {
+  "limits": [
+   "peak_db <= 0.1",
+   "f3db >= 9700",
+   "f3db <= 10300",
+   "g_half_db >= -0.5",
+   "atten10_db <= -39"
+  ],
+  "optimised": {
+   "C1": 2.2507907903927646e-09,
+   "C2": 1.1253953951963827e-09,
+   "R1": 10000.0,
+   "R2": 10000.0
+  },
+  "nearest": {
+   "C1": 2.2e-09,
+   "C2": 1.2e-09,
+   "R1": 10000.0,
+   "R2": 10000.0
+  },
+  "chosen": {
+   "C1": 2.7e-09,
+   "C2": 1.2e-09,
+   "R1": 8660.0,
+   "R2": 10000.0
+  },
+  "series": {
+   "C1": "E12",
+   "C2": "E12",
+   "R1": "E96",
+   "R2": "E96"
+  },
+  "tolerance_pct": {
+   "C1": 5.0,
+   "C2": 5.0,
+   "R1": 1.0,
+   "R2": 1.0
+  },
+  "nearest_meets": false,
+  "chosen_meets": true,
+  "chosen_margin_pct": 2.716,
+  "yield_nearest": 10.0,
+  "yield_chosen": 65.0,
+  "yield_tight": 100.0,
+  "supply_tol_pct": 0,
+  "spread_chosen": {
+   "peak_db": {
+    "min": 0.006986834,
+    "max": 0.1474189,
+    "limit": "<=0.1"
+   },
+   "f3db": {
+    "min": 9567.593,
+    "max": 10425.71,
+    "limit": "<=10300"
+   },
+   "g_half_db": {
+    "min": -0.2236826,
+    "max": 0.10854,
+    "limit": ">=-0.5"
+   },
+   "atten10_db": {
+    "min": -41.61071,
+    "max": -40.33906,
+    "limit": "<=-39"
+   }
+  },
+  "combinations": 56
+ },
+ "noninverting_amp": {
+  "limits": [
+   "gain_db >= 19.9",
+   "gain_db <= 20.1",
+   "bw >= 100000"
+  ],
+  "optimised": {
+   "R1": 10000.0,
+   "R2": 90000.0
+  },
+  "nearest": {
+   "R1": 10000.0,
+   "R2": 90900.0
+  },
+  "chosen": {
+   "R1": 10000.0,
+   "R2": 90900.0
+  },
+  "series": {
+   "R1": "E96",
+   "R2": "E96"
+  },
+  "tolerance_pct": {
+   "R1": 1.0,
+   "R2": 1.0
+  },
+  "nearest_meets": true,
+  "chosen_meets": true,
+  "chosen_margin_pct": 0.115,
+  "yield_nearest": 50.0,
+  "yield_chosen": 50.0,
+  "yield_tight": 100.0,
+  "supply_tol_pct": 0,
+  "spread_chosen": {
+   "gain_db": {
+    "min": 19.9378,
+    "max": 20.21967,
+    "limit": "<=20.1"
+   },
+   "bw": {
+    "min": 992806.5,
+    "max": 1024390.0,
+    "limit": ">=100000"
+   }
+  },
+  "combinations": 27
+ },
+ "ldo": {
+  "limits": [
+   "vout >= 3.267",
+   "vout <= 3.333",
+   "vout_low >= 3.234"
+  ],
+  "optimised": {
+   "R1": 175000.0
+  },
+  "nearest": {
+   "R1": 174000.0
+  },
+  "chosen": {
+   "R1": 174000.0
+  },
+  "series": {
+   "R1": "E96"
+  },
+  "tolerance_pct": {
+   "R1": 1.0
+  },
+  "nearest_meets": true,
+  "chosen_meets": true,
+  "chosen_margin_pct": 0.767,
+  "yield_nearest": 100.0,
+  "yield_chosen": 100.0,
+  "yield_tight": 100.0,
+  "supply_tol_pct": 5,
+  "spread_chosen": {
+   "vout": {
+    "min": 3.271564,
+    "max": 3.311304,
+    "limit": "<=3.333"
+   },
+   "vout_low": {
+    "min": 3.26532,
+    "max": 3.265321,
+    "limit": ">=3.234"
+   }
+  },
+  "combinations": 39
+ },
+ "buck": {
+  "limits": [
+   "vout >= 4.9",
+   "vout <= 5.1",
+   "ripple_mv <= 50"
+  ],
+  "optimised": {
+   "C": 9.6283763e-07,
+   "L": 3.24293277e-05
+  },
+  "nearest": {
+   "C": 1e-06,
+   "L": 3.3e-05
+  },
+  "chosen": {
+   "C": 1e-06,
+   "L": 3.3e-05
+  },
+  "series": {
+   "C": "E12",
+   "L": "E12"
+  },
+  "tolerance_pct": {
+   "C": 5.0,
+   "L": 20.0
+  },
+  "nearest_meets": true,
+  "chosen_meets": true,
+  "chosen_margin_pct": 1.957,
+  "yield_nearest": 30.0,
+  "yield_chosen": 32.5,
+  "yield_tight": 37.5,
+  "supply_tol_pct": 5,
+  "spread_chosen": {
+   "vout": {
+    "min": 4.748487,
+    "max": 5.260464,
+    "limit": "<=5.1"
+   },
+   "ripple_mv": {
+    "min": 36.292,
+    "max": 58.955,
+    "limit": "<=50"
+   }
+  },
+  "combinations": 46
+ }
+}
