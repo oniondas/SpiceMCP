@@ -57,4 +57,13 @@ def test_a_fixed_value_off_the_standard_series_is_flagged():
     net = "* t\nV1 in 0 5\nR1 in a 6.63k\nR2 a 0 10k\nC1 a 0 13.1u\n.op\n.end\n"
     notes = {r[1]: r[7] for r in bom.rows(net, {"parts": {"R2": {"tolerance_pct": 1}}})}
     assert "6.65 kΩ (E96)" in notes["R1"] and "13 µF (E24)" in notes["C1"]
-    assert notes["R2"] == ""
+    assert notes["R2"] == "" and "6.65" not in notes["R2"]
+
+
+def test_coupled_windings_are_one_transformer_line():
+    net = ("* t\nV1 in 0 12\nLP in sw 56u\nLS 0 sx {5.6e-05*0.5}\nK1 LP LS 0.98\n"
+           "R1 sw 0 10\nR2 sx 0 10\n.tran 1u 1m\n.end\n")
+    r = [x for x in bom.rows(net, {}) if x[2] == "Transformer"]
+    assert len(r) == 1 and r[0][1] == "K1"
+    assert "LP 56 µH" in r[0][3] and "LS 28 µH" in r[0][3] and "0.98" in r[0][3]
+    assert not any(x[2] == "Inductor" for x in bom.rows(net, {}))

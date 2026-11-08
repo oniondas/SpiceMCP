@@ -37,11 +37,52 @@ def _eng(v: float, unit: str) -> str:
     return f"{v:.3g} {unit}"
 
 
-def rows(netlist: str, finish: dict, parts_chosen: dict | None = None) -> list[list]:
-    """BOM lines for the first deck of a finished netlist (values already filled in)."""
+def _value(tok: str) -> float | None:
+    """A part value, including a plain arithmetic `{5.6e-05*0.47}` left by a template."""
+    v = ir.parse_value(tok)
+    if v is None and re.fullmatch(r"\{[0-9eE.+\-*/() ]+\}", tok):
+        try:
+            v = float(eval(tok[1:-1], {"__builtins__": {}}))  # digits and operators only
+        except (SyntaxError, ZeroDivisionError, ValueError):
+            v = None
+    return v
+
+
+def _couplings(deck: str) -> dict[str, tuple[str, str]]:
+    """Inductors joined by a K line -> (the transformer's name, its coupling)."""
+    out = {}
+    for ln in deck.splitlines():
+        t = ln.split()
+        if len(t) >= 4 and t[0][:1].lower() == "k" and not t[0].startswith("*"):
+            for ind in t[1:-1]:
+                out[ind.lower()] = (t[0], t[-1])
+    return out
+
+
+def _param_of(template: str | None) -> dict[str, str]:
+    """Reference designator -> the tuned parameter that sets its value (`C1 out 0 {C}`)."""
+    out = {}
+    for ln in (sim.decks(template)[0] if template else "").splitlines():
+        t = ln.split()
+        if len(t) >= 4 and re.fullmatch(r"\{\w+\}", t[3]):
+            out[t[0].lower()] = t[3][1:-1].lower()
+    return out
+
+
+def rows(netlist: str, finish: dict, parts_chosen: dict | None = None,
+         template: str | None = None) -> list[list]:
+    """BOM lines for the first deck of a finished netlist (values already filled in).
+    `template` (the netlist with {PARAM}s) ties a part to its tuned value's tolerance.
+    Coupled inductors (a K line) are one transformer line with each winding's value."""
     deck = sim.decks(netlist)[0]
-    tol = {n.lower(): p.get("tolerance_pct") for n, p in (finish.get("parts") or {}).items()}
-    series = {n.lower(): p.get("series") for n, p in (finish.get("parts") or {}).items()}
+    coupled = _couplings(deck)
+    xfmr: dict[str, dict] = {}
+    fp = {n.lower(): p for n, p in (finish.get("parts") or {}).items()}
+    for ref, prm in _param_of(template).items():
+        if prm in fp:
+            fp.setdefault(ref, fp[prm])
+    tol = {n: p.get("tolerance_pct") for n, p in fp.items()}
+    series = {n: p.get("series") for n, p in fp.items()}
     buy = {n.lower(): p.get("buy") for n, p in
            ((finish.get("stress") or {}).get("parts") or {}).items()}
     named = {stress.REFDES.get(slot, "X1").lower(): part["name"]
@@ -63,14 +104,24 @@ def rows(netlist: str, finish: dict, parts_chosen: dict | None = None) -> list[l
         if depth or k not in KIND or _BENCH.match(low):
             continue
         std = ""
+        if k == "l" and low in coupled:
+            kname, kval = coupled[low]
+            x = xfmr.setdefault(kname, {"k": kval, "w": [], "buy": []})
+            v = _value(t[3]) if len(t) > 3 else None
+            x["w"].append(f"{t[0]} {_eng(v, 'H') if v is not None else t[3]}")
+            if buy.get(low):
+                x["buy"].append(f"{t[0]}: {buy[low]}")
+            continue
         if k in UNIT:
-            v = ir.parse_value(t[3]) if len(t) > 3 else None
+            v = _value(t[3]) if len(t) > 3 else None
             value = _eng(v, UNIT[k]) if v is not None else " ".join(t[3:])
             part = ""
             if v and low not in series:
                 s_ = buildable.snap(v, STD[k])
-                if abs(s_ / v - 1) > 0.001:
-                    std = f"not a standard value: use {_eng(s_, UNIT[k])} ({STD[k]})"
+                std = ("fixed value, held exact in the yield run"
+                       if abs(s_ / v - 1) <= 0.001 else
+                       f"not a standard value: use {_eng(s_, UNIT[k])} ({STD[k]}); "
+                       "held exact in the yield run")
         else:
             n = {"d": 2, "m": 3, "q": 3}.get(k)
             if k == "x":
@@ -92,6 +143,11 @@ def rows(netlist: str, finish: dict, parts_chosen: dict | None = None) -> list[l
             note.append("built-in model: choose a real part (find_part)")
         out.append([len(refs), " ".join(refs), kind, value or part, tl, rating, pn,
                     "; ".join(note)])
+    for kname, x in xfmr.items():
+        out.append([1, kname, "Transformer", ", ".join(x["w"]) + f", coupling {x['k']}",
+                    "", "; ".join(x["buy"]), "",
+                    "custom or catalogue transformer: match the inductances and turns "
+                    "ratio, leakage under the simulated coupling"])
     return sorted(out, key=lambda r: (r[2], r[1]))
 
 

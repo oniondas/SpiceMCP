@@ -29,7 +29,7 @@ from reportlab.platypus import (Image, PageBreak, Paragraph,  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
-NSTEPS = 11                                # one section per roadmap step
+NSTEPS = 12                                # one section per roadmap step
 VERSION = re.search(r'^version\s*=\s*"([^"]+)"',
                     (HERE.parents[1] / "pyproject.toml").read_text(), re.M).group(1)
 
@@ -722,6 +722,69 @@ def build():
         "of the part you will buy. Encrypted vendor models run only in LTspice.",
     ])
 
+    # ---- step 12 (phase 3)
+    s12 = json.load(open(REP / "step12/results.json"))
+    y12, b12 = s12["yield"], s12["bom"]
+    st.append(PageBreak())
+    st += section(f"STEP 12 OF {NSTEPS}", "Eight more ready-made circuits, and a parts list to order",
+                  "Five ready-made circuits covered a demo, not a product. A real board also "
+                  "needs a band-pass, a current sensor, an ADC driver, a reference, input "
+                  "protection, a boost and an isolated-style supply, and at the end a parts "
+                  "list purchasing can order from.")
+    st += [img(REP / "step12/yield_new.png", max_h=62 * mm),
+           P("Each new circuit from its spec straight to standard values, then random boards "
+             "checked cold, at room temperature and hot, on a ±5% supply (boost and flyback: "
+             "10 boards each, as every board is a 40 to 55 s simulation per temperature).",
+             "cap"),
+           P("What changed", "h2")]
+    st += bullets([
+        "<b>13 ready-made circuits instead of 5</b> (25 circuits in the catalog): inverting "
+        "amplifier, band-pass filter, current-sense amplifier, ADC driver, bandgap voltage "
+        "reference, input protection, closed-loop boost and closed-loop flyback. Each is sized "
+        "by hand equations shown line by line, meets its spec at the first simulation, and "
+        "has its feedback loop's phase margin checked (86 to 90° on all six with a loop).",
+        "<b>A parts list to order.</b> Finishing a design writes bom.csv and bom.xlsx: one "
+        "line per distinct part with quantity, designators, value, tolerance, the rating to "
+        "buy at least and the part number if one was chosen. Values the optimiser did not "
+        "tune that are off the standard series are flagged with the nearest standard value; "
+        "the flyback's two windings come out as one transformer line.",
+        "<b>Surge tests are rated as pulses.</b> The protection circuit's 1 ms, 40 V surge "
+        "no longer asks for a 370 W resistor: continuous ratings come from normal operation, "
+        "and the surge energy each part must take is stated separately.",
+        "<b>Honest about the low bars.</b> The amplifier, band-pass and current sensor pass "
+        f"{y12['inverting_amp']['passed']}, {y12['bandpass']['passed']} and "
+        f"{y12['current_sense']['passed']} of 30: their limits (gain within 0.1 dB, band "
+        "edges, 2% full-scale error) are tighter than 1% resistors and 5% capacitors allow. "
+        "The answer names the part to tighten (R2, R3) instead of hiding it.",
+    ])
+    st.append(PageBreak())
+    st += [P("A parts list as it comes out: the flyback, 12 V to 5 V at 1 A", "h2"),
+           table([["qty", "ref.", "value", "tol.", "rated at least", "note"]] +
+                 [[r[0], r[1], r[3], r[4], r[5],
+                   "choose a real part" if "built-in" in r[7] else
+                   r[7].split(";")[0].replace("not a standard value: ", "")
+                   if r[7].startswith("not a standard") else
+                   "fixed" if r[7].startswith("fixed") else
+                   "transformer" if r[2] == "Transformer" else ""]
+                  for r in b12["flyback"][1:]],
+                 [9 * mm, 15 * mm, 48 * mm, 11 * mm, 58 * mm, 33 * mm]),
+           Spacer(1, 4),
+           P("SPMCP_OA and SPMCP_CMP are the built-in op-amp and comparator models standing "
+             "in for a PWM controller chip; the list marks them \"choose a real part\".",
+             "cap")]
+    st += bullets([
+        f"Tokens re-sent every turn: {s12['tokens_every_turn']['before']:,} → "
+        f"{s12['tokens_every_turn']['after']:,}. Eight circuits and the parts list cost no "
+        "new commands; the circuit list is read only when asked.",
+        "Limits, honestly: the flyback is not drawn yet (the schematic drawer has no "
+        "transformer symbol); the boost and the bandgap are drawn but read poorly (43 and "
+        "59 out of 100). The switchers' controller is a model of a PWM chip, not a part "
+        "number. The new drawings have not yet been re-read in LTspice on Windows.",
+        "Parts the optimiser does not tune (marked fixed, such as the controller's divider "
+        "Rk1, Rk2) are held at their exact value in the yield run; the list says so. Buy "
+        "them at 1% or better, or make them tunable to include them.",
+    ])
+
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]
     st += bullets([
@@ -733,7 +796,7 @@ def build():
         "measured, but for a stability sign-off use the vendor model of the part you will buy.",
         "Yield covers part tolerance, supply and temperature. Silicon process corners need "
         "the vendor's corner models; use real parts (find_part) where they exist.",
-        "Test suite: about 380 automated checks, run on Windows and Linux for every change.",
+        "Test suite: about 450 automated checks, run on Windows and Linux for every change.",
     ])
     st += [Spacer(1, 6), P("Five terms, in plain words", "h2"),
            table([["term", "meaning"],

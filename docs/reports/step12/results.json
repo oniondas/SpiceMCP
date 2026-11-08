@@ -1,0 +1,947 @@
+{
+ "yield": {
+  "inverting_amp": {
+   "passed": 24,
+   "runs": 30,
+   "yield_pct": 80.0,
+   "fails_most": "gain_db",
+   "part": "R2",
+   "minutes": 0.0
+  },
+  "bandpass": {
+   "passed": 22,
+   "runs": 30,
+   "yield_pct": 73.3,
+   "fails_most": "edge_hi_db",
+   "part": "R3",
+   "minutes": 0.0
+  },
+  "current_sense": {
+   "passed": 18,
+   "runs": 30,
+   "yield_pct": 60.0,
+   "fails_most": "err_fs_pct",
+   "part": "R2",
+   "minutes": 0.1
+  },
+  "adc_driver": {
+   "passed": 30,
+   "runs": 30,
+   "yield_pct": 100.0,
+   "fails_most": null,
+   "part": null,
+   "minutes": 0.1
+  },
+  "voltage_reference": {
+   "passed": 29,
+   "runs": 30,
+   "yield_pct": 96.7,
+   "fails_most": "vroom",
+   "part": "R1",
+   "minutes": 0.0
+  },
+  "protection": {
+   "passed": 30,
+   "runs": 30,
+   "yield_pct": 100.0,
+   "fails_most": null,
+   "part": null,
+   "minutes": 0.0
+  },
+  "boost": {
+   "passed": 8,
+   "runs": 10,
+   "yield_pct": 80.0,
+   "fails_most": "vout",
+   "part": "CI",
+   "minutes": 34.1
+  },
+  "flyback": {
+   "passed": 10,
+   "runs": 10,
+   "yield_pct": 100.0,
+   "fails_most": null,
+   "part": null,
+   "minutes": 31.3
+  }
+ },
+ "start": {
+  "inverting_amp": {
+   "gain_db": 19.99568,
+   "bw": 1009574.0,
+   "pm_deg": 85.76726,
+   "vn_uv": 161.9479
+  },
+  "bandpass": {
+   "g0_db": -0.01452304,
+   "peak_db": -0.01452304,
+   "edge_lo_db": -2.81185,
+   "edge_hi_db": -3.22621,
+   "pm_deg": 90.22275,
+   "param_c1": 1e-08
+  },
+  "current_sense": {
+   "err_fs_pct": -0.52864,
+   "err_10_pct": -3.38984,
+   "bw": 104387.7,
+   "pm_deg": 90.07179,
+   "param_rs": 0.03125
+  },
+  "adc_driver": {
+   "err_lsb": 0.06144003,
+   "over_lsb": 0.0,
+   "pm_deg": 87.21837,
+   "param_cf": 1e-09
+  },
+  "voltage_reference": {
+   "vroom": 2.499499,
+   "tc_ppm": 13.31147
+  },
+  "protection": {
+   "vclamp": 16.67727,
+   "vdrop": 0.74026,
+   "ileak_ma": 1.01126e-06,
+   "vrev": -0.0007607995
+  },
+  "boost": {
+   "vout": 11.9972,
+   "ripple_mv": 79.66,
+   "pm_deg": 88.29996,
+   "param_l": 2.6737195051451036e-05,
+   "param_c": 1.3087153367289192e-05
+  },
+  "flyback": {
+   "vout": 4.996733,
+   "vds_max": 29.40056,
+   "ripple_mv": 94.749,
+   "pm_deg": 87.42377,
+   "param_lp": 5.2363636363636374e-05,
+   "param_c": 2.6315789473684212e-05
+  }
+ },
+ "bom": {
+  "inverting_amp": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "1",
+    "X1",
+    "IC",
+    "SPMCP_OA",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "R1",
+    "Resistor",
+    "10 kΩ",
+    "±1%",
+    "",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "R2",
+    "Resistor",
+    "100 kΩ",
+    "±1%",
+    "",
+    "",
+    "E96 series"
+   ]
+  ],
+  "bandpass": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "2",
+    "C1 C2",
+    "Capacitor",
+    "10 nF",
+    "±5%",
+    "",
+    "",
+    "E12 series"
+   ],
+   [
+    "1",
+    "X1",
+    "IC",
+    "SPMCP_OA",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "R1",
+    "Resistor",
+    "78.7 kΩ",
+    "±1%",
+    "",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "R2",
+    "Resistor",
+    "158 kΩ",
+    "±1%",
+    "",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "R3",
+    "Resistor",
+    "1.62 kΩ",
+    "±1%",
+    "",
+    "",
+    "E96 series"
+   ]
+  ],
+  "current_sense": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "1",
+    "X1",
+    "IC",
+    "SPMCP_OA",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "R1",
+    "Resistor",
+    "1 kΩ",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "R2",
+    "Resistor",
+    "39.2 kΩ",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "RS",
+    "Resistor",
+    "31.6 mΩ",
+    "±1%",
+    "0.5 W",
+    "",
+    "E96 series"
+   ]
+  ],
+  "adc_driver": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "1",
+    "CF",
+    "Capacitor",
+    "1 nF",
+    "±5%",
+    "4 V",
+    "",
+    "E12 series"
+   ],
+   [
+    "1",
+    "X1",
+    "IC",
+    "SPMCP_OA",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "RF",
+    "Resistor",
+    "340 Ω",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ]
+  ],
+  "voltage_reference": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "2",
+    "X1 X2",
+    "IC",
+    "SPMCP_OA",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "2",
+    "R1 R2",
+    "Resistor",
+    "9.31 kΩ",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "R3",
+    "Resistor",
+    "1.07 kΩ",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "RG1",
+    "Resistor",
+    "10 kΩ",
+    "",
+    "0.063 W",
+    "",
+    "fixed value, held exact in the yield run"
+   ],
+   [
+    "1",
+    "RG2",
+    "Resistor",
+    "11.5 kΩ",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "Rstart",
+    "Resistor",
+    "10 MΩ",
+    "",
+    "0.063 W",
+    "",
+    "fixed value, held exact in the yield run"
+   ],
+   [
+    "2",
+    "Q1 Q2",
+    "Transistor (BJT)",
+    "QN",
+    "",
+    "12 V, any current",
+    "",
+    ""
+   ]
+  ],
+  "protection": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "1",
+    "C1",
+    "Capacitor",
+    "10 µF",
+    "",
+    "25 V",
+    "",
+    "fixed value, held exact in the yield run"
+   ],
+   [
+    "1",
+    "D1",
+    "Diode",
+    "DSCH",
+    "",
+    "20 V, 0.74 A",
+    "",
+    ""
+   ],
+   [
+    "1",
+    "DZ",
+    "Diode",
+    "DTVS",
+    "",
+    "20 V, any current",
+    "",
+    ""
+   ],
+   [
+    "1",
+    "RS",
+    "Resistor",
+    "909 mΩ",
+    "±1%",
+    "0.5 W",
+    "",
+    "E96 series"
+   ]
+  ],
+  "boost": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "1",
+    "C1",
+    "Capacitor",
+    "12 µF",
+    "±5%",
+    "25 V",
+    "",
+    "E12 series"
+   ],
+   [
+    "1",
+    "CI",
+    "Capacitor",
+    "27 nF",
+    "±5%",
+    "6.3 V",
+    "",
+    "E12 series"
+   ],
+   [
+    "1",
+    "D1",
+    "Diode",
+    "DS",
+    "",
+    "20 V, 0.74 A",
+    "",
+    ""
+   ],
+   [
+    "1",
+    "X2",
+    "IC",
+    "SPMCP_OA",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "X3",
+    "IC",
+    "SPMCP_CMP",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "L1",
+    "Inductor",
+    "22 µH",
+    "±20%",
+    "Isat 1.8 A, Irms 1.2 A",
+    "",
+    "E12 series"
+   ],
+   [
+    "1",
+    "M1",
+    "MOSFET",
+    "NSW",
+    "",
+    "20 V, Id 1.3 A, Idm 2.4 A",
+    "",
+    ""
+   ],
+   [
+    "1",
+    "R1",
+    "Resistor",
+    "88.7 kΩ",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "2",
+    "Rk1 R2",
+    "Resistor",
+    "10 kΩ",
+    "",
+    "0.063 W",
+    "",
+    "fixed value, held exact in the yield run"
+   ],
+   [
+    "1",
+    "Rk2",
+    "Resistor",
+    "6.63 kΩ",
+    "",
+    "0.063 W",
+    "",
+    "not a standard value: use 6.65 kΩ (E96); held exact in the yield run"
+   ]
+  ],
+  "flyback": [
+   [
+    "Qty",
+    "Reference",
+    "Part",
+    "Value",
+    "Tolerance",
+    "Rated at least",
+    "Part number",
+    "Notes"
+   ],
+   [
+    "1",
+    "C1",
+    "Capacitor",
+    "27 µF",
+    "±5%",
+    "10 V",
+    "",
+    "E12 series"
+   ],
+   [
+    "1",
+    "CC1",
+    "Capacitor",
+    "306 nF",
+    "",
+    "35 V",
+    "",
+    "not a standard value: use 300 nF (E24); held exact in the yield run"
+   ],
+   [
+    "1",
+    "CI",
+    "Capacitor",
+    "18 nF",
+    "±5%",
+    "16 V",
+    "",
+    "E12 series"
+   ],
+   [
+    "1",
+    "D2",
+    "Diode",
+    "DS",
+    "",
+    "40 V, 1.5 A",
+    "",
+    ""
+   ],
+   [
+    "1",
+    "DC1",
+    "Diode",
+    "DS",
+    "",
+    "40 V, 69 mA",
+    "",
+    ""
+   ],
+   [
+    "1",
+    "X2",
+    "IC",
+    "SPMCP_OA",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "X3",
+    "IC",
+    "SPMCP_CMP",
+    "",
+    "",
+    "",
+    "built-in model: choose a real part (find_part)"
+   ],
+   [
+    "1",
+    "M1",
+    "MOSFET",
+    "NSW",
+    "",
+    "40 V, Id 1.2 A, Idm 3.7 A, Vgs 20 V",
+    "",
+    ""
+   ],
+   [
+    "1",
+    "R1",
+    "Resistor",
+    "31.6 kΩ",
+    "±1%",
+    "0.063 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "1",
+    "RC1",
+    "Resistor",
+    "383 Ω",
+    "±1%",
+    "2 W",
+    "",
+    "E96 series"
+   ],
+   [
+    "2",
+    "Rk1 R2",
+    "Resistor",
+    "10 kΩ",
+    "",
+    "0.063 W",
+    "",
+    "fixed value, held exact in the yield run"
+   ],
+   [
+    "1",
+    "Rk2",
+    "Resistor",
+    "1.65 kΩ",
+    "",
+    "0.063 W",
+    "",
+    "fixed value, held exact in the yield run"
+   ],
+   [
+    "1",
+    "K1",
+    "Transformer",
+    "LP 56 µH, LS 26.5 µH, coupling 0.98",
+    "",
+    "LP: Isat 1.9 A, Irms 0.82 A; LS: Isat 2.8 A, Irms 1.3 A",
+    "",
+    "custom or catalogue transformer: match the inductances and turns ratio, leakage under the simulated coupling"
+   ]
+  ]
+ },
+ "stress": {
+  "inverting_amp": {
+   "checked": false,
+   "why": "no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "at": "supply +5%"
+  },
+  "bandpass": {
+   "checked": false,
+   "why": "no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "at": "supply +5%"
+  },
+  "current_sense": {
+   "checked": true,
+   "from": "1 of 1 DC sweep decks",
+   "parts": {
+    "RS": {
+     "dissipates_w": 0.1264,
+     "buy": "0.5 W"
+    },
+    "R2": {
+     "dissipates_w": 0.000155,
+     "buy": "0.063 W"
+    },
+    "R1": {
+     "dissipates_w": 4e-06,
+     "buy": "0.063 W"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "adc_driver": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "RF": {
+     "dissipates_w": 0.0,
+     "buy": "0.063 W"
+    },
+    "CF": {
+     "peak_v": 1.99979,
+     "buy": "4 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "voltage_reference": {
+   "checked": true,
+   "from": "1 of 1 DC sweep decks",
+   "parts": {
+    "R1": {
+     "dissipates_w": 3.3e-05,
+     "buy": "0.063 W"
+    },
+    "Q1": {
+     "vce_v": 0.799295,
+     "peak_a": 6e-05,
+     "buy": "12 V, any current"
+    },
+    "R2": {
+     "dissipates_w": 3.3e-05,
+     "buy": "0.063 W"
+    },
+    "R3": {
+     "dissipates_w": 4e-06,
+     "buy": "0.063 W"
+    },
+    "Q2": {
+     "vce_v": 0.757298,
+     "peak_a": 5.9e-05,
+     "buy": "12 V, any current"
+    },
+    "Rstart": {
+     "dissipates_w": 2e-06,
+     "buy": "0.063 W"
+    },
+    "RG2": {
+     "dissipates_w": 0.000156,
+     "buy": "0.063 W"
+    },
+    "RG1": {
+     "dissipates_w": 0.000135,
+     "buy": "0.063 W"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "protection": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "D1": {
+     "reverse_v": 0.0,
+     "avg_a": 0.491081,
+     "peak_a": 0.491081,
+     "buy": "20 V, 0.74 A"
+    },
+    "RS": {
+     "dissipates_w": 0.219215,
+     "buy": "0.5 W"
+    },
+    "DZ": {
+     "reverse_v": 11.7859,
+     "avg_a": 0.0,
+     "peak_a": -0.0,
+     "buy": "20 V, any current"
+    },
+    "C1": {
+     "peak_v": 11.7859,
+     "buy": "25 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "boost": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "CI": {
+     "peak_v": 3.20463,
+     "buy": "6.3 V"
+    },
+    "Rk1": {
+     "dissipates_w": 0.000701,
+     "buy": "0.063 W"
+    },
+    "Rk2": {
+     "dissipates_w": 0.000465,
+     "buy": "0.063 W"
+    },
+    "R1": {
+     "dissipates_w": 0.001275,
+     "buy": "0.063 W"
+    },
+    "R2": {
+     "dissipates_w": 0.000144,
+     "buy": "0.063 W"
+    },
+    "L1": {
+     "peak_a": 1.39931,
+     "buy": "Isat 1.8 A, Irms 1.2 A",
+     "rms_a": 1.17723
+    },
+    "M1": {
+     "vds_v": 12.329,
+     "vgs_v": 5.25249,
+     "rms_a": 0.89598,
+     "peak_a": 2.37048,
+     "dissipates_w": 0.077209,
+     "buy": "20 V, Id 1.3 A, Idm 2.4 A"
+    },
+    "D1": {
+     "reverse_v": 11.8302,
+     "avg_a": 0.49366,
+     "peak_a": 2.3173,
+     "buy": "20 V, 0.74 A"
+    },
+    "C1": {
+     "peak_v": 11.8803,
+     "buy": "25 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "flyback": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "CI": {
+     "peak_v": 8.89517,
+     "buy": "16 V"
+    },
+    "Rk1": {
+     "dissipates_w": 0.007506,
+     "buy": "0.063 W"
+    },
+    "Rk2": {
+     "dissipates_w": 0.001239,
+     "buy": "0.063 W"
+    },
+    "R1": {
+     "dissipates_w": 0.000454,
+     "buy": "0.063 W"
+    },
+    "R2": {
+     "dissipates_w": 0.000144,
+     "buy": "0.063 W"
+    },
+    "LP": {
+     "peak_a": 1.47335,
+     "buy": "Isat 1.9 A, Irms 0.82 A",
+     "rms_a": 0.821856
+    },
+    "LS": {
+     "peak_a": 2.16761,
+     "buy": "Isat 2.8 A, Irms 1.3 A",
+     "rms_a": 1.31719
+    },
+    "M1": {
+     "vds_v": 30.9557,
+     "vgs_v": 12.6075,
+     "rms_a": 0.810968,
+     "peak_a": 3.71793,
+     "dissipates_w": 0.05247,
+     "buy": "40 V, Id 1.2 A, Idm 3.7 A, Vgs 20 V"
+    },
+    "DC1": {
+     "reverse_v": 30.1668,
+     "avg_a": 0.045944,
+     "peak_a": 2.52596,
+     "buy": "40 V, 69 mA"
+    },
+    "CC1": {
+     "peak_v": 17.9528,
+     "buy": "35 V"
+    },
+    "RC1": {
+     "dissipates_w": 0.806602,
+     "buy": "2 W"
+    },
+    "D2": {
+     "reverse_v": 27.0547,
+     "avg_a": 0.997869,
+     "peak_a": 2.16761,
+     "buy": "40 V, 1.5 A"
+    },
+    "C1": {
+     "peak_v": 5.0302,
+     "buy": "10 V"
+    }
+   },
+   "at": "supply +5%"
+  }
+ },
+ "tokens_every_turn": {
+  "before": 3004,
+  "after": 3004
+ }
+}

@@ -21,7 +21,10 @@
 - Parts list to order: `finish_design` writes `bom.csv` and `bom.xlsx` next to the run,
   one line per distinct part with quantity, reference designators, value, tolerance, the
   rating to buy at least and the part number chosen with `find_part`. Sources, loads and
-  test fixtures are left out; the answer gives the path as `parts_list`.
+  test fixtures are left out; the answer gives the path as `parts_list`. Coupled
+  windings come out as one transformer line; a fixed value the optimiser did not tune is
+  marked as held exact in the yield run, with the nearest standard value when it is off
+  the series.
 - A deck marked `* stress: skip` (a surge or fault test) is left out of the continuous
   part-stress check; the protection template states its surge (pulse) ratings in the
   working instead. Leakage-level currents read "any current" rather than "1.5e-06 mA".

@@ -502,7 +502,7 @@ def _write_bom(rid: str, fin: dict, parts_chosen: dict | None) -> dict | None:
     vals = {**{n: p["value"] for n, p in fin["parts"].items()}, **fin["other_values"]}
     try:
         net, _ = ir.render(run["netlist_template"], vals)
-        return bom.write(bom.rows(net, fin, parts_chosen),
+        return bom.write(bom.rows(net, fin, parts_chosen, run["netlist_template"]),
                          db.state_root(PROJECT) / "simulations" / rid)
     except (OSError, ValueError, KeyError):
         return None
