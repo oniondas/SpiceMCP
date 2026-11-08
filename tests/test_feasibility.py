@@ -451,6 +451,10 @@ def test_the_tool_is_registered_and_returns_plain_json(tmp_path, monkeypatch):
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     assert "check_feasibility" in names
 
-    out = server.check_feasibility(BW, {"gain_db": ">-3"}, SPACE, RC)
+    params = [server.Param(name=k, **v) for k, v in SPACE.items()]
+    out = server.check_feasibility([server.Goal(**g) for g in BW],
+                                   [server.Limit(metric="gain_db", min=-3)], params, RC)
     assert json.loads(json.dumps(out))["status"] == "feasible"
-    assert server.check_feasibility(GAIN, mode="quantum")["error"].startswith("mode")
+    assert out["next_step"].startswith("Call start_optimization")
+    bad = server.check_feasibility([server.Goal(**g) for g in GAIN], mode="quantum")
+    assert bad["error"].startswith("mode") and bad["example"]

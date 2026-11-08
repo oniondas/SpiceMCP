@@ -217,5 +217,6 @@ def test_the_tool_returns_the_documented_shape(src, tmp_path):
     assert all(isinstance(ok[k], int) for k in ("components", "wires", "labels"))
 
     bad = server.render_schematic(str(tmp_path / "gone.asc"), str(tmp_path / "t.svg"))
-    assert bad == {"success": False, "error": bad["error"], "output_path": None}
+    assert bad["success"] is False and bad["output_path"] is None
+    assert bad["fix"] and bad["example"]["asc_path"]
     assert "no such schematic" in bad["error"]

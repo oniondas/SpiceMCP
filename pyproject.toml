@@ -1,9 +1,9 @@
 [project]
 name = "spicemcp"
-version = "0.5.0"
+version = "0.6.0"
 description = "LTspice MCP server with a stateful, anti-hallucination optimization layer"
 requires-python = ">=3.11"
-dependencies = ["mcp>=1.2"]
+dependencies = ["mcp>=1.2,<2", "pydantic>=2"]
 
 [project.optional-dependencies]
 # plots only. Keep the core import-clean on a machine with neither: raw.py is stdlib

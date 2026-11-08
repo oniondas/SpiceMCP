@@ -1,0 +1,830 @@
+[
+ {
+  "name": "simulate_netlist",
+  "description": "Run one LTspice netlist immediately, outside any optimization run.\n\nMetrics come from `.meas` directives in the netlist. No state is recorded.\n",
+  "schema": {
+   "properties": {
+    "netlist": {
+     "title": "Netlist",
+     "type": "string"
+    },
+    "sim_config": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Sim Config"
+    }
+   },
+   "required": [
+    "netlist"
+   ],
+   "title": "simulate_netlistArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "check_ltspice",
+  "description": "Report the LTspice executable and state directory in use.",
+  "schema": {
+   "properties": {},
+   "title": "check_ltspiceArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "simulate_sweep",
+  "description": "Execute a multi-point LTspice parameter/corner sweep and return aggregated results.\n\nOne LTspice launch for the whole sweep, via `.step`. `param_name` is resolved against\nthe netlist, so an ordinary deck can be swept without being re-authored as a template:\n\n  \"temp\"   -> `.step temp list ...`           corner / PVT sweep\n  \"{GAIN}\" -> `.step param GAIN list ...`     the deck is already parametric\n  \"R1\"     -> R1's literal value is replaced by a stepped parameter\n\nReturns `metrics_table`: one row per point, `{\"step\", \"value\", \"metrics\"}`. The metric\nnames are whatever the netlist's own `.meas` directives are called -- none are assumed.\nEach row's `value` is read back from what LTspice itself reported, so a point the\nsimulator skipped cannot shift the rest of the table onto the wrong values;\n`value_source` says where it came from (`log`, `raw`, or `requested` for a row nothing\nreported).\n\nA deck with no `.meas` still returns its points and `raw_path` (read it with `raw.py`)\nplus a warning saying so. `values` needs at least two distinct finite numbers.\n",
+  "schema": {
+   "properties": {
+    "netlist": {
+     "title": "Netlist",
+     "type": "string"
+    },
+    "param_name": {
+     "title": "Param Name",
+     "type": "string"
+    },
+    "values": {
+     "items": {
+      "type": "number"
+     },
+     "title": "Values",
+     "type": "array"
+    },
+    "timeout_s": {
+     "default": 120.0,
+     "title": "Timeout S",
+     "type": "number"
+    }
+   },
+   "required": [
+    "netlist",
+    "param_name",
+    "values"
+   ],
+   "title": "simulate_sweepArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "render_schematic",
+  "description": "Render an LTspice .asc schematic into a professional PNG or SVG.\n\nDraws the schematic that is in the file: each symbol's geometry comes from its own\n`.asy`, transformed by that instance's orientation, so the parts are the standard\nelectrical symbols LTspice draws and not generic boxes. Wires, junction dots, net\nlabels, power rails, grounds, ports, pin names, designators, values and SPICE\ndirectives all come from the file.\n\nFormat follows the extension: `.svg` (vector, needs nothing) or `.png` (needs\nmatplotlib, honours `dpi`). Both are emitted from the same geometry, so they are the\nsame drawing. The canvas is computed from the schematic's own bounding box plus a\nsmall margin -- nothing is cropped and there is no empty page.\n\nstyles: `tech_minimal` (the default -- modern EDA, charcoal ink, colour only on\ninput/output/feedback nets), `classic` (monochrome, print and publication),\n`sketch` (engineering notebook: graph paper and a slightly imperfect line, with the\ntopology still exact). Same geometry in all three.\n\nWaveform plots (`generate_design_report`, the `plot_*` helpers) draw their traces\nfrom one five-colour data-visualisation ramp and their chrome from `tech_minimal`,\nso a schematic and its plots are one document rather than three tools' defaults.\n\nDeterministic: the same file and style produce the same image every time.\n",
+  "schema": {
+   "properties": {
+    "asc_path": {
+     "title": "Asc Path",
+     "type": "string"
+    },
+    "output_path": {
+     "default": "schematic.png",
+     "title": "Output Path",
+     "type": "string"
+    },
+    "style": {
+     "default": "tech_minimal",
+     "title": "Style",
+     "type": "string"
+    },
+    "dpi": {
+     "default": 300,
+     "title": "Dpi",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "asc_path"
+   ],
+   "title": "render_schematicArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_visual_style",
+  "description": "The house style: the schematic styles available, and the plot colour ramp.\n\nRead this instead of guessing a hex when composing a figure, a diagram or an HTML\npage that has to sit beside this server's output. `series` is ordered, and each entry\nalready has a job -- reusing one for something else is what makes a set of figures\nstop reading as one document.\n",
+  "schema": {
+   "properties": {},
+   "title": "get_visual_styleArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "check_feasibility",
+  "description": "Pre-flight check: is this specification physically and structurally achievable,\nbefore any simulation or optimization budget is spent.\n\nCosts nothing (no LTspice launch). Three layers report separately:\n  static    -- self-contradictory bounds, over-unity efficiency, bad param_space\n  template  -- metrics with no `.meas`, {PARAM} vs param_space, gain with no active\n               element, reactive-element count vs required filter order\n  physics   -- closed-form limits per circuit_type: filter order (Butterworth /\n               Chebyshev / elliptic), slew rate and GBW against current and C_load,\n               4kTR and kT/C noise floors, LDO dropout / headroom / Vout-over-Vin\n               efficiency ceiling, DC-DC topology and duty cycle\n\ncircuit_type: \"general\" | \"filter\" | \"opamp\" | \"ldo\" | \"dcdc\"\nmode: \"practical\" (physics + engineering guidelines) | \"theoretical\" (hard limits\n  only) | \"concept\" (no netlist needed -- check an idea before writing a deck)\ntechnology_params: SI units. vdd, vin, vout, cload, iload, itotal, temp_c, ft, rmin,\n  vov, rds_on, lmin, f_pass, f_stop, ripple_db, atten_db, filter_kind, duty_max, fsw.\n  Checks that need a value you did not give are listed in `checks_skipped`, never\n  silently passed.\n\n`status`: \"infeasible\" (a hard bound is violated -- fix the spec), \"impractical\"\n(buildable, with flagged concerns), \"feasible\", \"unverified\" (nothing ruled it out\nbut the domain physics could not be evaluated). `passed` is false only for\n\"infeasible\".\n",
+  "schema": {
+   "properties": {
+    "objectives": {
+     "items": {},
+     "title": "Objectives",
+     "type": "array"
+    },
+    "constraints": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "items": {},
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Constraints"
+    },
+    "param_space": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Param Space"
+    },
+    "netlist_template": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Netlist Template"
+    },
+    "circuit_type": {
+     "default": "general",
+     "title": "Circuit Type",
+     "type": "string"
+    },
+    "mode": {
+     "default": "practical",
+     "title": "Mode",
+     "type": "string"
+    },
+    "technology_params": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Technology Params"
+    }
+   },
+   "required": [
+    "objectives"
+   ],
+   "title": "check_feasibilityArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "start_optimization",
+  "description": "Create a persistent optimization run.\n\nnetlist_template: an LTspice netlist where tunable values appear as {NAME}\n  placeholders, and every metric you care about has a `.meas` directive.\nparam_space: {\"R1\": {\"min\": 1e3, \"max\": 1e5}, \"C1\": {\"values\": [1e-9, 1e-8]}}\nobjectives:  [{\"metric\": \"gain_db\", \"direction\": \"max\", \"weight\": 1.0}]\nconstraints: {\"bandwidth\": \">100000\", \"power\": \"<0.005\"}\nScores are a pure function of metrics, so the best candidate can never be\nretroactively demoted. State survives an MCP restart.\n\nThe spec is checked by `check_feasibility` first and the run is NOT created if a\nrequirement is impossible for any topology; the answer then carries the violations\nand suggested fixes. `preflight` tunes that check:\n{\"bypass\": true} to skip it entirely, plus optional \"circuit_type\", \"mode\" and\n\"technology_params\" to get the domain physics checked here too.\n",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "netlist_template": {
+     "title": "Netlist Template",
+     "type": "string"
+    },
+    "param_space": {
+     "additionalProperties": true,
+     "title": "Param Space",
+     "type": "object"
+    },
+    "objectives": {
+     "items": {},
+     "title": "Objectives",
+     "type": "array"
+    },
+    "constraints": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "items": {},
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Constraints"
+    },
+    "sim_config": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Sim Config"
+    },
+    "seed": {
+     "default": 0,
+     "title": "Seed",
+     "type": "integer"
+    },
+    "notes": {
+     "default": "",
+     "title": "Notes",
+     "type": "string"
+    },
+    "preflight": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Preflight"
+    }
+   },
+   "required": [
+    "run_id",
+    "netlist_template",
+    "param_space",
+    "objectives"
+   ],
+   "title": "start_optimizationArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "stop_optimization",
+  "description": "Stop a run. History and candidates are retained.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "stop_optimizationArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_optimization_status",
+  "description": "Compact status: best candidate, constraint pass/fail, one useful observation,\nand the most promising unexplored region. Use this instead of replaying history.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_optimization_statusArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "list_runs",
+  "description": "All persisted runs.",
+  "schema": {
+   "properties": {},
+   "title": "list_runsArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "evaluate_candidate",
+  "description": "Simulate one parameter set, with dedup, scoring and constraint checking.\n\nIf this exact design+config was already simulated, the cached result is returned\nwith cached=true and no LTspice run happens (pass force=true to override).\nA modification never overwrites a candidate -- it creates a new one.\n",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "params": {
+     "additionalProperties": true,
+     "title": "Params",
+     "type": "object"
+    },
+    "parent_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Parent Id"
+    },
+    "sim_config": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Sim Config"
+    },
+    "force": {
+     "default": false,
+     "title": "Force",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "run_id",
+    "params"
+   ],
+   "title": "evaluate_candidateArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "run_optimization",
+  "description": "Run `iterations` experiments locally and return ONE compact summary.\n\nPreferred entry point: the engine picks each next experiment from empirical\nsensitivities, constraint violations and unexplored regions, so the LLM is not\nin the loop per simulation.\n",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "iterations": {
+     "default": 10,
+     "title": "Iterations",
+     "type": "integer"
+    },
+    "step_frac": {
+     "default": 0.25,
+     "title": "Step Frac",
+     "type": "number"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "run_optimizationArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "select_next_experiment",
+  "description": "Propose the next parameter set (without simulating) plus the reason why.\n\nGuaranteed not to propose an already-evaluated design or a known-failed one.\n",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "step_frac": {
+     "default": 0.25,
+     "title": "Step Frac",
+     "type": "number"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "select_next_experimentArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_best_candidate",
+  "description": "Best and best-feasible candidate, derived from the database.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_best_candidateArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_pareto_frontier",
+  "description": "Non-dominated candidates across all objectives, as compact summaries.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "include_infeasible": {
+     "default": false,
+     "title": "Include Infeasible",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_pareto_frontierArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_optimization_history",
+  "description": "Most recent iterations, newest first. Paged -- never the whole database.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "limit": {
+     "default": 20,
+     "title": "Limit",
+     "type": "integer"
+    },
+    "offset": {
+     "default": 0,
+     "title": "Offset",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_optimization_historyArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_previous_candidates",
+  "description": "Candidate lineage: id, parent, generation, params, whether evaluated.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "limit": {
+     "default": 20,
+     "title": "Limit",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_previous_candidatesArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_candidate",
+  "description": "Full record for one candidate, including its experiments.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "candidate_id": {
+     "title": "Candidate Id",
+     "type": "string"
+    },
+    "include_netlist": {
+     "default": false,
+     "title": "Include Netlist",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "run_id",
+    "candidate_id"
+   ],
+   "title": "get_candidateArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "compare_candidates",
+  "description": "Side-by-side params and metrics; with exactly two ids, also the deltas.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "candidate_ids": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Candidate Ids",
+     "type": "array"
+    }
+   },
+   "required": [
+    "run_id",
+    "candidate_ids"
+   ],
+   "title": "compare_candidatesArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_similar_candidates",
+  "description": "Nearest already-evaluated designs in normalized parameter distance.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "candidate_id": {
+     "title": "Candidate Id",
+     "type": "string"
+    },
+    "k": {
+     "default": 5,
+     "title": "K",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "run_id",
+    "candidate_id"
+   ],
+   "title": "get_similar_candidatesArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_parameter_sensitivity",
+  "description": "Empirical parameter->metric sensitivities computed from real simulations.\n\nmethod=finite_difference means it came from pairs differing in that parameter\nalone (causal); ols_marginal is a correlational fit, so treat it as weaker.\n",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "parameter": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Parameter"
+    },
+    "metric": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Metric"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_parameter_sensitivityArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_explored_parameter_range",
+  "description": "Which parameter values have been tried, and the widest untried interval.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "parameter": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Parameter"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_explored_parameter_rangeArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_failed_candidates",
+  "description": "Failures with classified causes: simulation, convergence, structural,\nconstraint_violation, component_limit, numerical_instability.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "limit": {
+     "default": 20,
+     "title": "Limit",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_failed_candidatesArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "get_optimization_trace",
+  "description": "Human-readable per-iteration trace, rendered from the database.",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "save": {
+     "default": false,
+     "title": "Save",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "get_optimization_traceArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "rollback_to_candidate",
+  "description": "Restore a previously evaluated candidate exactly, from stored state.\n\nReturns the stored netlist path and its recorded results. Never reconstruct a\npast circuit from conversation memory -- use this.\n",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "candidate_id": {
+     "title": "Candidate Id",
+     "type": "string"
+    }
+   },
+   "required": [
+    "run_id",
+    "candidate_id"
+   ],
+   "title": "rollback_to_candidateArguments",
+   "type": "object"
+  }
+ },
+ {
+  "name": "generate_design_report",
+  "description": "Write the final design report for a run as a Markdown document, and return its path.\n\nSix sections: executive summary and spec scorecard, schematic and BOM, optimization\nsummary with baseline-vs-final metrics and measured trade-offs, waveform analysis with\nplots, robustness (DC bias / PVT / Monte Carlo yield), and an LTspice reproduction\nguide. Every number is read from the database or from a simulation launched while\nwriting the file; nothing is hand-entered, so the report cannot disagree with the run.\n\nSections 1-3 and 6 come from stored state and cost nothing. The rest each cost LTspice\nlaunches, so they are opt-in and a section that did not run says so in the document\nrather than being omitted:\n  plot=True      Bode / transient / THD plots. Any flag below also triggers the one\n                 shared re-run of the winner, whose fresh metrics are compared against\n                 the stored ones in section 3.\n  dc_audit=True  1 launch -- per-device Vds/Vgs/Vth, terminal current, region\n  pvt=True       5 launches -- TT/SS/FF/SF/FS at -40/27/125 C and Vdd +-10%\n                 (`supply` names the DC source to scale, e.g. \"V1\")\n  monte_carlo=N  1 stepped launch -- N samples on passive tolerances; yield is counted\n                 against this run's own constraints\n\n`schematic` embeds an existing image; none is generated, because a netlist carries no\ncoordinates and an invented layout would be a picture of a different circuit.\n",
+  "schema": {
+   "properties": {
+    "run_id": {
+     "title": "Run Id",
+     "type": "string"
+    },
+    "out": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Out"
+    },
+    "schematic": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Schematic"
+    },
+    "plot": {
+     "default": true,
+     "title": "Plot",
+     "type": "boolean"
+    },
+    "dc_audit": {
+     "default": false,
+     "title": "Dc Audit",
+     "type": "boolean"
+    },
+    "pvt": {
+     "default": false,
+     "title": "Pvt",
+     "type": "boolean"
+    },
+    "monte_carlo": {
+     "default": 0,
+     "title": "Monte Carlo",
+     "type": "integer"
+    },
+    "supply": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Supply"
+    },
+    "node": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Node"
+    },
+    "r_tol": {
+     "default": 0.01,
+     "title": "R Tol",
+     "type": "number"
+    },
+    "c_tol": {
+     "default": 0.05,
+     "title": "C Tol",
+     "type": "number"
+    }
+   },
+   "required": [
+    "run_id"
+   ],
+   "title": "generate_design_reportArguments",
+   "type": "object"
+  }
+ }
+]

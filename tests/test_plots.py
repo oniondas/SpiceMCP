@@ -188,7 +188,7 @@ def test_plot_chrome_tracks_the_default_schematic_style():
 
 def test_the_style_tool_reports_the_palette_it_actually_draws_with():
     from spicemcp import server                          # noqa: PLC0415
-    s = server.get_visual_style()
+    s = server.visual_style()
     assert s["default_style"] == "tech_minimal"
     assert s["series"] == list(render.SERIES)
     assert set(s["series_roles"].values()) == set(render.SERIES)
