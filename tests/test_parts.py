@@ -91,9 +91,10 @@ def test_ngspice_drops_the_ratings_ltspice_keeps_on_a_model_card():
 
 def test_a_chosen_part_is_checked_against_its_ratings():
     st = {"parts": {"D1": {"reverse_v": 12.6, "avg_a": 0.72, "peak_a": 1.2},
-                    "M1": {"vds_v": 12.6, "peak_a": 1.2}}}
+                    "M1": {"vds_v": 12.6, "peak_a": 1.2, "rms_a": 1.2}}}
     out = stress.against_ratings(st, {"diode": ("1N5819", {"vpk": 40, "iave": 1}),
                                       "switch": ("Si4427BDY", {"vds": -30, "ron": 0.02})})
+    assert "0.029 W" in out["M1 Si4427BDY"]          # 1.2 A^2 x 20 mOhm
     assert out["D1 1N5819"].startswith("too small: average current needs 1.08 A")
     assert out["M1 Si4427BDY"].startswith("ok: Vds needs 15.8 V, rated 30 V")
     assert "conduction loss" in out["M1 Si4427BDY"]

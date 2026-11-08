@@ -10,7 +10,7 @@ soft-start the templates do not model), with the load resistor and capacitor lef
   C  peak voltage across it              buy at least 1.5x, next standard rating
   L  peak and RMS current                saturation current at least 1.3x peak
   D  peak reverse voltage, avg and peak current   1.25x voltage, 1.5x average current
-  M  peak |Vds|, |Vgs|, peak current, average power   1.25x Vds, 1.5x current
+  M  peak |Vds|, |Vgs|, RMS and peak current, power   1.25x Vds, 1.5x RMS current
   Q  peak |Vce|, peak collector current  1.25x, 1.5x
 
 Only parts at the top level are checked: the transistors inside a built-in op-amp
@@ -94,7 +94,8 @@ def _meas(kind: str, name: str, nodes: list[str], tran: bool) -> list[tuple[str,
         return [(f"st_{p}_vdsmax", f"MAX {_v(d, s)}"), (f"st_{p}_vdsmin", f"MIN {_v(d, s)}"),
                 (f"st_{p}_vgsmax", f"MAX {_v(g, s)}"), (f"st_{p}_vgsmin", f"MIN {_v(g, s)}"),
                 (f"st_{p}_imax", f"MAX Id({name})"), (f"st_{p}_imin", f"MIN Id({name})"),
-                (f"st_{p}_pavg", f"{avg} {_v(d, s)}*Id({name})")]
+                (f"st_{p}_pavg", f"{avg} {_v(d, s)}*Id({name})")] + (
+                    [(f"st_{p}_irms", f"RMS Id({name})")] if tran else [])
     if k == "q":
         c, _b, e = nodes
         return [(f"st_{p}_vcemax", f"MAX {_v(c, e)}"), (f"st_{p}_vcemin", f"MIN {_v(c, e)}"),
@@ -185,8 +186,12 @@ def check(netlist: str, sim_config: dict, workdir: Path) -> dict:
         elif k == "m":
             vds, vgs, i = mx("vdsmax", "vdsmin"), mx("vgsmax", "vgsmin"), mx("imax", "imin")
             pw = abs(_worst(got, f"st_{p}_pavg") or 0)
-            e = {"vds_v": vds, "vgs_v": vgs, "peak_a": i, "dissipates_w": pw,
-                 "buy": f"{_up(vds * DERATE['volt'], M_V):g} V, {_a(i * DERATE['amp'])}"
+            # A datasheet's Id is continuous (thermal, so RMS); its pulsed Idm covers the
+            # nanosecond spikes at each edge, which are a few times the load current.
+            irms = abs(_worst(got, f"st_{p}_irms") or 0) or i
+            e = {"vds_v": vds, "vgs_v": vgs, "rms_a": irms, "peak_a": i, "dissipates_w": pw,
+                 "buy": f"{_up(vds * DERATE['volt'], M_V):g} V, Id {_a(irms * DERATE['amp'])}"
+                        + (f", Idm {_a(i)}" if i > 2 * irms else "")
                         + (", Vgs 20 V" if vgs > 10 else "")}
         elif k == "q":
             vce, i = mx("vcemax", "vcemin"), mx("imax", "imin")
@@ -229,6 +234,6 @@ def against_ratings(st: dict, chosen: dict) -> dict:
             out[f"{ref} {name}"] = ("too small: " + "; ".join(bad)) if bad else \
                 ("ok: " + "; ".join(good))
         if slot == "switch" and isinstance(rat.get("ron"), (int, float)):
-            loss = p["peak_a"] ** 2 * rat["ron"]
-            out[f"{ref} {name}"] += f"; conduction loss under {loss:.2g} W at Ron {rat['ron']:g} Ω"
+            loss = p.get("rms_a", p["peak_a"]) ** 2 * rat["ron"]
+            out[f"{ref} {name}"] += f"; conduction loss {loss:.2g} W at Ron {rat['ron']:g} Ω"
     return out

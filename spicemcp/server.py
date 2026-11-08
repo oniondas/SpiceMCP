@@ -53,6 +53,9 @@ Built-in blocks need no .subckt: X1 in+ in- V+ V- out SPMCP_OA (op-amp) or SPMCP
 call the same tool again. query_run reads saved state at any time. Follow next_step.
 Never rebuild a past circuit from memory: use query_run(what="netlist")."""
 
+# Metrics always shown when a circuit measures them, limit or not (output noise).
+REPORTED = {"vn_uv"}
+
 # Inputs that work when passed but are left out of the published tool list: a model
 # never needs them, and every byte of the list is re-sent on every turn.
 HIDDEN_INPUTS = {"sim_options", "skip_preflight", "seed"}
@@ -665,7 +668,7 @@ def start_from_template(run_id: str, template: str, spec: dict[str, float],
         _save_details(run_id, template=template, spec=spec, parts=chosen,
                       part_ratings={s: partlib.get(n).ratings for s, n in (parts or {}).items()},
                       hand_calculation=d.working, feasibility=out.get("feasibility"))
-        watched = {c["metric"] for c in out["constraints"]} | \
+        watched = REPORTED | {c["metric"] for c in out["constraints"]} | \
             {o["metric"] for o in out["objectives"]}
         m = first.get("metrics") or {}
         out = {"run_id": run_id, "template": template,
@@ -958,7 +961,7 @@ def _short_finish(out: dict) -> dict:
     """The parts list, pass/fail and yield. Alternatives, the optimiser's own metrics
     and the per-metric spread go to query_run(what='details')."""
     run = engine.get_run(con(), out["run_id"])
-    watched = {c["metric"] for c in db.jloads(run, "constraints", [])}
+    watched = REPORTED | {c["metric"] for c in db.jloads(run, "constraints", [])}
     y = out.get("yield")
     short_y = None if not y else {
         k: y[k] for k in ("runs", "passed", "yield_pct", "yield_at_least_pct", "seed",
