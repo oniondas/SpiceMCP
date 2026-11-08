@@ -17,7 +17,7 @@ never existed.
 > | ![Chua Schematic](gallery/chua/chua_circuit_classic.png) | ![Chua 3D Double Scroll Attractor](gallery/chua/chua_double_scroll_3d.png) |
 > | *Vector schematic generated from `.asc` in `classic` style* | *3D phase-space trajectory $(v_{C1}, v_{C2}, i_L)$ parsed from binary `.raw`* |
 >
-> | **Bifurcation Route to Chaos (`simulate_sweep`)** | **Sensitivity to Initial Conditions (Butterfly Effect)** |
+> | **Bifurcation Route to Chaos (`simulate` sweep)** | **Sensitivity to Initial Conditions (Butterfly Effect)** |
 > | :---: | :---: |
 > | ![Bifurcation Route to Chaos](gallery/chua/chua_bifurcation_diagram.png) | ![Butterfly Sensitivity](gallery/chua/chua_butterfly_sensitivity.png) |
 > | *Multi-point parameter sweep capturing period-doubling cascades* | *Lyapunov divergence tracking $1\,\mu\text{V}$ initial condition perturbations* |
@@ -37,13 +37,13 @@ flowchart TB
 
     subgraph Server ["SpiceMCP Server (FastMCP API)"]
         direction TB
-        subgraph ToolEndpoints ["Tool Endpoints (24 Tools)"]
-            T_Life["<b>Lifecycle Tools</b><br/>start_optimization<br/>stop_optimization<br/>get_optimization_status<br/>list_runs"]
-            T_Eval["<b>Evaluation & Search</b><br/>run_optimization<br/>evaluate_candidate<br/>select_next_experiment"]
-            T_Sim["<b>Simulation & Sweeps</b><br/>simulate_netlist<br/>simulate_sweep"]
-            T_Diag["<b>Feasibility & System</b><br/>check_feasibility<br/>check_ltspice"]
-            T_Vis["<b>Schematics & Styling</b><br/>render_schematic<br/>get_visual_style"]
-            T_Query["<b>State Queries & Reports</b><br/>get_best_candidate / pareto<br/>sensitivity / history / trace<br/>candidate / similar / compare<br/>generate_design_report<br/>rollback_to_candidate"]
+        subgraph ToolEndpoints ["Tool Endpoints (11 Tools)"]
+            T_Life["<b>Lifecycle Tools</b><br/>start_optimization<br/>stop_optimization"]
+            T_Eval["<b>Evaluation & Search</b><br/>run_optimization<br/>evaluate_candidate"]
+            T_Sim["<b>Simulation & Sweeps</b><br/>simulate"]
+            T_Diag["<b>Feasibility & System</b><br/>check_feasibility<br/>check_setup"]
+            T_Vis["<b>Schematics</b><br/>render_schematic"]
+            T_Query["<b>State Queries & Reports</b><br/>query_run (status / best / pareto /<br/>history / sensitivity / compare / ...)<br/>generate_design_report<br/>rollback_to_candidate"]
         end
     end
 
@@ -211,10 +211,10 @@ can meet, then reports a confident near miss.
 
 ```python
 check_feasibility(
-  objectives=[{"metric": "slew_rate", "direction": "max"}],
-  constraints={"slew_rate": ">1e8", "power": "<0.0005"},
+  goals=[{"metric": "slew_rate", "direction": "max"}],
+  limits=[{"metric": "slew_rate", "min": 1e8}, {"metric": "power", "max": 0.0005}],
   circuit_type="opamp", mode="concept",
-  technology_params={"vdd": 1.8, "cload": 10e-12})
+  tech={"vdd": 1.8, "cload": 10e-12})
 
 # status: "infeasible", passed: false
 # power_below_dynamic_floor: power < 0.0005 W, but the slew requirement alone draws
@@ -253,10 +253,12 @@ requirement is impossible: the answer carries the violations and suggested fixes
 instead, and no state is written. Warnings ride along and block nothing.
 
 ```python
-start_optimization(..., preflight={"bypass": True})     # skip the check entirely
-start_optimization(..., preflight={"circuit_type": "ldo", "mode": "theoretical",
-                                   "technology_params": {"vin": 5.0, "vout": 1.8}})
+start_optimization(..., skip_preflight=True)    # skip the check entirely
+start_optimization(..., circuit_type="ldo")     # also run the LDO physics checks
 ```
+
+For the physics checks that need technology values (`vin`, `cload`, ...), call
+`check_feasibility(..., tech={...})` first.
 
 The check is skipped for `backend: "analytic"`: those metrics come from a registered
 Python function, so `.meas` directives and `{PARAM}` placeholders mean nothing there and
@@ -269,21 +271,22 @@ every template check would be a false positive.
 ```python
 start_optimization(
   run_id="amp_001",
-  netlist_template=open("amp.cir").read(),   # tunables written as {R1}, {C1}
-  param_space={"R1": {"min": 1e3, "max": 100e3},
-               "C1": {"values": [1e-9, 4.7e-9, 1e-8]}},
-  objectives=[{"metric": "gain_db",   "direction": "max"},
-               {"metric": "bandwidth", "direction": "max"},
-               {"metric": "power",     "direction": "min"}],
-  constraints={"bandwidth": ">100000", "power": "<0.005"},
+  netlist=open("amp.cir").read(),   # tunables written as {R1}, {C1}
+  params=[{"name": "R1", "min": 1e3, "max": 100e3},
+          {"name": "C1", "values": [1e-9, 4.7e-9, 1e-8]}],
+  goals=[{"metric": "gain_db",   "direction": "max"},
+         {"metric": "bandwidth", "direction": "max"},
+         {"metric": "power",     "direction": "min"}],
+  limits=[{"metric": "bandwidth", "min": 100000},
+          {"metric": "power", "max": 0.005}],
   seed=42)
 
 run_optimization(run_id="amp_001", iterations=40)   # 40 sims, ONE compact answer
 ```
 
-A two-sided bound needs the list form, since a dict can't hold two entries for one
-metric: `constraints=[{"metric": "fc", "op": ">", "value": 9500},
-{"metric": "fc", "op": "<", "value": 10500}]`.
+A two-sided bound is one entry: `{"metric": "fc", "min": 9500, "max": 10500}`. Limits
+are inclusive (`>=` / `<=`). Inputs are strict: a misspelled key, `min` above `max`, or
+the old string form `"<0.005"` is rejected before anything runs.
 
 `run_optimization` returns a summary rather than an entire transcript: best candidate, constraint
 status, the strongest measured sensitivity, the most promising unexplored region,
@@ -360,14 +363,10 @@ hashed deterministically from the geometry rather than drawn from an RNG. Label 
 
 ## Visual style & colour palette
 
-`get_visual_style` exposes the exact design tokens and colour ramp used across all schematic
-renders and waveform plots. Read this instead of guessing colours when composing figures,
-documentation, or web interfaces that sit alongside SpiceMCP output.
-
-```python
-get_visual_style()
-# returns: default_style, schematic_styles, series, series_roles, chrome, fonts
-```
+The MCP resource `spicemcp://style` exposes the exact design tokens and colour ramp used
+across all schematic renders and waveform plots. Read this instead of guessing colours when
+composing figures, documentation, or web interfaces that sit alongside SpiceMCP output.
+It returns `default_style, schematic_styles, series, series_roles, chrome, fonts`.
 
 Waveform plots (`generate_design_report`, `spicemcp.plots`) draw their traces from a unified
 five colour data visualization ramp and their chrome from `tech_minimal`:
@@ -385,14 +384,14 @@ while maintaining maximum hue contrast between the first two traces for dual axi
 
 ## Sweeping a parameter
 
-`simulate_sweep` runs one LTspice launch for the whole sweep via `.step`, and resolves the
+`simulate` with `sweep_param` and `sweep_values` runs one LTspice launch for the whole sweep via `.step`, and resolves the
 parameter name against the deck so an ordinary netlist can be swept without being
 reauthored as a template:
 
 ```python
-simulate_sweep(netlist, "temp", [-40, 27, 125])      # .step temp list
-simulate_sweep(netlist, "{GAIN}", [10, 20, 50])      # parametric placeholder
-simulate_sweep(netlist, "R1", [1e3, 2e3, 5e3])       # literal component value
+simulate(netlist, sweep_param="temp",   sweep_values=[-40, 27, 125])  # .step temp list
+simulate(netlist, sweep_param="{GAIN}", sweep_values=[10, 20, 50])    # placeholder
+simulate(netlist, sweep_param="R1",     sweep_values=[1e3, 2e3, 5e3]) # literal value
 ```
 
 One row per point, and each row's `value` is read back from what LTspice itself reported
@@ -446,34 +445,27 @@ Two additional cases where missing data is made explicit:
 
 ### Tools Reference
 
-| category | tool | purpose |
-|---|---|---|
-| **Lifecycle** | `start_optimization` | Create a persistent run with preflight gating and parameter bounds |
-| | `stop_optimization` | Conclude an active run while retaining all state |
-| | `get_optimization_status` | Return compact summary of incumbent, constraints, and search progress |
-| | `list_runs` | List all runs persisted in `state.db` |
-| **Evaluation & Search** | `run_optimization` | Execute $N$ coordinate descent iterations locally; return single summary |
-| | `evaluate_candidate` | Simulate one candidate with dedup, lineage tracking, and pure scoring |
-| | `select_next_experiment` | Propose next parameter candidate based on empirical sensitivity |
-| **Simulation & Sweeps** | `simulate_netlist` | Ad hoc netlist simulation with `.meas` extraction and zero state mutation |
-| | `simulate_sweep` | Single launch `.step` multipoint parameter/temperature sweep |
-| **Diagnostics & Feasibility** | `check_feasibility` | Zero-sim 3 tier check (static, template, physics) across 3 modes |
-| | `check_ltspice` | Query detected LTspice binary, state directory, and analytic backends |
-| **Schematics & Visuals** | `render_schematic` | Render `.asc` to SVG/PNG using real `.asy` geometry in 3 styles |
-| | `get_visual_style` | Query house styles, 5 colour series ramp, and semantic net colours |
-| **State Queries & Trace** | `get_best_candidate` | Retrieve overall best and best feasible candidate |
-| | `get_pareto_frontier` | Compute non dominated candidates across all objectives |
-| | `get_parameter_sensitivity` | Retrieve measured sensitivities (causal FD or correlational OLS) |
-| | `get_optimization_history` | Paged history of optimization iterations |
-| | `get_previous_candidates` | Candidate lineage tree with parent IDs and generation counts |
-| | `get_candidate` | Full candidate record with netlist, hashes, and simulation logs |
-| | `compare_candidates` | Side by side metric and parameter deltas |
-| | `get_similar_candidates` | Nearest evaluated designs in normalized parameter distance |
-| | `get_explored_parameter_range`| Explored parameter intervals and widest untried gap |
-| | `get_failed_candidates` | Classified failures (convergence, singular matrix, structural) |
-| | `get_optimization_trace` | Human readable per iteration progress trace |
-| | `rollback_to_candidate` | Restore byte exact past circuit and metrics |
-| | `generate_design_report` | Render six section Markdown report with BOM, plots, and PVT audit |
+11 tools, each with a two-line description, typed inputs, and sensible defaults. Every
+answer ends with `next_step` (the call that most likely comes next), and every error carries
+`fix` plus a correct `example` call, so even a small model can recover on its own.
+
+| tool | purpose |
+|---|---|
+| `check_setup` | Show the LTspice path and project folder in use |
+| `simulate` | One-off netlist run, or a one-launch sweep (`sweep_param`, `sweep_values`) |
+| `check_feasibility` | Zero-sim check (static, template, physics) before spending simulations |
+| `start_optimization` | Create a persistent run: `params`, `goals`, `limits` |
+| `run_optimization` | Let the server run N iterations; returns one summary |
+| `evaluate_candidate` | Simulate one exact parameter set, with dedup and scoring |
+| `query_run` | Read stored state: `what` = status, best, pareto, history, candidates, candidate, netlist, compare, similar, sensitivity, explored, failed, trace, next, runs |
+| `rollback_to_candidate` | Restore a byte exact past circuit and its metrics |
+| `stop_optimization` | Stop a run, keeping all state |
+| `generate_design_report` | Six section Markdown report with BOM, plots, DC/PVT/Monte Carlo |
+| `render_schematic` | Render `.asc` to SVG/PNG using real `.asy` geometry in 3 styles |
+
+Upgrading from 0.5: the 15 `get_*` / `list_runs` / `select_next_experiment` tools are now
+`query_run(what=...)`; `simulate_netlist` and `simulate_sweep` are `simulate`;
+`check_ltspice` is `check_setup`; `get_visual_style` is the `spicemcp://style` resource.
 
 ## Guarantees worth knowing
 
