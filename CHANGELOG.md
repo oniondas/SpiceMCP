@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.0
+
+- Schematics drawn from a netlist (`layout.py`): `render_schematic` accepts `.cir`/`.net`
+  and places, routes and labels the parts, with signal flowing left to right and ground
+  at the bottom. Every drawing is read back and checked against the netlist pin by pin,
+  and refused if it is not the same circuit. A readability score comes with it
+  (see `docs/reports/step4/REPORT.md`).
+- `start_from_template` writes the run's schematic (`schematic_asc`).
+- Part values are drawn the way people write them (`15.9n`, not `1.5915494e-08`). The
+  `.asc` keeps the exact number.
+- A bundled fallback symbol set, so drawing works without an LTspice install.
+- `render_schematic`'s first argument is now `path` (was `asc_path`).
+
 ## 0.8.0
 
 - Topology library (`list_templates`, `start_from_template`): RC and Sallen-Key low-pass,

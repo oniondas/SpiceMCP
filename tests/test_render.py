@@ -218,5 +218,5 @@ def test_the_tool_returns_the_documented_shape(src, tmp_path):
 
     bad = server.render_schematic(str(tmp_path / "gone.asc"), str(tmp_path / "t.svg"))
     assert bad["success"] is False and bad["output_path"] is None
-    assert bad["fix"] and bad["example"]["asc_path"]
+    assert bad["fix"] and bad["example"]["path"]
     assert "no such schematic" in bad["error"]

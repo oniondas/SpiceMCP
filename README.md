@@ -376,9 +376,42 @@ across, `auto` longer leg first). Never a diagonal, because LTspice draws a diag
 line without connecting anything at either end, and `auto` is a pure function of the two
 coordinates, ensuring deterministic schematic output across runs.
 
+## Drawing a schematic from a netlist
+
+Give `render_schematic` a SPICE netlist (`.cir`, `.net`, `.sp`) and it places and wires
+the parts itself, writes an LTspice `.asc` next to the picture, and checks that drawing
+before it returns:
+
+```python
+render_schematic("filter.cir", "filter.png")   # -> filter.png + filter.asc
+```
+
+* Signal flows left to right: an amplifier's inputs sit to the left of its output.
+* Ground is at the bottom: every part with one end on ground hangs down from its node
+  and has its own ground symbol, so there are no ground wires to follow.
+* The main path sits on one row. A part that bridges distant nodes, such as a feedback
+  resistor or a Sallen-Key's bootstrap capacitor, goes on its own lane above or below.
+* MOSFET amplifiers stand upright, drain above source. A pass device on a supply rail
+  (an LDO, a high-side switch) lies on its side in the power path.
+* Wires are right angles only. They never run through a part, never end on another
+  net's wire, and cross another net only when they have to. A connection that would need
+  a long detour becomes a pair of net labels instead. Measured nodes are labelled.
+
+**Every drawing is checked.** The geometry is read back the way LTspice joins it (wire
+ends, tees, pins and same-named labels) and compared with the netlist, pin by pin. A
+drawing that is not the same circuit is refused, never returned. This check needs no
+LTspice, and on Windows `asc.check()` can still netlist the file through LTspice itself.
+`layout.lint()` scores readability (crossings, wires through parts, overlaps, hidden
+connections, dangling ends) and the score comes back with the picture.
+
+`start_from_template` also draws its circuit, so a templated run has a schematic from
+its first step. Without an LTspice install, a small bundled symbol set (R, C, L, D,
+sources, controlled sources, switch, MOSFETs) stands in. A real LTspice library always
+takes priority. Report: `docs/reports/step4/REPORT.md`.
+
 ## Rendering a schematic
 
-`render_schematic` draws the `.asc` that is on disk. Every symbol's geometry comes out of
+`render_schematic` also draws an `.asc` that is already on disk. Every symbol's geometry comes out of
 its own `.asy` transformed by that instance's orientation, so a resistor is the zigzag
 LTspice draws and an op amp has its inverting input where the symbol puts it; nothing is
 reimagined from a netlist. Wires, junction dots, net labels, power rails, grounds, ports,
@@ -498,7 +531,7 @@ answer ends with `next_step` (the call that most likely comes next), and every e
 | `rollback_to_candidate` | Restore a byte exact past circuit and its metrics |
 | `stop_optimization` | Stop a run, keeping all state |
 | `generate_design_report` | Six section Markdown report with BOM, plots, DC/PVT/Monte Carlo |
-| `render_schematic` | Render `.asc` to SVG/PNG using real `.asy` geometry in 3 styles |
+| `render_schematic` | Draw a `.asc`, or auto-place and check a netlist, as SVG/PNG in 3 styles |
 
 Upgrading from 0.5: the 15 `get_*` / `list_runs` / `select_next_experiment` tools are now
 `query_run(what=...)`; `simulate_netlist` and `simulate_sweep` are `simulate`;
@@ -538,14 +571,12 @@ Upgrading from 0.5: the 15 `get_*` / `list_runs` / `select_next_experiment` tool
 | component graph IR (topology edits are new templates) | programmatic topology rewriting is explicitly required |
 | incremental sensitivity updates (O(n²) per iteration) | runs exceed several hundred candidates |
 | `promising_unexplored_region` identifies the widest untried gap | directional search hints are needed (the main search already uses measured sensitivity) |
-| `asc.Sheet` places parts at specified coordinates | automated placement solver is available |
-| the design report embeds user supplied schematics without auto layout | schematic autoplacer exists to render and validate netlists |
 | report plot generation resimulates the winner | full waveform history is required for every intermediate candidate |
 | preflight metric recognition uses standardized naming conventions | metric name collisions require explicit type annotations |
 | `check_feasibility` inspects top level netlist elements | subcircuit internal pole modeling is required (handled during simulation in robustness) |
 | W/L aspect ratio check requires explicit W and L parameters | device geometry is defined via unified size parameters or model cards |
 | `render_schematic` applies single pass greedy label collision offsets | complex placement solver is required for high density schematics |
-| renderer draws explicitly defined `.asc` geometry without automatic placement | layout synthesis engine is added |
+| the auto-placer draws flat netlists (no `X` subcircuits) on one sheet | hierarchical designs need a block per subcircuit |
 | `simulate_sweep` steps one parameter per launch | nested 2D parameter sweeps are needed (run sequentially across outer values) |
 
 ## Schematic rendering styles
