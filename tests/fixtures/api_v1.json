@@ -1,0 +1,415 @@
+{
+ "tools": {
+  "check_setup": {
+   "params": [],
+   "required": [],
+   "enums": {}
+  },
+  "simulate": {
+   "params": [
+    "netlist",
+    "sweep_param",
+    "sweep_values",
+    "timeout_s"
+   ],
+   "required": [
+    "netlist"
+   ],
+   "enums": {}
+  },
+  "check_feasibility": {
+   "params": [
+    "circuit_type",
+    "goals",
+    "limits",
+    "mode",
+    "netlist",
+    "params",
+    "tech"
+   ],
+   "required": [
+    "goals"
+   ],
+   "enums": {
+    "circuit_type": [
+     "dcdc",
+     "filter",
+     "general",
+     "ldo",
+     "opamp"
+    ],
+    "mode": [
+     "concept",
+     "practical",
+     "theoretical"
+    ]
+   }
+  },
+  "list_templates": {
+   "params": [],
+   "required": [],
+   "enums": {}
+  },
+  "find_part": {
+   "params": [
+    "kind",
+    "query"
+   ],
+   "required": [
+    "query"
+   ],
+   "enums": {
+    "kind": [
+     "any",
+     "diode",
+     "nmos",
+     "npn",
+     "opamp",
+     "pmos",
+     "pnp"
+    ]
+   }
+  },
+  "start_from_template": {
+   "params": [
+    "parts",
+    "run_id",
+    "spec",
+    "template"
+   ],
+   "required": [
+    "run_id",
+    "spec",
+    "template"
+   ],
+   "enums": {}
+  },
+  "start_optimization": {
+   "params": [
+    "circuit_type",
+    "goals",
+    "limits",
+    "netlist",
+    "params",
+    "run_id"
+   ],
+   "required": [
+    "goals",
+    "netlist",
+    "params",
+    "run_id"
+   ],
+   "enums": {
+    "circuit_type": [
+     "dcdc",
+     "filter",
+     "general",
+     "ldo",
+     "opamp"
+    ]
+   }
+  },
+  "run_optimization": {
+   "params": [
+    "iterations",
+    "run_id"
+   ],
+   "required": [
+    "run_id"
+   ],
+   "enums": {}
+  },
+  "evaluate_candidate": {
+   "params": [
+    "force",
+    "params",
+    "run_id"
+   ],
+   "required": [
+    "params",
+    "run_id"
+   ],
+   "enums": {}
+  },
+  "query_run": {
+   "params": [
+    "candidate_id",
+    "candidate_ids",
+    "limit",
+    "metric",
+    "parameter",
+    "run_id",
+    "what"
+   ],
+   "required": [],
+   "enums": {
+    "what": [
+     "best",
+     "candidate",
+     "candidates",
+     "compare",
+     "details",
+     "explored",
+     "failed",
+     "history",
+     "netlist",
+     "next",
+     "pareto",
+     "runs",
+     "sensitivity",
+     "similar",
+     "status",
+     "trace"
+    ]
+   }
+  },
+  "rollback_to_candidate": {
+   "params": [
+    "candidate_id",
+    "run_id"
+   ],
+   "required": [
+    "candidate_id",
+    "run_id"
+   ],
+   "enums": {}
+  },
+  "finish_design": {
+   "params": [
+    "capacitors",
+    "inductors",
+    "resistors",
+    "run_id",
+    "supply",
+    "supply_tol_pct",
+    "temps_c",
+    "tolerance_pct",
+    "yield_runs"
+   ],
+   "required": [
+    "run_id"
+   ],
+   "enums": {
+    "resistors": [
+     "E12",
+     "E24",
+     "E48",
+     "E6",
+     "E96",
+     "none"
+    ],
+    "capacitors": [
+     "E12",
+     "E24",
+     "E48",
+     "E6",
+     "E96",
+     "none"
+    ],
+    "inductors": [
+     "E12",
+     "E24",
+     "E48",
+     "E6",
+     "E96",
+     "none"
+    ]
+   }
+  },
+  "generate_design_report": {
+   "params": [
+    "dc_audit",
+    "monte_carlo",
+    "out",
+    "plots",
+    "pvt",
+    "run_id",
+    "schematic",
+    "supply"
+   ],
+   "required": [
+    "run_id"
+   ],
+   "enums": {}
+  },
+  "render_schematic": {
+   "params": [
+    "output_path",
+    "path",
+    "style"
+   ],
+   "required": [
+    "path"
+   ],
+   "enums": {
+    "style": [
+     "classic",
+     "sketch",
+     "tech_minimal"
+    ]
+   }
+  }
+ },
+ "templates": {
+  "adc_driver": {
+   "spec": [
+    "fs",
+    "bits",
+    "vstep"
+   ],
+   "required": [
+    "fs"
+   ]
+  },
+  "bandpass": {
+   "spec": [
+    "f0",
+    "q",
+    "gain"
+   ],
+   "required": [
+    "f0"
+   ]
+  },
+  "boost": {
+   "spec": [
+    "vin",
+    "vout",
+    "iout",
+    "fsw",
+    "ripple_mv"
+   ],
+   "required": [
+    "vin",
+    "vout",
+    "iout"
+   ]
+  },
+  "buck": {
+   "spec": [
+    "vin",
+    "vout",
+    "iout",
+    "fsw",
+    "ripple_mv"
+   ],
+   "required": [
+    "vin",
+    "vout",
+    "iout"
+   ]
+  },
+  "current_sense": {
+   "spec": [
+    "imax",
+    "vout_fs",
+    "shunt_w",
+    "bw",
+    "err_pct"
+   ],
+   "required": [
+    "imax"
+   ]
+  },
+  "flyback": {
+   "spec": [
+    "vin",
+    "vout",
+    "iout",
+    "fsw",
+    "ripple_mv",
+    "vds_max"
+   ],
+   "required": [
+    "vin",
+    "vout",
+    "iout"
+   ]
+  },
+  "inverting_amp": {
+   "spec": [
+    "gain",
+    "bw",
+    "rin",
+    "gbw",
+    "cload"
+   ],
+   "required": [
+    "gain",
+    "bw"
+   ]
+  },
+  "ldo": {
+   "spec": [
+    "vin",
+    "vout",
+    "iload",
+    "dropout",
+    "cout",
+    "step_pct"
+   ],
+   "required": [
+    "vin",
+    "vout",
+    "iload"
+   ]
+  },
+  "noninverting_amp": {
+   "spec": [
+    "gain",
+    "bw",
+    "gbw",
+    "cload",
+    "noise_uv"
+   ],
+   "required": [
+    "gain",
+    "bw"
+   ]
+  },
+  "protection": {
+   "spec": [
+    "vin",
+    "vsurge",
+    "vmax",
+    "iload",
+    "drop_max"
+   ],
+   "required": [
+    "vin",
+    "vsurge",
+    "vmax",
+    "iload"
+   ]
+  },
+  "rc_lowpass": {
+   "spec": [
+    "fc"
+   ],
+   "required": [
+    "fc"
+   ]
+  },
+  "sallen_key_lowpass": {
+   "spec": [
+    "fc",
+    "q",
+    "cload",
+    "noise_uv"
+   ],
+   "required": [
+    "fc"
+   ]
+  },
+  "voltage_reference": {
+   "spec": [
+    "vout",
+    "tc_ppm",
+    "acc_pct"
+   ],
+   "required": [
+    "vout"
+   ]
+  }
+ }
+}

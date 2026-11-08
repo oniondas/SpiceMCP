@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0
+
+- The interface is frozen for 1.x: the 14 tools, their parameters and accepted values,
+  and the 13 templates with their spec keys. Additions come in MINOR releases; nothing is
+  removed, renamed or made required before 2.0.0. `tests/test_api_freeze.py` checks every
+  build against the snapshot in `tests/fixtures/api_v1.json`.
+- No behaviour change from 0.17.0.
+
 ## 0.17.0
 
 - Eight new ready-made circuits, each sized by hand equations (the working comes back

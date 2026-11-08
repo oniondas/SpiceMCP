@@ -29,7 +29,7 @@ from reportlab.platypus import (Image, PageBreak, Paragraph,  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
-NSTEPS = 12                                # one section per roadmap step
+NSTEPS = 13                                # one section per roadmap step
 VERSION = re.search(r'^version\s*=\s*"([^"]+)"',
                     (HERE.parents[1] / "pyproject.toml").read_text(), re.M).group(1)
 
@@ -784,6 +784,30 @@ def build():
         "Rk1, Rk2) are held at their exact value in the yield run; the list says so. Buy "
         "them at 1% or better, or make them tunable to include them.",
     ])
+
+    # ---- step 13 (1.0.0)
+    api = json.load(open(HERE.parents[1] / "tests/fixtures/api_v1.json"))
+    st.append(PageBreak())
+    st += section(f"STEP 13 OF {NSTEPS}", "Version 1.0: the commands are frozen",
+                  "Every step so far was free to rename a command or an input. That is "
+                  "fine while building, and a problem for anyone who wrote a script or a "
+                  "prompt against it. From 1.0 the interface stays put.")
+    st += bullets([
+        f"<b>Frozen for all of 1.x:</b> {len(api['tools'])} commands, their inputs and "
+        f"accepted values, and {len(api['templates'])} ready-made circuits with their spec "
+        "keys. New ones may be added; nothing is removed, renamed or made required "
+        "before 2.0.",
+        "<b>Checked on every change:</b> a test compares each build with the 1.0 snapshot "
+        "and fails on anything breaking, on Windows and Linux.",
+        "<b>What 1.0 does not mean:</b> it is a promise about the interface. Designs are "
+        "proven in two simulators (ngspice and LTspice), not yet on a built board; that is "
+        "the next phase, a bench test that needs hardware.",
+    ])
+    st += [Spacer(1, 6), P("The frozen commands", "h2"),
+           table([["command", "inputs (required in bold)"]] +
+                 [[n, ", ".join(f"<b>{p}</b>" if p in t["required"] else p
+                                for p in t["params"]) or "none"]
+                  for n, t in api["tools"].items()], [44 * mm, 130 * mm])]
 
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]
