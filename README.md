@@ -202,6 +202,35 @@ case (uppercase `AT` for a point it found, lowercase `at` for one you specified)
 the parser is case sensitive here. Getting it backwards returns the sample time as the
 measurement, which plots as a plausible straight line.
 
+## Topology library: start from a known circuit
+
+Most designs start from a known topology sized by textbook equations. `list_templates`
+shows five ready-made circuits, and `start_from_template` turns a short spec into a run.
+It writes the netlist with its measurements, sizes the parts by hand equations (the
+working comes back line by line), and simulates that start point:
+
+```python
+start_from_template(run_id="buck_001", template="buck",
+                    spec={"vin": 12, "vout": 5, "iout": 1, "ripple_mv": 50})
+run_optimization(run_id="buck_001", iterations=20)
+```
+
+| template | spec |
+|---|---|
+| `rc_lowpass` | `fc` |
+| `sallen_key_lowpass` | `fc`, `q` (default 0.707, Butterworth) |
+| `noninverting_amp` | `gain`, `bw`, `gbw` (op-amp, default 10 MHz) |
+| `ldo` | `vin`, `vout`, `iload`, `dropout` (default 0.3 V) |
+| `buck` | `vin`, `vout`, `iout`, `fsw` (500 kHz), `ripple_mv` (50) |
+
+Goals and limits can name a part directly as `param_<NAME>` (for example "smallest
+`param_c1`"). Each template's hand-sized start is simulated in the test suite.
+Report: `docs/reports/step3/REPORT.md`.
+
+On a machine without LTspice, `sim_options={"backend": "ngspice"}` runs the same LTspice
+deck through ngspice, translating the `.meas` lines on the fly. LTspice stays the main
+simulator. ngspice is for CI, Linux/Mac, and checking results.
+
 ## Preflight: is the spec even possible?
 
 `check_feasibility` answers that before a single LTspice process starts. It costs no

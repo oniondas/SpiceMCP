@@ -15,7 +15,7 @@ import pytest
 
 from spicemcp import db, server, sim
 
-MAX_TOOLS = 11
+MAX_TOOLS = 13
 MAX_DESC = 200
 
 

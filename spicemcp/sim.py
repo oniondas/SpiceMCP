@@ -352,6 +352,111 @@ def _run_ltspice(netlist: str, workdir: Path, stem: str, sim_config: dict) -> Si
                      log_path=str(log), raw_path=str(rawf) if rawf.exists() else None)
 
 
+# --- ngspice backend (secondary) ------------------------------------------------
+#
+# LTspice is the product's simulator. ngspice is here so the same LTspice deck can be
+# checked where LTspice is not installed (CI, Linux, Mac, a reviewer's laptop): every
+# template in `topologies.py` is verified against it in the test suite.
+#
+# Only the `.meas` dialect differs for the decks this project writes, so that is all
+# the translation does. The rules mirror what LTspice itself reports:
+#   * In AC, LTspice prints every MAX/MIN/FIND of mag(...) in dB, so those become
+#     vdb(...) here; a WHEN threshold on mag(...) is linear, so it becomes vm(...).
+#   * `PARAM expr` becomes a `let` + `print` in the control block.
+# ngspice only runs `.meas` reliably from a `.control` block, so the directives move
+# there. `.step` is not translated: sweeps stay an LTspice feature.
+
+_MEAS_DIRECTIVE = re.compile(r"^\s*\.meas(?:ure)?\s+(\w+)\s+(\w+)\s+(.*)$", re.I)
+_MAG_V = re.compile(r"\bmag\(\s*v\(([^()]*)\)\s*\)", re.I)
+_DB_V = re.compile(r"\bdb\(\s*v\(([^()]*)\)\s*\)", re.I)
+_NG_RESULT = re.compile(rf"^\s*(\w+)\s*=\s*({_FLOAT})")
+
+
+def find_ngspice(explicit: str | None = None) -> str | None:
+    import os
+
+    for cand in filter(None, [explicit, os.environ.get("NGSPICE_EXE")]):
+        if Path(cand).is_file():
+            return cand
+    return shutil.which("ngspice") or shutil.which("ngspice_con")
+
+
+def to_ngspice(netlist: str) -> str:
+    """Rewrite an LTspice deck's `.meas` lines into an ngspice `.control` block."""
+    body, ctrl = [], ["run"]
+    for line in netlist.splitlines():
+        m = _MEAS_DIRECTIVE.match(line)
+        if not m:
+            if line.strip().lower() == ".end":
+                continue
+            body.append(line)
+            continue
+        kind, name, rest = m.group(1).lower(), m.group(2), m.group(3).strip()
+        if rest.lower().startswith("param"):
+            expr = rest[5:].strip().lstrip("=").strip().strip("'\"{}")
+            ctrl += [f"let {name} = {expr}", f"print {name}"]
+            continue
+        low = rest.lower()
+        if kind == "ac":
+            if low.startswith("when"):
+                rest = _MAG_V.sub(lambda g: f"vm({g.group(1)})", rest)
+            else:
+                head, sep, tail = re.split(r"(\bwhen\b)", rest, maxsplit=1, flags=re.I) + ["", ""] \
+                    if re.search(r"\bwhen\b", rest, re.I) else (rest, "", "")
+                head = _MAG_V.sub(lambda g: f"vdb({g.group(1)})", head)
+                head = _DB_V.sub(lambda g: f"vdb({g.group(1)})", head)
+                tail = _MAG_V.sub(lambda g: f"vm({g.group(1)})", tail)
+                rest = head + sep + tail
+        rest = re.sub(r"\b(at|from|to|td)\s+(?!=)", r"\1=", rest, flags=re.I)
+        ctrl.append(f"meas {kind} {name} {rest}")
+    return "\n".join(body + [".control", *ctrl, ".endc", ".end", ""])
+
+
+def parse_ngspice(log_text: str) -> tuple[dict[str, float], list[str]]:
+    """`name = value [at= ...]` lines, as ngspice's `meas` and `print` write them."""
+    metrics, warnings = {}, []
+    for line in log_text.splitlines():
+        low = line.lower()
+        if "failed" in low or low.lstrip().startswith(("error", "warning")):
+            warnings.append(line.strip())
+            continue
+        m = _NG_RESULT.match(line)
+        if m and m.group(1).lower() not in _NOT_METRICS:
+            metrics[m.group(1).lower()] = float(m.group(2))
+    return metrics, warnings
+
+
+def _run_ngspice(netlist: str, workdir: Path, stem: str, sim_config: dict) -> SimResult:
+    exe = find_ngspice(sim_config.get("ngspice_exe"))
+    if not exe:
+        return SimResult(status="failed", failure_type=SIMULATION_FAILURE,
+                         failure_message="ngspice executable not found; set NGSPICE_EXE")
+    workdir.mkdir(parents=True, exist_ok=True)
+    cir = (workdir / f"{stem}.ng.cir").resolve()
+    cir.write_text(to_ngspice(netlist), encoding="utf-8")
+    log = cir.with_suffix(".log")
+    timeout = float(sim_config.get("timeout_s", 120))
+    try:
+        proc = subprocess.run([exe, "-b", str(cir)], capture_output=True, text=True,
+                              timeout=timeout, cwd=workdir)
+    except subprocess.TimeoutExpired:
+        return SimResult(status="failed", failure_type=SIMULATION_FAILURE,
+                         failure_message=f"ngspice timed out after {timeout}s")
+    text = proc.stdout + "\n" + proc.stderr
+    log.write_text(text, encoding="utf-8")
+    ftype, fmsg, detail = classify_log(text)
+    metrics, warnings = parse_ngspice(text)
+    if ftype and not metrics:
+        return SimResult(status="failed", failure_type=ftype, failure_message=fmsg,
+                         failure_detail=detail, log_path=str(log))
+    if not metrics and sim_config.get("require_meas", True):
+        return SimResult(status="failed", failure_type=SIMULATION_FAILURE,
+                         failure_message="ngspice ran but no .meas results found",
+                         failure_detail={"tail": text[-600:]}, warnings=warnings,
+                         log_path=str(log))
+    return SimResult(status="ok", metrics=metrics, warnings=warnings, log_path=str(log))
+
+
 def simulate(netlist: str, params: dict, sim_config: dict, workdir: Path,
              stem: str) -> SimResult:
     backend = sim_config.get("backend", "ltspice")
@@ -359,6 +464,8 @@ def simulate(netlist: str, params: dict, sim_config: dict, workdir: Path,
         return _run_analytic(params, sim_config)
     if backend == "ltspice":
         return _run_ltspice(netlist, workdir, stem, sim_config)
+    if backend == "ngspice":
+        return _run_ngspice(netlist, workdir, stem, sim_config)
     return SimResult(status="failed", failure_type=STRUCTURAL_ERROR,
                      failure_message=f"unknown backend {backend!r}")
 

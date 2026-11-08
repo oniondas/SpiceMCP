@@ -21,12 +21,13 @@ from typing import Annotated, Literal
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from . import db, engine, feasibility, plots, render, report, sim
+from . import db, engine, feasibility, plots, render, report, sim, topologies
 
 INSTRUCTIONS = """\
 SpiceMCP designs circuits with LTspice. Typical flow:
 1. check_feasibility  (is the spec possible?)
-2. start_optimization (netlist with {PARAM} placeholders and .meas lines)
+2. start_from_template (filters, amplifier, LDO, buck: sized for you), or
+   start_optimization (your own netlist with {PARAM} placeholders and .meas lines)
 3. run_optimization   (the server searches; you do not loop per simulation)
 4. query_run          (status, best, pareto, history ...)
 5. generate_design_report
@@ -110,7 +111,8 @@ class SimOptions(_Strict):
     """Advanced simulator settings. Leave out for normal use."""
     timeout_s: float = Field(120.0, gt=0)
     ltspice_exe: str | None = Field(None, description="Path, if LTspice is not found")
-    backend: Literal["ltspice", "analytic"] = "ltspice"
+    backend: Literal["ltspice", "ngspice", "analytic"] = Field(
+        "ltspice", description="ngspice only where LTspice is not installed")
     model: str | None = Field(None, description="Analytic model name (tests only)")
 
 
@@ -171,6 +173,9 @@ EXAMPLES = {
     "stop_optimization": {"run_id": "rc_001"},
     "generate_design_report": {"run_id": "rc_001", "pvt": True, "monte_carlo": 100},
     "render_schematic": {"asc_path": "amp.asc", "output_path": "amp.png"},
+    "list_templates": {},
+    "start_from_template": {"run_id": "lpf_001", "template": "sallen_key_lowpass",
+                            "spec": {"fc": 10000}},
 }
 
 
@@ -194,6 +199,8 @@ def _fix_for(msg: str) -> str:
         return "Relax the limits listed under feasibility.violations, then retry."
     if "is stopped" in m or "nothing to do" in m:
         return "The run is stopped. Start a new run with a new run_id."
+    if "unknown template" in m or "spec needs" in m or "unknown spec keys" in m:
+        return "Call list_templates for the template names and their spec keys."
     if "mode must be" in m or "circuit_type must be" in m:
         return "Use one of the allowed values named in the error."
     return "Correct the input named in the error and call again."
@@ -206,7 +213,8 @@ def _fail(tool: str, msg: str, **extra) -> dict:
 def _call(tool: str, fn, *a, **kw) -> dict:
     try:
         out = fn(*a, **kw)
-    except (engine.EngineError, feasibility.FeasibilityError, ValueError, KeyError) as e:
+    except (engine.EngineError, feasibility.FeasibilityError, topologies.TemplateError,
+            ValueError, KeyError) as e:
         return _fail(tool, str(e).strip("'\""))
     if isinstance(out, dict) and "error" in out:
         return {**_fail(tool, out.pop("error")), **out}
@@ -295,6 +303,49 @@ def check_feasibility(goals: list[Goal], limits: list[Limit] | None = None,
                               "then call start_optimization.")
         return v
     return _call("check_feasibility", go)
+
+
+# --- tools: topology library ----------------------------------------------------
+
+@mcp.tool()
+def list_templates() -> dict:
+    """List ready-made circuits (filters, amplifier, LDO, buck) and the spec each needs.
+    Start here when the user describes a circuit instead of giving a netlist."""
+    return {"templates": [t.describe() for t in topologies.TEMPLATES.values()],
+            "next_step": "Call start_from_template(run_id, template, spec)."}
+
+
+@mcp.tool()
+def start_from_template(run_id: str, template: str, spec: dict[str, float],
+                        sim_options: SimOptions | None = None) -> dict:
+    """Build a run from a ready-made circuit, size it by hand equations and simulate
+    that start point. spec keys come from list_templates, in SI units."""
+    def go():
+        t = topologies.get(template)
+        d = t.design(spec)
+        space = {p.pop("name"): p for p in (dict(x) for x in d.params)}
+        out = engine.start_run(con(), run_id, d.netlist, space, d.goals,
+                               _constraints([Limit(**x) for x in d.limits]),
+                               _sim_config(sim_options), 0, f"template {template}",
+                               {"circuit_type": d.circuit_type,
+                                "technology_params": {k: v for k, v in d.tech.items()
+                                                      if k != "gbw"}})
+        if "error" in out:
+            return out
+        first = engine.evaluate(con(), run_id, d.start, None, None, False, "template")
+        out.update({"template": template, "hand_calculation": d.working,
+                    "start_point": d.start,
+                    "start_result": {k: first.get(k) for k in
+                                     ("candidate_id", "status", "metrics", "feasible",
+                                      "failure_message")}})
+        out["next_step"] = (
+            f"Start point already meets every limit. Call run_optimization(run_id="
+            f"'{run_id}', iterations=20) to improve the goal, or generate_design_report."
+            if first.get("feasible") else
+            f"Start point is close but misses a limit. Call run_optimization(run_id="
+            f"'{run_id}', iterations=20).")
+        return out
+    return _call("start_from_template", go)
 
 
 # --- tools: optimization run ----------------------------------------------------

@@ -1,0 +1,233 @@
+{
+ "spec_vs_sim": [
+  [
+   "RC low-pass",
+   "fc",
+   "1000 Hz",
+   "1000.0 Hz"
+  ],
+  [
+   "Sallen-Key",
+   "fc (\u22123 dB)",
+   "10000 Hz",
+   "10000 Hz"
+  ],
+  [
+   "Sallen-Key",
+   "gain at fc/2",
+   "\u2265 \u22120.5 dB",
+   "-0.26 dB"
+  ],
+  [
+   "Amplifier",
+   "gain",
+   "20.0 dB (10\u00d7)",
+   "20.00 dB"
+  ],
+  [
+   "Amplifier",
+   "bandwidth",
+   "\u2265 100 kHz",
+   "1000 kHz"
+  ],
+  [
+   "LDO",
+   "Vout at 5 V in",
+   "3.30 V \u00b11%",
+   "3.304 V"
+  ],
+  [
+   "LDO",
+   "Vout at 3.6 V in",
+   "\u2265 3.234 V",
+   "3.301 V"
+  ],
+  [
+   "Buck",
+   "Vout",
+   "5.0 V \u00b12%",
+   "4.982 V"
+  ],
+  [
+   "Buck",
+   "ripple",
+   "\u2264 50 mV",
+   "50.4 mV"
+  ],
+  [
+   "Buck",
+   "efficiency",
+   "(reported)",
+   "94.8 %"
+  ]
+ ],
+ "optimized": {
+  "rc_lowpass": {
+   "start": {
+    "R1": 10000.0,
+    "C1": 1.5915494309189534e-08
+   },
+   "start_metrics": {
+    "fc": 1000.019,
+    "atten10_db": -20.04321,
+    "param_c1": 1.5915494309189534e-08
+   },
+   "start_feasible": true,
+   "best": {
+    "C1": 1.59154943e-09,
+    "R1": 100000.0
+   },
+   "best_metrics": {
+    "atten10_db": -20.04321,
+    "fc": 1000.019,
+    "param_c1": 1.59154943e-09
+   },
+   "best_feasible": true,
+   "sims": 41,
+   "working": [
+    "fc = 1 / (2\u00b7\u03c0\u00b7R\u00b7C). Pick R = 10 k\u03a9 (low noise, light load).",
+    "C = 1 / (2\u00b7\u03c0\u00b71000\u00b71e+04) = 15.9 nF.",
+    "Search R from 100 \u03a9 to 100 k\u03a9: higher R means more noise and more sensitivity to the load.",
+    "Goal: the smallest capacitor that keeps fc within \u00b12%."
+   ]
+  },
+  "sallen_key_lowpass": {
+   "start": {
+    "R1": 10000.0,
+    "R2": 10000.0,
+    "C1": 2.2507907903927646e-09,
+    "C2": 1.1253953951963827e-09
+   },
+   "start_metrics": {
+    "f3db": 10000.08,
+    "peak_db": -8.731052e-06,
+    "atten10_db": -40.00044,
+    "g_half_db": -0.2633701,
+    "param_c1": 2.2507907903927646e-09
+   },
+   "start_feasible": true,
+   "best": {
+    "C1": 2.2507907903927646e-09,
+    "C2": 1.1253953951963827e-09,
+    "R1": 10000.0,
+    "R2": 10000.0
+   },
+   "best_metrics": {
+    "atten10_db": -40.00044,
+    "f3db": 10000.08,
+    "g_half_db": -0.2633701,
+    "param_c1": 2.2507907903927646e-09,
+    "peak_db": -8.731052e-06
+   },
+   "best_feasible": true,
+   "sims": 41,
+   "working": [
+    "Equal resistors R1 = R2 = 10 k\u03a9, \u03c90 = 2\u00b7\u03c0\u00b710000.",
+    "C1 = 2\u00b7Q / (\u03c90\u00b7R) = 2.25 nF (feedback cap).",
+    "C2 = 1 / (2\u00b7Q\u00b7\u03c90\u00b7R) = 1.13 nF (cap to ground).",
+    "Q = 0.707107 (0.707 = Butterworth, maximally flat)."
+   ]
+  },
+  "noninverting_amp": {
+   "start": {
+    "R1": 10000.0,
+    "R2": 90000.0
+   },
+   "start_metrics": {
+    "gain_db": 19.99913,
+    "bw": 999919.3
+   },
+   "start_feasible": true,
+   "best": {
+    "R1": 10000.0,
+    "R2": 90000.0
+   },
+   "best_metrics": {
+    "bw": 999919.3,
+    "gain_db": 19.99913
+   },
+   "best_feasible": true,
+   "sims": 41,
+   "working": [
+    "Gain = 1 + R2/R1. Pick R1 = 10 k\u03a9.",
+    "R2 = R1\u00b7(G \u2212 1) = 90 k\u03a9.",
+    "Bandwidth \u2248 GBW / G = 1e+07 / 10 = 1 MHz (spec 100 kHz).",
+    "The 10 k\u03a9 load and the R2+R1 divider also load the output."
+   ]
+  },
+  "ldo": {
+   "start": {
+    "R1": 175000.0,
+    "W": 0.003636363636363638
+   },
+   "start_metrics": {
+    "vout": 3.304493,
+    "vout_low": 3.301264,
+    "vout_high": 3.305534,
+    "param_w": 0.003636363636363638
+   },
+   "start_feasible": true,
+   "best": {
+    "R1": 175000.0,
+    "W": 0.00204487755
+   },
+   "best_metrics": {
+    "param_w": 0.00204487755,
+    "vout": 3.30402,
+    "vout_high": 3.305064,
+    "vout_low": 3.248986
+   },
+   "best_feasible": true,
+   "sims": 41,
+   "working": [
+    "Vout = Vref\u00b7(1 + R1/R2), Vref = 1.2 V. R2 = 100 k\u03a9, R1 = 175 k\u03a9.",
+    "At dropout (3.6 V in) the gate is at 0 V, so Vsg = 3.6 V and the PMOS is in triode with Vsd = 0.3 V.",
+    "I = KP\u00b7(W/L)\u00b7((Vsg\u2212|Vt|)\u00b7Vsd \u2212 Vsd\u00b2/2) \u2192 W = 3.64 mm (1.5\u00d7 margin on 100 mA).",
+    "Goal: the smallest pass device that still meets dropout."
+   ]
+  },
+  "buck": {
+   "start": {
+    "D": 0.43548387096774194,
+    "L": 2.032258064516129e-05,
+    "C": 1.5e-06
+   },
+   "start_metrics": {
+    "vout": 4.981936,
+    "vmax": 5.006116,
+    "vmin": 4.955745,
+    "iin": -0.4364529,
+    "ripple_mv": 50.371,
+    "eff": 0.9477802,
+    "param_l": 2.032258064516129e-05,
+    "param_c": 1.5e-06
+   },
+   "start_feasible": false,
+   "best": {
+    "C": 1.08388315e-06,
+    "D": 0.435483871,
+    "L": 2.83012986e-05
+   },
+   "best_metrics": {
+    "eff": 0.947807,
+    "iin": -0.4364271,
+    "param_c": 1.08388315e-06,
+    "param_l": 2.83012986e-05,
+    "ripple_mv": 49.889,
+    "vmax": 5.005785,
+    "vmin": 4.955896,
+    "vout": 4.981859
+   },
+   "best_feasible": true,
+   "sims": 41,
+   "working": [
+    "Duty D = (Vout + Vd) / (Vin + Vd) = 0.435 (Vd = 0.4 V diode).",
+    "Ripple current \u0394I = 30% of Iout = 300 mA.",
+    "L = (Vin \u2212 Vout)\u00b7D / (fsw\u00b7\u0394I) = 20.3 \u00b5H.",
+    "C = \u0394I / (8\u00b7fsw\u00b7\u0394V) = 1.5 \u00b5F for 50 mV ripple.",
+    "LC corner 28.8 kHz; simulate 2.08 ms and measure the last 200 \u00b5s.",
+    "Open loop: no feedback controller, so Vout depends on D and the load."
+   ]
+  }
+ }
+}

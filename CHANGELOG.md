@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0
+
+- Topology library (`list_templates`, `start_from_template`): RC and Sallen-Key low-pass,
+  non-inverting amplifier, PMOS LDO, buck converter. Each one is hand-sized from design
+  equations and verified by simulation (see `docs/reports/step3/REPORT.md`).
+- `param_<NAME>` metrics: goals and limits on part values.
+- Optional `ngspice` backend that translates LTspice `.meas` directives.
+- Fix: a second run in one project crashed (candidate ids were per run, but stored as a
+  project-wide key).
+- Optimizer: a trust region on Newton repairs (each part changes at most 2x per move),
+  local screening probes, and dB metrics modelled linearly. The Sallen-Key benchmark is now 10/10.
+
 ## 0.7.0
 
 Optimizer (see `docs/reports/step2/REPORT.md`): Sallen-Key fc+Q benchmark 0/10 -> 9/10,
