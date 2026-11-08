@@ -124,8 +124,9 @@ def test_a_full_run_through_the_mcp_path_always_says_what_to_do_next(project):
     assert r["current_candidate"] == best and r["next_step"]
     r = _call("generate_design_report", run_id="rc_001", plots=False)
     assert r["report_path"].endswith("rc_001_DESIGN_REPORT.md") and r["next_step"], r
-    r = _call("stop_optimization", run_id="rc_001")
-    assert r["status"] == "stopped" and "generate_design_report" in r["next_step"]
+    r = _call("finish_design", run_id="rc_001", yield_runs=5)
+    assert r["parts"] and r["yield"]["runs"] == 5 and r["next_step"], r
+    assert all(p["series"] in ("E96", "E12") for p in r["parts"].values())
 
 
 @pytest.mark.parametrize("name,args,needle", [

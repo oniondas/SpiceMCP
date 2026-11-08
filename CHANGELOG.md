@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0
+
+- `finish_design` replaces `stop_optimization`. It ends a run and turns the best design
+  into standard part values (E6/E12/E24/E48/E96), coarse parts first. The fine-step
+  values are re-centred to maximise margin, and each candidate set gets a Monte Carlo
+  yield run under part tolerance (and optional supply tolerance). It returns a parts
+  list with margin and yield (see `docs/reports/step5/REPORT.md`).
+- Yield sampling runs per simulation, so it works on the ngspice backend as well as
+  LTspice.
+
 ## 0.9.0
 
 - Schematics drawn from a netlist (`layout.py`): `render_schematic` accepts `.cir`/`.net`
