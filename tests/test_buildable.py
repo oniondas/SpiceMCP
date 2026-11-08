@@ -210,8 +210,9 @@ def test_stress_probes_every_top_level_part_and_skips_blocks_and_fixtures():
     names = [n for n, _, _ in stress.parts(net)]
     assert names == ["R1", "L1", "D1", "C1", "M1"]
     probed = stress.instrument(net)
-    assert ".meas TRAN st_d1_vr MAX V(c,b)" in probed
-    assert ".meas TRAN st_m1_pavg AVG V(c)*Id(M1)" in probed
+    assert ".meas TRAN st_d1_vr MAX V(c,b) FROM 5e-05 TO 0.0001" in probed
+    assert ".meas TRAN st_m1_pavg AVG V(c)*Id(M1) FROM 5e-05 TO 0.0001" in probed
+    assert stress.parts("RL a 0 1k\nCL a 0 1n\nRload a 0 1\nR1 a b 1\n") == [("R1", ["a", "b"], 1.0)]
     assert stress.instrument("* ac\nV1 a 0 AC 1\nR1 a 0 1k\n.ac dec 5 1 10\n.end") is None
     assert stress._up(4.1, stress.C_V) == 6.3 and stress._up(0.2, stress.R_W) == 0.25
 
@@ -234,10 +235,14 @@ def test_stress_gives_a_rating_to_buy_for_each_part(tmp_path):
     st = stress.check(SWITCH, {"backend": "ngspice"}, tmp_path)
     p = st["parts"]
     assert st["checked"] and set(p) == {"R1", "L1", "D1", "C1", "M1"}
-    assert p["L1"]["peak_a"] == pytest.approx(0.349, rel=0.02)
-    assert p["R1"]["buy"] == "0.25 W" and p["C1"]["buy"] == "10 V"
-    assert p["D1"]["reverse_v"] == pytest.approx(4.9, rel=0.05)
-    assert p["M1"]["dissipates_w"] == pytest.approx(1.73e-3, rel=0.05)
+    # steady state (second half): C1 sits near 4.2 V, M1 sinks its 0.5 mA saturation
+    # current (KP/2 (Vgs-Vt)^2) at that voltage, the diode blocks the 5 V pulse's low half
+    assert p["C1"]["peak_v"] == pytest.approx(4.24, rel=0.02) and p["C1"]["buy"] == "10 V"
+    assert p["M1"]["peak_a"] == pytest.approx(0.5e-3, rel=0.02)
+    assert p["M1"]["dissipates_w"] == pytest.approx(4.2 * 0.5e-3, rel=0.05)
+    assert p["D1"]["reverse_v"] == pytest.approx(4.8, rel=0.05)
+    assert p["L1"]["peak_a"] < 0.1           # the 0.35 A start-up inrush is left out
+    assert "steady state" in st["from"]
     assert not stress.check("* ac\nV1 a 0 AC 1\nR1 a 0 1k\n.ac dec 5 1 10\n.end\n",
                             {"backend": "ngspice"}, tmp_path)["checked"]
 

@@ -394,6 +394,8 @@ def to_ngspice(netlist: str) -> str:
         if not m:
             if line.strip().lower() == ".end":
                 continue
+            if line.lstrip().lower().startswith(".model"):
+                line = _LT_ONLY.sub("", line)
             body.append(line)
             continue
         kind, name, rest = m.group(1).lower(), m.group(2), m.group(3).strip()
@@ -441,6 +443,9 @@ def to_ngspice(netlist: str) -> str:
     return "\n".join(body + [".control", *ctrl, ".endc", ".end", ""])
 
 
+# Datasheet ratings LTspice keeps on a .model card for its own use; ngspice rejects them.
+_LT_ONLY = re.compile(r"\s(?:mfg|type|vds|ron|qg|iave|vpk|ipk|vceo|icrating)\s*=\s*"
+                      r"(?:\"[^\"]*\"|[^\s()]+)", re.I)
 _AGG = re.compile(r"^(max|min|avg|rms|pp|integ)\s+(.+?)((?:\s+(?:from|to)\b.*)?)$", re.I)
 _PLAIN_VEC = re.compile(r"^v\(\s*[^(),\s]+\s*\)$", re.I)
 _CURRENT = {"d": "@{}[id]", "r": "@{}[i]", "c": "@{}[i]", "l": "i({})", "v": "i({})",

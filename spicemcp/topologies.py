@@ -59,6 +59,7 @@ class Template:
     summary: str
     spec: list[SpecField]
     build: Callable[[dict], Design]
+    parts: tuple[str, ...] = ()               # slots a real part can fill (find_part)
 
     def resolve(self, spec: dict | None) -> dict:
         spec = {k.lower(): float(v) for k, v in (spec or {}).items()}
@@ -90,7 +91,8 @@ class Template:
         return {"name": self.name, "summary": self.summary,
                 "spec": {f.name: (f"{f.unit} {f.help}".strip() + (
                     f" ={f.default:g}" if f.default is not None else " *"))
-                         for f in self.spec}}
+                         for f in self.spec},
+                **({"parts": "/".join(self.parts)} if self.parts else {})}
 
 
 def _rng(v: float, lo: float = 0.1, hi: float = 10.0) -> tuple[float, float]:
@@ -559,7 +561,7 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
               SpecField("q", "", "quality factor", 1 / math.sqrt(2)),
               SpecField("cload", "F", "capacitance on the output", 100e-12),
               SpecField("noise_uv", "uV", "max output noise rms, 0 = report only", 0)],
-             _sallen_key),
+             _sallen_key, ("opamp",)),
     Template("noninverting_amp", "Non-inverting op-amp amplifier", "opamp",
              "Gain 1 + R2/R1 around a transistor-level CMOS op-amp.",
              [SpecField("gain", "V/V", "closed-loop gain (>= 1)"),
@@ -567,7 +569,7 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
               SpecField("gbw", "Hz", "op-amp gain-bandwidth product", 10e6),
               SpecField("cload", "F", "capacitance on the output", 100e-12),
               SpecField("noise_uv", "uV", "max output noise rms, 0 = report only", 0)],
-             _noninv_amp),
+             _noninv_amp, ("opamp",)),
     Template("ldo", "PMOS LDO voltage regulator", "ldo",
              "Linear regulator: PMOS pass device, 1.2 V reference, resistor divider, "
              "output capacitor; checked for phase margin and load step.",
@@ -584,7 +586,8 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
              [SpecField("vin", "V", "input voltage"), SpecField("vout", "V", "output voltage"),
               SpecField("iout", "A", "load current"),
               SpecField("fsw", "Hz", "switching frequency", 500e3),
-              SpecField("ripple_mv", "mV", "max output ripple, peak to peak", 50)], _buck),
+              SpecField("ripple_mv", "mV", "max output ripple, peak to peak", 50)], _buck,
+             ("switch", "diode")),
 ]}
 
 

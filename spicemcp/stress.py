@@ -1,7 +1,10 @@
 """Part stress: how hard each part is worked in the circuit, and the rating to buy.
 
 A design that meets its limits can still burn a resistor or punch through a capacitor.
-This measures, in the circuit's transient decks (or its DC sweeps when it has none):
+This measures, in the circuit's transient decks (or its DC sweeps when it has none),
+over the second half of each transient (steady state: start-up inrush depends on a
+soft-start the templates do not model), with the load resistor and capacitor left out
+(they are the test bench, not parts on the board):
 
   R  power it dissipates                 buy at least 2x (50 % derating)
   C  peak voltage across it              buy at least 1.5x, next standard rating
@@ -29,6 +32,8 @@ D_V = (20, 30, 40, 60, 100, 150, 200, 400, 600, 800, 1000)
 M_V = (12, 20, 30, 40, 60, 80, 100, 150, 200, 250, 400, 600, 800)
 DERATE = {"r_power": 2.0, "c_volt": 1.5, "l_sat": 1.3, "volt": 1.25, "amp": 1.5}
 SKIP = {"lbrk", "cinj"}                           # loop-break test fixtures
+# The load is the test bench, not a part on the board: RL, CL, Rload, Cload, RL2...
+_LOAD = re.compile(r"^[rc](l|load)\d*$", re.I)
 
 _ANALYSIS = re.compile(r"^\s*\.(tran|dc)\b", re.I | re.M)
 
@@ -60,7 +65,8 @@ def parts(netlist: str) -> list[tuple[str, list[str], float | None]]:
             depth += 1
         elif low == ".ends":
             depth = max(0, depth - 1)
-        elif depth == 0 and low[:1] in "rcldmq" and low not in SKIP:
+        elif depth == 0 and low[:1] in "rcldmq" and low not in SKIP and \
+                not _LOAD.match(low):
             n = {"r": 2, "c": 2, "l": 2, "d": 2, "m": 4, "q": 3}[low[0]]
             if len(t) > n:
                 val = ir.parse_value(t[n + 1]) if low[0] in "rcl" and len(t) > n + 1 else None
@@ -96,13 +102,28 @@ def _meas(kind: str, name: str, nodes: list[str], tran: bool) -> list[tuple[str,
     return []
 
 
+def _tran_stop(deck: str) -> float | None:
+    """The stop time of `.tran [tstep] tstop ...` (LTspice also accepts `.tran tstop`)."""
+    m = re.search(r"^\s*\.tran\s+(.*)$", deck, re.I | re.M)
+    if not m:
+        return None
+    nums = [ir.parse_value(t) for t in m.group(1).split() if "=" not in t]
+    nums = [x for x in nums if x is not None]
+    return nums[1] if len(nums) >= 2 else (nums[0] if nums else None)
+
+
 def instrument(deck: str) -> str | None:
     """The deck with a stress .meas per part, or None when it has no tran/dc analysis."""
     m = _ANALYSIS.search(deck)
     if not m:
         return None
     kind = m.group(1).upper()
-    lines = [f".meas {kind} {met} {body}"
+    window = ""
+    if kind == "TRAN":                  # steady state: the second half of the run
+        stop = _tran_stop(deck)
+        if stop:
+            window = f" FROM {stop / 2:g} TO {stop:g}"
+    lines = [f".meas {kind} {met} {body}{window}"
              for name, nodes, _ in parts(deck)
              for met, body in _meas(name[0].lower(), name, nodes, kind == "TRAN")]
     if not lines:
@@ -174,7 +195,40 @@ def check(netlist: str, sim_config: dict, workdir: Path) -> dict:
         if e:
             out[name] = {k2: (round(v, 6) if isinstance(v, float) else v)
                          for k2, v in e.items()}
-    kinds = "transient" if tran else "DC sweep"
+    kinds = "transient (second half: steady state)" if tran else "DC sweep"
     missed = sorted(n for n, _, _ in parts(probed[0]) if n not in out)
     return {"checked": True, "from": f"{len(got)} of {len(probed)} {kinds} decks",
             "parts": out, **({"not_measured": missed} if missed else {})}
+
+
+REFDES = {"switch": "M1", "diode": "D1"}
+
+
+def against_ratings(st: dict, chosen: dict) -> dict:
+    """Each chosen real part's measured stress (with derating) against its datasheet
+    ratings from the model card: {"D1 1N5819": "ok: ..." | "too small: ..."}."""
+    out = {}
+    for slot, (name, rat) in chosen.items():
+        ref = REFDES.get(slot)
+        p = (st.get("parts") or {}).get(ref) if ref else None
+        if not p or not rat:
+            continue
+        checks = []
+        if slot == "diode":
+            checks = [("reverse voltage", p["reverse_v"] * DERATE["volt"], rat.get("vpk"), "V"),
+                      ("average current", p["avg_a"] * DERATE["amp"], rat.get("iave"), "A")]
+        elif slot == "switch":
+            checks = [("Vds", p["vds_v"] * DERATE["volt"], rat.get("vds"), "V")]
+        bad, good = [], []
+        for what, need, have, u in checks:
+            if not isinstance(have, (int, float)):
+                continue
+            (bad if need > abs(have) else good).append(
+                f"{what} needs {need:.3g} {u}, rated {abs(have):g} {u}")
+        if bad or good:
+            out[f"{ref} {name}"] = ("too small: " + "; ".join(bad)) if bad else \
+                ("ok: " + "; ".join(good))
+        if slot == "switch" and isinstance(rat.get("ron"), (int, float)):
+            loss = p["peak_a"] ** 2 * rat["ron"]
+            out[f"{ref} {name}"] += f"; conduction loss under {loss:.2g} W at Ron {rat['ron']:g} Ω"
+    return out

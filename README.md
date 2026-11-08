@@ -174,6 +174,7 @@ Settings (environment variables, all optional):
 | `LTSPICE_EXE` | auto-detected | full path to LTspice |
 | `SPICEMCP_WORKERS` | CPU cores, up to 8 | simulations run at the same time |
 | `SPICEMCP_CALL_BUDGET_S` | 50 | longest a tool call blocks before answering |
+| `SPICEMCP_LIB_DIRS` | LTspice's own `lib` folders | more folders of `.lib`/`.sub`/`.model` files for `find_part` |
 
 Long calls: `run_optimization` returns at the time limit with its progress saved (call
 it again to continue). `finish_design` keeps working in the background and answers
@@ -620,7 +621,7 @@ Two additional cases where missing data is made explicit:
 
 ### Tools Reference
 
-13 tools, each with a two-line description, typed inputs, and sensible defaults. The
+14 tools, each with a two-line description, typed inputs, and sensible defaults. The
 tool list is about 2,500 tokens and answers are one-line JSON, because both are re-sent
 to the model on every turn. Every answer ends with `next_step` (the call that most likely comes next), and every error carries
 `fix` plus a correct `example` call, so even a small model can recover on its own.
@@ -631,13 +632,14 @@ to the model on every turn. Every answer ends with `next_step` (the call that mo
 | `simulate` | One-off netlist run, or a one-launch sweep (`sweep_param`, `sweep_values`) |
 | `check_feasibility` | Zero-sim check (static, template, physics) before spending simulations |
 | `list_templates` | The ready-made circuits and the spec keys each needs |
-| `start_from_template` | Build, hand-size and simulate a ready-made circuit as a new run |
+| `find_part` | Find a real part (op-amp, MOSFET, diode) by part number or maker in the SPICE libraries on this computer |
+| `start_from_template` | Build, hand-size and simulate a ready-made circuit as a new run; `parts` puts a real op-amp, switch or diode in it |
 | `start_optimization` | Create a persistent run: `params`, `goals`, `limits` |
 | `run_optimization` | Let the server run N iterations; returns one summary |
 | `evaluate_candidate` | Simulate one exact parameter set, with dedup and scoring |
 | `query_run` | Read stored state: `what` = status, best, pareto, history, candidates, candidate, netlist, compare, similar, sensitivity, explored, failed, trace, next, runs, details (hand calculation, full feasibility report, finish_design alternatives) |
 | `rollback_to_candidate` | Restore a byte exact past circuit and its metrics |
-| `finish_design` | End a run: standard part values (E6 to E96), re-centred, with Monte Carlo yield |
+| `finish_design` | End a run: standard part values (E6 to E96), re-centred; yield over part tolerance, supply and temperature, the worst case, and the rating to buy for each part |
 | `generate_design_report` | Six section Markdown report with BOM, plots, DC/PVT/Monte Carlo |
 | `render_schematic` | Draw a `.asc`, or auto-place and check a netlist, as SVG/PNG in 3 styles |
 
