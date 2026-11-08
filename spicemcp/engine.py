@@ -102,7 +102,7 @@ def start_run(con, run_id: str, netlist_template: str, param_space: dict,
     # The analytic backend has no netlist semantics at all -- its metrics come from a
     # registered Python function, so `.meas` directives and placeholders mean nothing
     # there and every template check would be a false positive.
-    if not bypass and cfg.get("backend") == "ltspice":
+    if not bypass and cfg.get("backend") in ("ltspice", "ngspice"):
         from . import feasibility               # imported here: feasibility imports engine
         verdict = feasibility.check(objectives, constraints, param_space,
                                     netlist_template, circuit_type=ctype, mode=pmode,
@@ -280,6 +280,12 @@ def evaluate(con, run_id: str, params: dict, parent_id: str | None = None,
 
     metrics = {k.lower(): v for k, v in res.metrics.items()}
     if res.status == "ok":
+        # `param_<name>` lets a goal or limit price a part directly ("smallest C1",
+        # "W under 2 mm") -- size and cost are real objectives with no .meas to read.
+        wanted = {o["metric"] for o in objs} | {c["metric"] for c in cons}
+        for k, v in params.items():
+            if f"param_{k.lower()}" in wanted:
+                metrics[f"param_{k.lower()}"] = float(v)
         cres, feasible = evaluate_constraints(metrics, cons)
         sc = score(metrics, objs, cons)
         ftype, fmsg, fdetail = None, None, None
@@ -870,6 +876,7 @@ def select_next(con, run_id: str, step_frac: float = STEP_FRAC) -> dict:
                     "random", known, bad, rng, space)
 
 
+NEWTON_MAX_FACTOR = 2.0     # largest single-move change of one part, as a ratio
 REPAIR_MAX_VIOLATION = 20.0   # relative miss small enough to be worth repairing
 
 
@@ -901,8 +908,16 @@ def _repair_target(con, run_id: str, incumbent: dict, objs: list[dict],
     return None
 
 
-def _elasticity(points, param: str, metric: str) -> float | None:
-    """d ln(metric) / d ln(param), median over clean finite-difference pairs.
+def _log_metric(points, metric: str) -> bool:
+    """Model this metric in log space? Yes when every value seen is positive (fc, Q,
+    vout); no for dB and other signed quantities, which are already logarithmic."""
+    vals = [m[metric] for _, m in points if m.get(metric) is not None]
+    return bool(vals) and all(v > 0 for v in vals)
+
+
+def _elasticity(points, param: str, metric: str, log_m: bool = True) -> float | None:
+    """d ln(metric) / d ln(param) (or d metric / d ln(param) for a dB metric), median
+    over clean finite-difference pairs.
 
     Most circuit laws are power laws in their component values (fc ~ 1/RC, gain ~
     R2/R1, SR ~ I/C), and a power law's log-log slope is the same everywhere. So one
@@ -910,14 +925,17 @@ def _elasticity(points, param: str, metric: str) -> float | None:
     per-ohm slope cannot do across decades.
     """
     usable = [(p, m) for p, m in points
-              if p.get(param, 0) > 0 and (m.get(metric) or 0) > 0]
+              if p.get(param, 0) > 0 and m.get(metric) is not None
+              and (m[metric] > 0 or not log_m)]
     es = []
     for i, (pi, mi) in enumerate(usable):
         for pj, mj in usable[i + 1:]:
             if pi[param] == pj[param] or any(
                     pi.get(k) != pj.get(k) for k in set(pi) | set(pj) if k != param):
                 continue
-            es.append(math.log(mj[metric] / mi[metric]) / math.log(pj[param] / pi[param]))
+            dm = (math.log(mj[metric] / mi[metric]) if log_m
+                  else mj[metric] - mi[metric])
+            es.append(dm / math.log(pj[param] / pi[param]))
     return statistics.median(es) if es else None
 
 
@@ -929,15 +947,20 @@ def _window(cons: list[dict], metric: str) -> tuple[float | None, float | None]:
     return lo, hi
 
 
-def _target(cons: list[dict], metric: str, cur: float) -> float | None:
-    """Where a repair should aim: the window centre, or 2% inside a one-sided limit."""
+def _target(cons: list[dict], metric: str, cur: float, log_m: bool = True) -> float | None:
+    """Where a repair should aim: the window centre, or 2% inside a one-sided limit.
+    None when the metric is comfortably inside a one-sided limit (leave it free)."""
     lo, hi = _window(cons, metric)
     if lo is not None and hi is not None:
-        return math.sqrt(lo * hi) if lo > 0 else None
+        if log_m:
+            return math.sqrt(lo * hi) if lo > 0 else None
+        return (lo + hi) / 2
     if lo is not None:
-        return lo * 1.02 if lo > 0 and cur < lo * 1.02 else None
+        t = lo * 1.02 if log_m else lo + max(0.02 * abs(lo), 1e-3)
+        return t if (not log_m or lo > 0) and cur < t else None
     if hi is not None:
-        return hi * 0.98 if hi > 0 and cur > hi * 0.98 else None
+        t = hi * 0.98 if log_m else hi - max(0.02 * abs(hi), 1e-3)
+        return t if (not log_m or hi > 0) and cur > t else None
     return None
 
 
@@ -973,16 +996,17 @@ def _newton_repair(base: dict, space: dict, cons: list[dict], metrics: dict, poi
     rows, rhs, used = [], [], []
     for met in sorted({c["metric"] for c in cons}):
         cur = metrics.get(met)
-        if not cur or cur <= 0:
+        log_m = _log_metric(points, met)
+        if cur is None or (log_m and cur <= 0):
             continue
-        tgt = _target(cons, met, cur)
+        tgt = _target(cons, met, cur, log_m)
         if tgt is None:
             continue
-        e = [_elasticity(points, n, met) or 0.0 for n in names]
+        e = [_elasticity(points, n, met, log_m) or 0.0 for n in names]
         if not any(abs(x) > 0.05 for x in e):
             continue
         rows.append(e)
-        rhs.append(math.log(tgt / cur))
+        rhs.append(math.log(tgt / cur) if log_m else tgt - cur)
         used.append(met)
     if not rows or not any(abs(x) > 1e-3 for x in rhs):
         return None
@@ -1002,6 +1026,13 @@ def _newton_repair(base: dict, space: dict, cons: list[dict], metrics: dict, poi
             return None
         step = [w[k] * sum(rows[i][k] * y[i] for i in range(len(rows)))
                 for k in range(len(names))]
+        # Trust region: elasticities measured elsewhere are only a local model (a
+        # filter's passband droop is not a power law in R), so never move a part by
+        # more than NEWTON_MAX_FACTOR in one go. Scaling the whole step keeps its
+        # direction; the next repair continues from wherever this one lands.
+        big = max((abs(d) for d in step), default=0.0)
+        if big > math.log(NEWTON_MAX_FACTOR):
+            step = [d * math.log(NEWTON_MAX_FACTOR) / big for d in step]
         params = dict(base)
         pinned = []
         for k, (n, d) in enumerate(zip(names, step)):
@@ -1186,9 +1217,12 @@ def _other_value(spec: dict, cur: float, rng: random.Random) -> float:
     if "values" in spec:
         others = [v for v in spec["values"] if v != cur]
         return rng.choice(others) if others else cur
+    # A screening probe measures a local slope, so it stays local: 15% of the range
+    # (in the search's own scale) toward the roomier side. A big jump from a good
+    # hand-sized start throws the start away and measures a slope that does not hold
+    # where the design actually is.
     u = _to_unit(spec, cur)
-    far = 1.0 if 1.0 - u > u else 0.0                   # halfway into the roomier side
-    return _clamp(_from_unit(spec, u + (far - u) * 0.5), spec)
+    return _clamp(_from_unit(spec, u + (0.15 if 1.0 - u > u else -0.15)), spec)
 
 
 def _propose(con, run_id, params, parent_id, why, method, known, bad, rng,

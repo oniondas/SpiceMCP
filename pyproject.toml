@@ -1,6 +1,6 @@
 [project]
 name = "spicemcp"
-version = "0.7.0"
+version = "0.8.0"
 description = "LTspice MCP server with a stateful, anti-hallucination optimization layer"
 requires-python = ">=3.11"
 dependencies = ["mcp>=1.2,<2", "pydantic>=2"]

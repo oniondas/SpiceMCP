@@ -543,7 +543,9 @@ def _template(v: FeasibilityVerdict, objs: list[dict], lim: dict,
     wanted = {o["metric"] for o in objs} | set(lim)
     missing = sorted(m for m in wanted
                      if m not in scan["meas"]
-                     and not (m.endswith("_deg") and m[:-4] in scan["meas"]))
+                     and not (m.endswith("_deg") and m[:-4] in scan["meas"])
+                     and not (m.startswith("param_")
+                              and m[6:] in {p.lower() for p in space}))
     v.ran("template:metrics_have_meas")
     if missing:
         v.add(ERROR, "template", "metric_not_measured",

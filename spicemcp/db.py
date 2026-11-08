@@ -126,9 +126,10 @@ def transaction(con: sqlite3.Connection):
 
 
 def next_candidate_id(con: sqlite3.Connection, run_id: str) -> str:
-    n = con.execute(
-        "SELECT COUNT(*) FROM designs WHERE run_id = ?", (run_id,)
-    ).fetchone()[0]
+    # Project-wide, not per run: candidate_id is the table's primary key and names the
+    # stored `candidates/<id>.cir`, so a per-run count made the second run in a project
+    # crash on its first candidate (and would have overwritten the first run's files).
+    n = con.execute("SELECT COUNT(*) FROM designs").fetchone()[0]
     return f"cand_{n + 1:04d}"
 
 
