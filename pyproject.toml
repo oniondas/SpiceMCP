@@ -1,6 +1,6 @@
 [project]
 name = "spicemcp"
-version = "0.15.0"
+version = "0.16.0"
 description = "MCP server that designs, sizes and checks analog and power circuits in LTspice or ngspice"
 readme = "README.md"
 authors = [{ name = "Shounak Das" }]

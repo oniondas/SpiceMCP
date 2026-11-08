@@ -349,7 +349,10 @@ def _ldo(s: dict) -> Design:
     r1 = r2 * (vout / vref - 1)
     kp, vt, length = 50e-6, 0.7, 1e-6
     vsg = vout + vdo                # gate pulled to 0 V at the dropout point
-    w = 1.5 * iload * length / (kp * ((vsg - vt) * vdo - vdo * vdo / 2))
+    # Dropout is worst hot: mobility, so KP, falls as T^-1.5 (to 77% at 85 C). Size the
+    # pass device there, and check dropout there (the line-regulation deck runs at 85 C).
+    kp_hot = kp * (300.15 / 358.15) ** 1.5
+    w = 1.5 * iload * length / (kp_hot * ((vsg - vt) * vdo - vdo * vdo / 2))
     vlow = vout + vdo
     gbw = 10e6                      # error amplifier
     beta = vref / vout
@@ -380,12 +383,14 @@ RL out 0 {rl:.6g}
 .meas DC vout FIND V(out) AT {vref + 0.0005:g}
 .end
 * LDO line regulation: the input swept, so dropout and overvoltage are checked at
-* absolute input voltages (a supply tolerance applies to the deck above, not here)
+* absolute input voltages (a supply tolerance applies to the deck above, not here),
+* at 85 C, where the pass device is weakest
 {core}X1 fb ref in 0 g {opamp.NAME}
 R1 out fb {{R1}}
 R2 fb 0 {r2:g}
 RL out 0 {rl:.6g}
-{cap}{model}{oa}.dc Vin 0 {vin * 1.2:g} 0.01
+{cap}{model}{oa}.temp 85
+.dc Vin 0 {vin * 1.2:g} 0.01
 .meas DC vout_low FIND V(out) AT {vlow:g}
 .meas DC vout_high FIND V(out) AT {vin * 1.15:g}
 .end
@@ -425,7 +430,8 @@ RL out 0 {rl_light:.6g}
                  f"At dropout ({_eng(vlow, 'V')} in) the gate is at 0 V, so Vsg = {vsg:.3g} V "
                  f"and the PMOS is in triode with Vsd = {vdo:g} V.",
                  f"I = KP·(W/L)·((Vsg−|Vt|)·Vsd − Vsd²/2) → W = {_eng(w, 'm')} "
-                 f"(1.5× margin on {_eng(iload, 'A')}).",
+                 f"(1.5× margin on {_eng(iload, 'A')}), with KP at 85 °C: mobility falls as "
+                 "T^-1.5, to 77% of its room value. Dropout is checked at 85 °C.",
                  "Goal: the smallest pass device that still meets dropout.",
                  "Error amplifier: two-stage CMOS op-amp (MOSFETs) running from the input, "
                  f"GBW {_eng(gbw, 'Hz')}, so it loses headroom as the input falls.",

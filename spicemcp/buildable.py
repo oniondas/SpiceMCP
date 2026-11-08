@@ -485,11 +485,18 @@ def has_semiconductors(netlist: str) -> bool:
 
 
 def at_temperature(netlist: str, temp_c: float) -> str:
-    """Every deck simulated at `temp_c` (a `.temp` line before each `.end`)."""
-    out = []
+    """Every deck simulated at `temp_c` (a `.temp` line before each `.end`). A deck that
+    sets its own temperature keeps it: it is a worst-case check by design (the LDO's
+    dropout at 85 C)."""
+    out, own = [], False
     for ln in netlist.splitlines():
-        if ln.strip().lower() == ".end":
-            out.append(f".temp {temp_c:g}")
+        low = ln.strip().lower()
+        if low.startswith(".temp"):
+            own = True
+        if low == ".end":
+            if not own:
+                out.append(f".temp {temp_c:g}")
+            own = False
         out.append(ln)
     return "\n".join(out) + "\n"
 

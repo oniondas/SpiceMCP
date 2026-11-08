@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.16.0
+
+- Yield over corners. `finish_design` now checks every board at each temperature in
+  `temps_c` and with its supply drawn inside `supply_tol_pct`; a board passes only if it
+  passes at every temperature. Template runs default to their own supply (Vin, or Vcc and
+  Vee together) at ±5% and, when they contain transistors or diodes, to -40, 25 and
+  85 °C. Custom netlists are checked only at what you ask for. The answer says what the
+  yield `covers`.
+- Worst-case summary: when boards fail, the answer names the limit that fails most, the
+  temperature where most failures happen, the tightest limit with its worst value and
+  margin, and the part whose tolerance drives the failures (`R2 high`). `next_step` says
+  what to change.
+- Part stress with the rating to buy: the chosen design is simulated at the top of its
+  supply tolerance with probes on every resistor (power), capacitor (peak voltage),
+  inductor (peak and RMS current), diode (reverse voltage, average current) and MOSFET or
+  BJT (voltage, current, power), over the steady-state half of each transient. The answer
+  lists `buy_at_least` per part with the usual derating (2x power, 1.5x capacitor
+  voltage, 1.25x semiconductor voltage, 1.5x current). Circuits checked only by their AC
+  response say they were not checked rather than passing.
+- Real parts by part number. New tool `find_part` searches the SPICE libraries on the
+  computer (LTspice's own `lib` folders, plus `SPICEMCP_LIB_DIRS`) by name or maker and
+  returns the kind, pins and datasheet ratings. `start_from_template(parts={...})` puts the
+  part in the circuit: an op-amp in the Sallen-Key filter or the amplifier, a P-channel
+  switch and a diode in the buck. `finish_design` then checks the measured stress against
+  the part's ratings (`D1 1N5819: too small: average current needs 1.08 A, rated 1 A`).
+- Output noise: the amplifier and the Sallen-Key filter gain a noise deck reporting
+  `vn_uv` (µV rms over the band), with an optional `noise_uv` limit in the spec.
+- The LDO's supply tolerance now reaches its output: the nominal output is measured in
+  its own DC deck, so a ±5% supply moves it as it would on the bench.
+- The buck's loop stability is simulated, not only hand-calculated: an averaged-switch
+  deck breaks the loop between the output and the divider and must show 45° phase margin.
+- ngspice: `.meas` on expressions and device currents (`V(a,b)`, `I(D1)`, `Id(M1)`) and
+  on noise integrals is translated; LTspice-only ratings on `.model` cards are dropped.
+- Tool list: 14 tools, about 3,000 tokens with the instructions (was 2,776).
+
 ## 0.15.0
 
 - No call blocks for minutes. `run_optimization` stops at a time limit (50 s,

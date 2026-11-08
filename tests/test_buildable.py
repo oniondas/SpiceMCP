@@ -152,6 +152,8 @@ def test_finish_answer_is_short_and_the_rest_is_on_query_run(project):
 def test_corners_put_a_temp_line_in_every_deck_and_find_the_template_supply():
     two = "* a\nV1 a 0 1\n.op\n.end\n* b\nV1 a 0 1\n.op\n.end\n"
     assert B.at_temperature(two, -40).count(".temp -40\n.end") == 2
+    pinned = two.replace(".op\n.end\n* b", ".op\n.temp 85\n.end\n* b", 1)
+    assert B.at_temperature(pinned, -40).count(".temp") == 2   # its own 85 kept
     assert B.default_supply("Vcc vcc 0 5\nVee vee 0 -5\n.end") == "Vcc,Vee"
     assert B.default_supply("Vin in 0 12\n.end") == "Vin"
     assert B.default_supply("V1 in 0 AC 1\n.end") is None
