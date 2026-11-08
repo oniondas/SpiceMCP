@@ -1,0 +1,9 @@
+{
+ "_source": "Transcribed from the console of ck_claims.py ltspice on the Windows laptop (LTspice 26.0.2.1). The Sallen-Key and buck checks ran with the .meas insertion fixed (commit a5c5cd5).",
+ "sk_real": {"a1m": -42.8},
+ "sk_ideal": {"a1m": -80.0},
+ "ldo_rz": {"pm_deg": 72.2, "step_mv": 38.5},
+ "ldo_norz": {"pm_deg": 0.78, "step_mv": 59.2},
+ "opamp": {"a0": 87.5, "gbw": 9996000.0, "slew": 9.3, "icc": -0.00116},
+ "buck_step": {"v_before": 4.997, "vpk": 5.715, "v_after": 4.999, "t_back": 0.000724}
+}

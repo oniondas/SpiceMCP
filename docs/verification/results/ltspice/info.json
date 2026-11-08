@@ -1,0 +1,13 @@
+{
+ "machine": "Windows 11 Home build 26300, LTspice 26.0.2.1, Python 3.12.10",
+ "pytest": "367 passed, 13 skipped (they need ngspice), 0 failed",
+ "summary": [
+  "<b>Machine:</b> your laptop, Windows 11, LTspice 26.0.2.1, a separate fresh copy of v0.13.0.",
+  "<b>Tests:</b> 367 passed, 13 skipped (those need ngspice), 0 failed. Together with Linux, every one of the 380 tests has now run and passed somewhere.",
+  "<b>Commands:</b> 13, longest description 167 characters (the Windows count includes line endings). Under the 200 limit.",
+  "<b>Drawings:</b> LTspice turned all 14 drawings back into netlists; all 14 connect exactly the same pins as their source, including the new instrumentation amplifier. My first comparison script misread LTspice's op-amp naming and pin-label comments and wrongly flagged 8; the connections were then checked by hand and the script fixed.",
+  "<b>Readability scores</b> are the same as on Linux (LDO 76, buck 69, instrumentation amplifier 27, the rest 99 to 100), so the stale-score finding stands.",
+  "<b>Electrical claims:</b> every one repeats in LTspice within 1%, except the LDO load step without the series resistor (59 mV vs 68 mV in ngspice): both say the same thing, a ringing, unstable regulator.",
+  "<b>Still running when this version was built:</b> the five templates' tune-and-finish with yield, and the instrumentation-amplifier design, in LTspice. They take about an hour because of the buck converter; this page will be updated when they finish."
+ ]
+}
