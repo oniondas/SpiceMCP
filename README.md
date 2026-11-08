@@ -30,16 +30,16 @@ never existed.
 
 ## Circuits built so far
 
-**17 circuits.** Full list with key results: [docs/CIRCUITS.md](docs/CIRCUITS.md).
+**17 circuits.** Every one with its schematic, simulated plot and key result: [docs/circuits/SpiceMCP_Circuit_Catalog.pdf](docs/circuits/SpiceMCP_Circuit_Catalog.pdf). Text list: [docs/CIRCUITS.md](docs/CIRCUITS.md).
 
 | No. | Circuit | Key result |
 |---:|---|---|
 | 1 | RC low-pass filter | 1000.0 Hz cutoff for a 1 kHz spec |
 | 2 | Sallen-Key low-pass filter | 9998 Hz for a 10 kHz spec, 40 dB/decade |
-| 3 | Non-inverting amplifier | 20.00 dB gain, 1.06 MHz bandwidth |
+| 3 | Non-inverting amplifier | 20.00 dB gain, 1.12 MHz bandwidth |
 | 4 | LDO regulator (5 V to 3.3 V) | 3.301 V, 72° phase margin |
-| 5 | Buck converter (12 V to 5 V, closed loop) | 41.6 mV ripple, 94.5% efficient |
-| 6 | Instrumentation amplifier (gain 100) | 87 dB hum rejection, 104 kHz bandwidth |
+| 5 | Buck converter (12 V to 5 V, closed loop) | 33 mV ripple, 89.5% efficient |
+| 6 | Instrumentation amplifier (gain 100) | 127 dB hum rejection, 104 kHz bandwidth |
 | 7 | Inverting amplifier | drawn clean, score 100 |
 | 8 | Common-source MOSFET amplifier | drawn clean, score 99 |
 | 9 | Wheatstone bridge | drawn clean, score 99 |
@@ -48,7 +48,7 @@ never existed.
 | 12 | Pi filter | drawn clean, score 100 |
 | 13 | 5-stage RC ladder | drawn clean, score 100 |
 | 14 | LC tank | drawn clean, score 100 |
-| 15 | Two-stage CMOS op-amp (8 MOSFETs) | 87 dB gain, 10.6 MHz unity-gain |
+| 15 | Two-stage CMOS op-amp (8 MOSFETs) | 87.5 dB gain, 10 MHz unity-gain |
 | 16 | Comparator with gate drive | drives the buck's power MOSFET |
 | 17 | Chua's chaotic circuit | double-scroll attractor (gallery above) |
 

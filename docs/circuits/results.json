@@ -1,0 +1,231 @@
+[
+ {
+  "no": 1,
+  "title": "RC low-pass filter",
+  "what": "First-order passive filter: lets low frequencies through, cuts high ones at 20 dB per decade.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/01_rc_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/01_rc_plot.png",
+  "result": [
+   "Cutoff (-3 dB) 1000.0 Hz for a 1 kHz spec",
+   "-20.0 dB one decade above cutoff (20 dB/decade)"
+  ]
+ },
+ {
+  "no": 2,
+  "title": "Sallen-Key low-pass filter",
+  "what": "Second-order active filter (Butterworth, Q = 0.707) around the transistor-level op-amp: 40 dB per decade.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/02_sk_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/02_sk_plot.png",
+  "result": [
+   "-3 dB at 9998 Hz for a 10 kHz spec, flat passband (peak 0.001 dB)",
+   "-40.3 dB one decade above cutoff (40 dB/decade)"
+  ]
+ },
+ {
+  "no": 3,
+  "title": "Non-inverting amplifier",
+  "what": "Amplifies by 1 + R2/R1 (here x10) with a high input impedance.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/03_noninv_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/03_noninv_plot.png",
+  "result": [
+   "Gain 20.00 dB (x10.00) for a x10 spec",
+   "Bandwidth 1.12 MHz (spec: at least 100 kHz)",
+   "Phase margin 85° (stable)"
+  ]
+ },
+ {
+  "no": 4,
+  "title": "LDO voltage regulator",
+  "what": "Linear regulator: 5 V in, 3.3 V out at 0.1 A, using a PMOS pass transistor and an error amplifier.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/04_ldo_schematic.png",
+  "readability": 76,
+  "plot": "docs/circuits/figures/04_ldo_plot.png",
+  "result": [
+   "3.301 V out from 5 V in, at 0.1 A",
+   "Still 3.300 V at 3.6 V in (low dropout)",
+   "Phase margin 72°; load step dip 39 mV"
+  ]
+ },
+ {
+  "no": 5,
+  "title": "Buck DC-DC converter (closed loop)",
+  "what": "Switching step-down converter: 12 V in, 5 V out at 1 A, with a PWM controller that holds the output.",
+  "kind": "ready-made circuit",
+  "schematic": "docs/circuits/figures/05_buck_schematic.png",
+  "readability": 69,
+  "plot": "docs/circuits/figures/05_buck_plot.png",
+  "result": [
+   "4.999 V out from 12 V in, at 1 A, 500 kHz switching",
+   "Ripple 32.8 mV (limit 50 mV)",
+   "Efficiency 89.5%"
+  ]
+ },
+ {
+  "no": 6,
+  "title": "Instrumentation amplifier",
+  "what": "Three op-amps: amplifies the difference between two sensor wires by 100 and rejects what is common to both (mains hum).",
+  "kind": "designed from scratch",
+  "schematic": "docs/circuits/figures/06_ina_schematic.png",
+  "readability": 26,
+  "plot": "docs/circuits/figures/06_ina_plot.png",
+  "result": [
+   "Gain 40.00 dB (x100) for a x100 spec",
+   "Bandwidth 104 kHz (spec: at least 20 kHz)",
+   "Hum rejection (CMRR) at 60 Hz: 127 dB (spec: 80 dB)",
+   "Finished with standard 1% values; 0.1% resistors give 100% of boards in spec"
+  ]
+ },
+ {
+  "no": 7,
+  "title": "Inverting amplifier",
+  "what": "Amplifies by −R2/R1 (here −10).",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/07_inverting_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/07_inverting_plot.png",
+  "result": [
+   "Gain 19.98 dB (x−9.98), set by R2/R1 = 10",
+   "Bandwidth 191 kHz (op-amp sized for 2 MHz gain-bandwidth)"
+  ]
+ },
+ {
+  "no": 8,
+  "title": "Common-source MOSFET amplifier",
+  "what": "Single-transistor voltage amplifier.",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/08_cs_amp_schematic.png",
+  "readability": 99,
+  "plot": "docs/circuits/figures/08_cs_amp_plot.png",
+  "result": [
+   "Mid-band gain -2.0 dB (x0.80) from one MOSFET biased at 0.11 mA",
+   "Below a few Hz the source resistor cuts the gain to -2.8 dB; the 10 µF bypass capacitor removes that loss above it"
+  ]
+ },
+ {
+  "no": 9,
+  "title": "Wheatstone bridge",
+  "what": "Four-resistor bridge that turns a small resistance change (e.g. a strain gauge) into a voltage.",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/09_bridge_schematic.png",
+  "readability": 99,
+  "plot": "docs/circuits/figures/09_bridge_plot.png",
+  "result": [
+   "A 10% change in one arm gives 216 mV across the bridge at 10 V",
+   "Output is zero when all four arms match, and grows linearly with supply"
+  ]
+ },
+ {
+  "no": 10,
+  "title": "Boost converter",
+  "what": "Switching step-up converter: 5 V in, about 10 V out.",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/10_boost_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/10_boost_plot.png",
+  "result": [
+   "Steps 5 V up to 9.28 V (ideal at 50% duty: 10 V) into 50 Ω",
+   "Open loop: the output depends on the input; shows the drawer handles switchers"
+  ]
+ },
+ {
+  "no": 11,
+  "title": "Two-stage amplifier with feedback",
+  "what": "Two op-amps with an RC filter between them, one feedback loop around both, gain 10.",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/11_two_stage_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/11_two_stage_plot.png",
+  "result": [
+   "Gain 20.00 dB (x10.00), set by 1 + R2/R3 = 10",
+   "Feedback wraps both op-amps and the RC between them"
+  ]
+ },
+ {
+  "no": 12,
+  "title": "Pi filter",
+  "what": "C-L-C low-pass, as used on supply and RF lines.",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/12_pi_filter_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/12_pi_filter_plot.png",
+  "result": [
+   "Passband -6.1 dB (the 50 Ω source and load halve the voltage)",
+   "-82 dB at 100 MHz: steep 3rd-order roll-off"
+  ]
+ },
+ {
+  "no": 13,
+  "title": "5-stage RC ladder",
+  "what": "Five RC sections in a row: a steep passive low-pass.",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/13_rc_ladder_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/13_rc_ladder_plot.png",
+  "result": [
+   "-3 dB at 13.2 kHz (each section loads the one before it)",
+   "-180 dB at 10 MHz: 100 dB/decade, five times one RC section"
+  ]
+ },
+ {
+  "no": 14,
+  "title": "LC tank",
+  "what": "Inductor and capacitor in parallel: resonates at one frequency.",
+  "kind": "drawing test",
+  "schematic": "docs/circuits/figures/14_lc_tank_schematic.png",
+  "readability": 100,
+  "plot": "docs/circuits/figures/14_lc_tank_plot.png",
+  "result": [
+   "Resonates at 5.01 MHz (1/2π√LC = 5.03 MHz)",
+   "Peak impedance 967 Ω, set by the 1 kΩ loss resistor"
+  ]
+ },
+ {
+  "no": 15,
+  "title": "Two-stage CMOS op-amp",
+  "what": "The 8-MOSFET op-amp inside circuits 2, 3, 4, 6, 7 and 11: differential pair, current mirror, gain stage, Miller compensation.",
+  "kind": "building block",
+  "schematic": "docs/circuits/figures/15_opamp_schematic.png",
+  "readability": null,
+  "plot": "docs/circuits/figures/15_opamp_plot.png",
+  "result": [
+   "Open-loop gain 87.5 dB",
+   "Unity-gain frequency 10 MHz for a 10 MHz spec",
+   "Sized from a target gain-bandwidth; used inside circuits 2, 3, 4, 5, 6, 7, 11"
+  ]
+ },
+ {
+  "no": 16,
+  "title": "Comparator with gate drive",
+  "what": "The op-amp's two stages, fast, then two CMOS inverters (12 MOSFETs) that can switch a power MOSFET.",
+  "kind": "building block",
+  "schematic": "docs/circuits/figures/16_comparator_schematic.png",
+  "readability": null,
+  "plot": "docs/circuits/figures/16_comparator_plot.png",
+  "result": [
+   "Output swings rail to rail (0 to 12 V) whenever in+ crosses in−",
+   "Tapered buffer (small then large inverter) drives a power MOSFET gate directly",
+   "This is the PWM block of the closed-loop buck (circuit 5)"
+  ]
+ },
+ {
+  "no": 17,
+  "title": "Chua's chaotic circuit",
+  "what": "The simplest electronic circuit that behaves chaotically.",
+  "kind": "demo",
+  "schematic": "gallery/chua/chua_circuit_classic.png",
+  "readability": null,
+  "plot": "gallery/chua/chua_phase_portraits_2d.png",
+  "result": [
+   "Chaotic oscillator: L, two capacitors and a negative-resistance (Chua) diode",
+   "Simulated in LTspice; the output never repeats and traces a double scroll",
+   "More plots (bifurcation, butterfly effect) in the README gallery"
+  ]
+ }
+]
