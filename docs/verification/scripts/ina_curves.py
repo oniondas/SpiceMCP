@@ -14,7 +14,8 @@ f = np.logspace(1, 7, 61)
 deck = sim.decks(ina(opamp.subckt(10e6, 10.0)))[0]
 meas = "\n".join(f".meas AC d{i} FIND mag(V(out)) AT {x:.6g}\n.meas AC c{i} FIND mag(V(outc)) AT {x:.6g}"
                  for i, x in enumerate(f))
-deck = deck.replace(".end", meas + "\n.end")
+i = deck.rstrip().rfind("\n.end")
+deck = deck[:i] + "\n" + meas + deck[i:]
 res = {"f": f.tolist()}
 for k, p in SETS.items():
     net, _ = ir.render(deck, p)

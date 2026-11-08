@@ -14,18 +14,22 @@ def run(net, params=None, tag="x"):
     if r.status != "ok": print("FAIL", tag, r.failure_message, r.warnings[:3])
     return r.metrics
 def first(net): return sim.decks(net)[0]
+def add_meas(net, lines):
+    """Insert .meas lines before the deck's final .end (not inside a .ends)."""
+    i = net.rstrip().rfind("\n.end")
+    return net[:i] + "\n" + lines.strip("\n") + net[i:]
 
 # (a) Sallen-Key at 1 MHz: real op-amp vs an ideal stand-in (my own E-source, gain 1e5)
 d = T.get("sallen_key_lowpass").design({"fc": 10000, "q": 1/math.sqrt(2), "cload": 100e-12})
 sk = first(d.netlist).replace(".ac dec 100 100 1e+06", ".ac dec 100 100 1e7")
-sk = sk.replace(".end", ".meas AC a1m FIND mag(V(out)) AT 1Meg\n.meas AC a100k FIND mag(V(out)) AT 100k\n.meas AC a300k FIND mag(V(out)) AT 300k\n.end")
+sk = add_meas(sk, ".meas AC a1m FIND mag(V(out)) AT 1Meg\n.meas AC a100k FIND mag(V(out)) AT 100k\n.meas AC a300k FIND mag(V(out)) AT 300k")
 ideal = re.sub(r"^X1 b out vcc vee out SPMCP_OA$", "E1 out 0 b out 1e5", sk, flags=re.M)
 OUT_["sk_real"] = run(sk, d.start, "skr"); OUT_["sk_ideal"] = run(ideal, d.start, "ski")
 # frequency sweep data for the plot
 import numpy as np
 fr = np.logspace(2, 7, 41)
 def sweep(net):
-    m = net.replace(".end", "\n".join(f".meas AC p{i} FIND mag(V(out)) AT {f:.6g}" for i, f in enumerate(fr)) + "\n.end")
+    m = add_meas(net, "\n".join(f".meas AC p{i} FIND mag(V(out)) AT {f:.6g}" for i, f in enumerate(fr)))
     r = run(m, d.start, "sw"); return [r.get(f"p{i}") for i in range(len(fr))]
 OUT_["sk_curve"] = {"f": fr.tolist(), "real": sweep(sk), "ideal": sweep(ideal)}
 print("SK", OUT_["sk_real"].get("a1m"), OUT_["sk_ideal"].get("a1m"))
@@ -76,7 +80,7 @@ tstop = 1.4e-3
 b = b.replace("Vin in 0 12", "Vin in 0 PWL(0 11.4 0.6m 11.4 0.601m 12.6)")
 b = re.sub(r"^\.tran .*$", f".tran 2n {tstop:g} 0 2n", b, flags=re.M)
 b = re.sub(r"^\.meas.*\n", "", b, flags=re.M)
-b = b.replace(".end", ".meas TRAN v_before AVG V(out) FROM 0.45m TO 0.6m\n.meas TRAN vpk MAX V(out) FROM 0.6m TO 1.4m\n.meas TRAN v_after AVG V(out) FROM 1.25m TO 1.4m\n.meas TRAN t_back WHEN V(out)=5.1 FALL=LAST\n.end")
+b = add_meas(b, ".meas TRAN v_before AVG V(out) FROM 0.45m TO 0.6m\n.meas TRAN vpk MAX V(out) FROM 0.6m TO 1.4m\n.meas TRAN v_after AVG V(out) FROM 1.25m TO 1.4m\n.meas TRAN t_back WHEN V(out)=5.1 FALL=LAST")
 OUT_["buck_step"] = run(b, d.start, "bstep"); OUT_["buck_start"] = d.start
 print("BUCK", OUT_["buck_step"])
 RES = OUT_

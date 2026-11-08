@@ -28,7 +28,7 @@ def ina_single() -> str:
     return "\n".join(keep) + "\n"
 
 
-def connections(netlist: str, names: set | None = None) -> set[frozenset]:
+def connections(netlist: str, names: set | None = None, npins: dict | None = None) -> set[frozenset]:
     """Group (element, pin number) by the node they sit on. Subcircuit bodies, dot
     lines and comments are skipped; ground is node 0 under any spelling LTspice uses."""
     pins, depth = {}, 0
@@ -39,6 +39,7 @@ def connections(netlist: str, names: set | None = None) -> set[frozenset]:
         if low.startswith(".ends"): depth -= 1; continue
         if depth or not ln or ln[0] in "*.;+":
             continue
+        ln = ln.split(";")[0].replace("§", "")     # LTspice pin-name comments, X§X1 names
         tok = ln.split()
         name, kind = tok[0].lower(), tok[0][0].lower()
         if names and name not in names and name[1:] in names:
@@ -52,6 +53,8 @@ def connections(netlist: str, names: set | None = None) -> set[frozenset]:
             nodes = tok[1:4]
         else:
             nodes = tok[1:1 + NPINS.get(kind, 2)]
+        if names and npins and name in npins:
+            nodes = nodes[:npins[name]]   # LTspice adds the MOSFET body pin (tied to source)
         for i, n in enumerate(nodes):
             n = "0" if n.lower() in ("0", "gnd") else n.lower()
             pins.setdefault(n, set()).add((name, i))
@@ -89,7 +92,11 @@ def main():
                 lt = ltspice_netlist(p, exe)
                 a = connections(first)
                 names = {x[0] for g in a for x in g}
-                b = connections(lt, names)
+                npins = {}
+                for g in a:
+                    for el, i in g:
+                        npins[el] = max(npins.get(el, 0), i + 1)
+                b = connections(lt, names, npins)
                 row["same_circuit"] = a == b
                 row["groups"] = len(a)
                 if a != b:
