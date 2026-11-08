@@ -19,7 +19,9 @@ needs_ngspice = pytest.mark.skipif(not sim.find_ngspice(), reason="ngspice not i
 
 @pytest.mark.parametrize("name", sorted(T.TEMPLATES))
 def test_no_template_uses_an_ideal_source_or_switch(name):
-    net = T.get(name).design(SPECS[name]).netlist
+    # The circuit is the first deck. A later deck may be a measurement model (the
+    # buck's averaged switch for its loop gain), which is not what gets built.
+    net = sim.decks(T.get(name).design(SPECS[name]).netlist)[0]
     top = [ln.split()[0] for ln in net.splitlines() if ln.strip()
            and not ln.lstrip().startswith(("*", "."))]
     assert not [x for x in top if x[0].upper() in "EFGHBS"], (name, top)

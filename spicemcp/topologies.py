@@ -328,12 +328,21 @@ M1 out g in in PMOD W={{W}} L={length:g}
     net = f"""* PMOS LDO regulator (SpiceMCP template ldo)
 * vout target {vout:g} V from {vin:g} V at {iload:g} A, dropout spec {vdo:g} V
 * error amplifier: transistor-level op-amp powered from the input; resistive load
+* this deck: the operating point at the actual input (Vref "swept" over one point)
+{core}X1 fb ref in 0 g {opamp.NAME}
+R1 out fb {{R1}}
+R2 fb 0 {r2:g}
+RL out 0 {rl:.6g}
+{cap}{model}{oa}.dc Vref {vref:g} {vref + 0.001:g} 0.001
+.meas DC vout FIND V(out) AT {vref + 0.0005:g}
+.end
+* LDO line regulation: the input swept, so dropout and overvoltage are checked at
+* absolute input voltages (a supply tolerance applies to the deck above, not here)
 {core}X1 fb ref in 0 g {opamp.NAME}
 R1 out fb {{R1}}
 R2 fb 0 {r2:g}
 RL out 0 {rl:.6g}
 {cap}{model}{oa}.dc Vin 0 {vin * 1.2:g} 0.01
-.meas DC vout FIND V(out) AT {vin:g}
 .meas DC vout_low FIND V(out) AT {vlow:g}
 .meas DC vout_high FIND V(out) AT {vin * 1.15:g}
 .end
@@ -445,7 +454,21 @@ RL out 0 {rl:g}
 .meas TRAN ripple_mv PARAM (vmax-vmin)*1000
 .meas TRAN eff PARAM vout*vout/{rl:g}/(-{vin:g}*iin)
 .end
-"""
+""" + _loop_deck("Buck stability (averaged switch)", f"""Vin in 0 {vin:g}
+Vref ref 0 {vref:g}
+X2 ref fb in 0 vc {opamp.NAME}
+CI vc fb {{CI}}
+* loop broken between the output and the divider: the integrator (R1, CI) stays whole
+R1 outx fb {{R1}}
+R2 fb 0 {r2:g}
+Lbrk out outx 1k
+Cinj outx inj 1k
+* the switch, diode and comparator averaged over a cycle: duty = (Vc - {v_lo:g}) / {v_pp:g}
+Bsw sw 0 V=V(in)*min(max((V(vc)-{v_lo:g})/{v_pp:g},0),1)-{vd:g}*(1-min(max((V(vc)-{v_lo:g})/{v_pp:g},0),1))
+L1 sw out {{L}}
+C1 out 0 {{C}}
+RL out 0 {rl:g}
+{opamp.subckt(2e6, vin)}""", "out", fc / 100, fsw / 2)
     return Design(
         net, [{"name": "L", "min": lval / 10, "max": lval * 10},
               {"name": "C", "min": cval / 10, "max": cval * 10},
@@ -454,7 +477,8 @@ RL out 0 {rl:g}
         goals=[{"metric": "param_l", "direction": "min", "ref": lval, "weight": 1.0},
                {"metric": "param_c", "direction": "min", "ref": cval, "weight": 1.0}],
         limits=[{"metric": "vout", "min": vout * 0.98, "max": vout * 1.02},
-                {"metric": "ripple_mv", "max": ripple}],
+                {"metric": "ripple_mv", "max": ripple},
+                {"metric": "pm_deg", "min": PM_MIN}],
         start={"L": lval, "C": cval, "R1": r1, "CI": ci},
         working=[f"Duty D = (Vout + Vd) / (Vin + Vd) = {d:.3f} (Vd = {vd} V diode); the "
                  "controller finds it, this only sizes L.",
@@ -472,6 +496,12 @@ RL out 0 {rl:g}
                  f"{_eng(fc, 'Hz')}: CI = Vin / (Vramp·R1·2π·fc) = {_eng(ci, 'F')}. Phase "
                  f"margin ≈ 90°; gain margin at the LC peak ≈ {gm_db:.0f} dB.",
                  f"Simulate {_eng(tstop, 's')} and measure the last {_eng(win, 's')}.",
+                 "Stability is simulated, not only hand-calculated: a second deck replaces "
+                 "the switch, diode and comparator by their cycle average (duty = (Vc − "
+                 f"{v_lo:g}) / {v_pp:g}) and breaks the loop at the error amplifier input; "
+                 "phase margin must be 45° or more. The break sits between the output "
+                 "and the divider, so the integrator around the error amplifier stays "
+                 "whole.",
                  "Switch: P-channel power MOSFET (50 mΩ, 1 nF gate), driven straight "
                  "from the comparator's push-pull output stage (0 V = on, Vin = off)."],
         circuit_type="dcdc",
