@@ -831,15 +831,17 @@ def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "
                   inductors: Series = "E12",
                   tolerance_pct: dict[Literal["R", "C", "L"], float] | None = None,
                   yield_runs: Annotated[int, Field(ge=0, le=500)] = 30,
-                  supply: str = "", supply_tol_pct: float = 0.0,
+                  supply: str = "", supply_tol_pct: float | None = None,
+                  temps_c: list[float] | None = None,
                   seed: int | None = None) -> dict:
-    """End a run: snap the best design to standard part values, check yield under
-    part tolerance, return the parts list. Default tolerance R 1%, C 5%, L 20%."""
+    """Snap the best design to standard values, check yield over parts (R 1% C 5% L 20%),
+    supply and temperature (templates: 5%, -40/25/85 C); return the parts list."""
     def go():
+        sup, tol, temps = _corners(run_id, supply, supply_tol_pct, temps_c)
         out = buildable.finish(
             con(), run_id, {"R": resistors, "C": capacitors, "L": inductors},
             {k: v / 100 for k, v in (tolerance_pct or {}).items()}, yield_runs,
-            supply or None, supply_tol_pct / 100, seed)
+            sup, tol, seed, temps)
         y = out.get("yield")
         if y:
             f = db.state_root(PROJECT) / "simulations" / run_id / "yield" / "samples.json"
@@ -850,15 +852,48 @@ def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "
         out = _short_finish(out)
         ok = out["meets_all_limits"]
         pct = (y or {}).get("yield_pct")
+        wc = (out.get("yield") or {}).get("worst_case", {})
         out["next_step"] = (
             f"Buildable design found. Call generate_design_report(run_id='{run_id}')."
             if ok and (pct is None or pct >= 90) else
-            "Standard values meet the limits but yield is low: tighten tolerance_pct "
-            "(e.g. 1% capacitors) or relax a limit." if ok else
+            f"Standard values meet the limits but yield is low, mostly from "
+            f"{wc.get('fails_most', 'a limit')}" + (
+                f" at {wc['most_failures_at_c']:g} C" if "most_failures_at_c" in wc else "") +
+            (f" with {wc['part_driving_failures']['part']} "
+             f"{wc['part_driving_failures']['direction']}: tighten its tolerance_pct, "
+             if "part_driving_failures" in wc else ": ") +
+            "re-optimise with a tighter limit for margin, or relax the limit."
+            if ok else
             "No standard-value combination meets every limit. Use a finer series "
             "(E96, E24) or relax the limit that fails.")
         return out
     return _call("finish_design", go)
+
+
+def _corners(run_id: str, supply: str, tol_pct: float | None,
+             temps: list[float] | None) -> tuple:
+    """Fill in the corners a template run is checked at when the caller left them out:
+    its own supply +-5%, and -40/25/85 C when it has transistors or diodes. A custom
+    netlist is checked only at what the caller asks for."""
+    run = engine.get_run(con(), run_id)
+    template = (run["notes"] or "").startswith("template")
+    net = run["netlist_template"]
+    if not supply and template and tol_pct is None:
+        supply = buildable.default_supply(net) or ""
+    if tol_pct is None:
+        tol_pct = 5.0 if supply else 0.0
+    if temps is None and template and buildable.has_semiconductors(net):
+        temps = [-40.0, 25.0, 85.0]
+    return supply or None, tol_pct / 100, temps
+
+
+def _short_stress(st: dict | None) -> dict:
+    """Only the ratings to buy; the measured stress goes to details."""
+    if not st:
+        return {}
+    if not st.get("checked"):
+        return {"stress": "not checked: " + st.get("why", "")}
+    return {"buy_at_least": {n: p["buy"] for n, p in st["parts"].items()}}
 
 
 def _short_finish(out: dict) -> dict:
@@ -869,7 +904,15 @@ def _short_finish(out: dict) -> dict:
     y = out.get("yield")
     short_y = None if not y else {
         k: y[k] for k in ("runs", "passed", "yield_pct", "yield_at_least_pct", "seed",
-                          "statement", "samples_path") if k in y}
+                          "statement", "covers", "samples_path") if k in y}
+    if y and y.get("worst_case", {}).get("boards_failing"):
+        w = y["worst_case"]
+        short_y["worst_case"] = {k: v for k, v in w.items()
+                                 if k in ("fails_most", "most_failures_at_c",
+                                          "part_driving_failures")}
+        if w.get("tightest_limit"):
+            short_y["worst_case"]["tightest"] = {
+                "metric": w["tightest_limit"], **w["limits"][w["tightest_limit"]]}
     return {
         "run_id": out["run_id"],
         "buildable_candidate": out["buildable_candidate"],
@@ -882,6 +925,7 @@ def _short_finish(out: dict) -> dict:
         "worst_margin_pct": out["worst_margin_pct"],
         "nearest_values_meet_limits": out["nearest_values_meet_limits"],
         "yield": short_y,
+        **_short_stress(out.get("stress")),
         "more": f"query_run(run_id='{out['run_id']}', what='details')",
     }
 

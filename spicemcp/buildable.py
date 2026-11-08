@@ -114,7 +114,7 @@ def _passes(metrics: dict, cons: list[dict]) -> bool:
 
 def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None,
            yield_runs: int = 30, supply: str | None = None, supply_tol: float = 0.0,
-           seed: int | None = None) -> dict:
+           seed: int | None = None, temps: list[float] | None = None) -> dict:
     run = engine.get_run(con, run_id)
     space = db.jloads(run, "param_space")
     cons = db.jloads(run, "constraints", [])
@@ -250,12 +250,13 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
     if yield_runs > 0:
         for t in shortlist:
             t["yield"] = monte_carlo(con, run_id, t, tols, cons, yield_runs, supply,
-                                     supply_tol, seed)
+                                     supply_tol, seed, temps)
         chosen = max(shortlist, key=lambda t: (t["yield"]["yield_pct"], rank(t)))
     else:
         chosen = shortlist[0]
 
     engine.stop(con, run_id)
+    stressed = _stress(con, run_id, run, chosen["params"], supply, supply_tol)
     parts = {n: {"value": chosen["params"][n], "label": eng_value(chosen["params"][n]),
                  "series": series[snapped[n]],
                  "tolerance_pct": round(tols[n] * 100, 3),
@@ -276,6 +277,7 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
         "nearest_values_margin_pct": _pct(nearest_res["margin"]),
         "combinations_simulated": len(tried),
         "yield": chosen.get("yield"),
+        "stress": stressed,
         "alternatives": [{"candidate_id": t["candidate_id"],
                           "parts": {n: eng_value(t["params"][n]) for n in names},
                           "meets_all_limits": t["feasible"],
@@ -286,12 +288,29 @@ def finish(con, run_id: str, series: dict | None = None, tol: dict | None = None
     return out
 
 
+def _stress(con, run_id, run, params, supply, supply_tol) -> dict:
+    """Part stress of the chosen design, at the top of the supply tolerance."""
+    from . import stress
+    net, _ = ir.render(run["netlist_template"], params)
+    if supply and supply_tol:
+        net = _scale_supply(net, supply, 1 + supply_tol)
+    where = db.state_root(engine._project(con)) / "simulations" / run_id / "stress"
+    try:
+        out = stress.check(net, db.jloads(run, "sim_config"), where)
+    except Exception as e:                       # a probe must never sink the parts list
+        return {"checked": False, "why": f"stress probe failed: {e}"}
+    if supply and supply_tol:
+        out["at"] = f"supply +{supply_tol * 100:g}%"
+    return out
+
+
 def _pct(x):
     return None if x is None or not math.isfinite(x) else round(x * 100, 3)
 
 
 def monte_carlo(con, run_id: str, design: dict, tols: dict, cons: list[dict], n: int,
-                supply: str | None, supply_tol: float, seed: int) -> dict:
+                supply: str | None, supply_tol: float, seed: int,
+                temps: list[float] | None = None) -> dict:
     """N simulations with every part drawn uniformly inside its tolerance. Samples are
     not candidates (they are not designs anyone chose), so they are not stored as such;
     their numbers come back here and in the report."""
@@ -312,34 +331,70 @@ def monte_carlo(con, run_id: str, design: dict, tols: dict, cons: list[dict], n:
             net = _scale_supply(net, supply, s)
         boards.append((p, s, net))
     where = Path(root) / str(design["candidate_id"])
+    temps = list(temps) if temps else [None]
+    jobs = [(i, t) for i in range(n) for t in temps]
     count = [0]
 
-    def one(i):
+    def one(job):
+        i, t = job
         p, _, net = boards[i]
-        r = sim.simulate(net, p, cfg, where, f"mc{i:03d}")
+        if t is not None:
+            net = at_temperature(net, t)
+        tag = "" if t is None else f"_t{t:+g}".replace("+", "p").replace("-", "m")
+        r = sim.simulate(net, p, cfg, where, f"mc{i:03d}{tag}")
         count[0] += 1
-        progress.report(None, None, f"yield: {count[0]} of {n} boards simulated")
+        progress.report(None, None, f"yield: {count[0]} of {len(jobs)} simulations")
         return r
 
+    results = dict(zip(jobs, sim.parallel_map(one, jobs)))
+    real = [c for c in cons if not c["metric"].startswith("param_")]
     passed, rows = 0, []
-    for (p, s, _), res in zip(boards, sim.parallel_map(one, range(n))):
-        m = {k.lower(): v for k, v in res.metrics.items()} if res.status == "ok" else {}
-        ok = res.status == "ok" and _passes(m, cons)
-        passed += ok
-        rows.append({"passed": ok, "metrics": m,
-                     "parts": {k: p[k] for k in tols}, "supply_scale": s})
+    for i, (p, s, _) in enumerate(boards):
+        row = {"passed": True, "metrics": {}, "parts": {k: p[k] for k in tols},
+               "supply_scale": s, "failed": [], "failed_at_temps": [],
+               "worst": {}, "worst_temp": {}}
+        for t in temps:
+            res = results[(i, t)]
+            m = {k.lower(): v for k, v in res.metrics.items()} if res.status == "ok" else {}
+            if t == temps[0] or t == 25:
+                row["metrics"] = m
+            bad = [c["metric"] for c in real
+                   if res.status != "ok" or not _passes(m, [c])]
+            if bad:
+                row["passed"] = False
+                row["failed"] = sorted(set(row["failed"]) | set(bad))
+                if t is not None:
+                    row["failed_at_temps"].append(t)
+            for c in real:                         # keep each metric's worst corner
+                k = c["metric"]
+                if k not in m:
+                    continue
+                hi = c["op"] in ("<", "<=")
+                w = row["worst"].get(k)
+                if w is None or (m[k] > w if hi else m[k] < w):
+                    row["worst"][k] = m[k]
+                    row["worst_temp"][k] = t
+        passed += row["passed"]
+        rows.append(row)
     spread = {}
     for c in cons:
         k = c["metric"]
-        vals = [r["metrics"][k] for r in rows if k in r["metrics"]]
+        vals = [r["worst"][k] for r in rows if k in r["worst"]]
         if vals and not k.startswith("param_"):
             spread[k] = {"min": min(vals), "max": max(vals),
                          "limit": f"{c['op']}{c['value']:g}"}
     lo = yield_lower_bound(passed, n)
+    corners = [t for t in temps if t is not None]
     return {"runs": n, "passed": passed, "yield_pct": round(100 * passed / n, 1),
             "yield_at_least_pct": round(100 * lo, 1), "seed": seed,
             "statement": yield_statement(passed, n),
-            "distribution": "uniform inside each part's tolerance",
+            "covers": "part tolerance"
+                      + (f", supply ±{supply_tol * 100:g}%" if supply and supply_tol else "")
+                      + (f", {'/'.join(f'{t:g}' for t in corners)} °C" if corners
+                         else ", 27 °C only"),
+            "distribution": "uniform inside each part's tolerance; a board passes only "
+                            "if it passes at every temperature",
+            "worst_case": worst_case(rows, cons, tols, design["params"]),
             "spread": spread, "samples": rows}
 
 
@@ -389,15 +444,111 @@ def new_seed() -> int:
 
 
 def _scale_supply(netlist: str, name: str, scale: float) -> str:
+    """Scale one DC source, or several given as "Vcc,Vee" (both rails drift together)."""
     from . import robustness
-    out, hit = [], False
-    for ln in netlist.splitlines():
-        new, ok = robustness._scale_source(ln, name, scale)
-        hit |= ok
-        out.append(new)
-    if not hit:
-        raise BuildError(f"supply source {name!r} not found or not a plain DC value")
+    out, hit = netlist.splitlines(), set()
+    names = [n.strip() for n in name.split(",") if n.strip()]
+    for i, ln in enumerate(out):
+        for n in names:
+            new, ok = robustness._scale_source(ln, n, scale)
+            if ok:
+                out[i] = new
+                hit.add(n.lower())
+    missing = [n for n in names if n.lower() not in hit]
+    if missing:
+        raise BuildError(f"supply source {missing[0]!r} not found or not a plain DC value")
     return "\n".join(out)
+
+
+def default_supply(netlist: str) -> str | None:
+    """The supply a template run drifts in yield: both rails if it has Vcc and Vee,
+    else Vin. None when neither is a plain DC source."""
+    from . import robustness
+    def plain(n):
+        return any(robustness._scale_source(ln, n, 1.0)[1] for ln in netlist.splitlines())
+    if plain("Vcc") and plain("Vee"):
+        return "Vcc,Vee"
+    return "Vin" if plain("Vin") else None
+
+
+def has_semiconductors(netlist: str) -> bool:
+    """True when temperature can matter: transistors, diodes or a built-in block.
+    Ideal R, L, C and sources have no temperature coefficient in SPICE."""
+    from . import opamp
+    for ln in netlist.splitlines():
+        t = ln.strip().upper()
+        if t[:1] in ("M", "D", "Q", "J"):
+            return True
+        if t[:1] == "X" and any(b in t.split() for b in opamp.BLOCKS):
+            return True
+    return False
+
+
+def at_temperature(netlist: str, temp_c: float) -> str:
+    """Every deck simulated at `temp_c` (a `.temp` line before each `.end`)."""
+    out = []
+    for ln in netlist.splitlines():
+        if ln.strip().lower() == ".end":
+            out.append(f".temp {temp_c:g}")
+        out.append(ln)
+    return "\n".join(out) + "\n"
+
+
+def worst_case(rows: list[dict], cons: list[dict], tols: dict, nominal: dict) -> dict:
+    """Which limit fails first, at which corner, and which part drives it.
+
+    A part 'drives' a failure when failing boards drew it consistently high or low:
+    the mean of (value / nominal - 1) / tolerance over failing boards minus that over
+    passing boards. +1 means the failures had it at the top of its tolerance."""
+    fails = [r for r in rows if not r["passed"]]
+    out: dict = {"boards_failing": len(fails)}
+    limits = {}
+    for c in cons:
+        k = c["metric"]
+        if k.startswith("param_"):
+            continue
+        vals = [(v, r) for r in rows for v in [(r.get("worst") or {}).get(k)] if v is not None]
+        if not vals:
+            continue
+        hi = c["op"] in ("<", "<=")
+        v, r = max(vals, key=lambda x: x[0]) if hi else min(vals, key=lambda x: x[0])
+        s = abs(c["value"]) or 1.0
+        margin = (c["value"] - v) / s if hi else (v - c["value"]) / s
+        e = limits.setdefault(k, {"limit": f"{c['op']}{c['value']:g}", "worst": v,
+                                  "worst_margin_pct": round(100 * margin, 3),
+                                  "at_temp_c": r.get("worst_temp", {}).get(k)})
+        if margin * 100 < e["worst_margin_pct"]:
+            e.update(limit=f"{c['op']}{c['value']:g}", worst=v,
+                     worst_margin_pct=round(100 * margin, 3),
+                     at_temp_c=r.get("worst_temp", {}).get(k))
+    out["limits"] = dict(sorted(limits.items(), key=lambda kv: kv[1]["worst_margin_pct"]))
+    if limits:
+        first = next(iter(out["limits"]))
+        out["tightest_limit"] = first
+    counts: dict = {}
+    temps: dict = {}
+    for r in fails:
+        for k in r.get("failed", []):
+            counts[k] = counts.get(k, 0) + 1
+        for t in r.get("failed_at_temps", []):
+            temps[t] = temps.get(t, 0) + 1
+    if counts:
+        out["fails_most"] = max(counts, key=counts.get)
+        out["fail_counts"] = counts
+    if temps:
+        out["most_failures_at_c"] = max(temps, key=temps.get)
+    if fails and len(fails) < len(rows):
+        def dev(r, k):
+            return (r["parts"][k] / nominal[k] - 1) / (tols[k] or 1)
+        ok = [r for r in rows if r["passed"]]
+        drive = {k: (sum(dev(r, k) for r in fails) / len(fails)
+                     - sum(dev(r, k) for r in ok) / len(ok)) for k in tols}
+        if drive:
+            k = max(drive, key=lambda x: abs(drive[x]))
+            out["part_driving_failures"] = {
+                "part": k, "direction": "high" if drive[k] > 0 else "low",
+                "strength": round(drive[k], 2)}
+    return out
 
 
 _SUF = ((1e9, "G"), (1e6, "Meg"), (1e3, "k"), (1, ""), (1e-3, "m"), (1e-6, "u"),

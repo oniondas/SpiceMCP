@@ -147,3 +147,109 @@ def test_finish_answer_is_short_and_the_rest_is_on_query_run(project):
     assert "alternatives" not in out and "optimised_metrics" not in out
     d = server.query_run("rc", "details")
     assert d["finish"]["alternatives"] and d["finish"]["yield"]["spread"] is not None
+
+
+def test_corners_put_a_temp_line_in_every_deck_and_find_the_template_supply():
+    two = "* a\nV1 a 0 1\n.op\n.end\n* b\nV1 a 0 1\n.op\n.end\n"
+    assert B.at_temperature(two, -40).count(".temp -40\n.end") == 2
+    assert B.default_supply("Vcc vcc 0 5\nVee vee 0 -5\n.end") == "Vcc,Vee"
+    assert B.default_supply("Vin in 0 12\n.end") == "Vin"
+    assert B.default_supply("V1 in 0 AC 1\n.end") is None
+    assert B._scale_supply("Vcc vcc 0 5\nVee vee 0 -5", "Vcc,Vee", 1.1).split("\n") == [
+        "Vcc vcc 0 5.5", "Vee vee 0 -5.5"]
+    assert not B.has_semiconductors(NET)
+    assert B.has_semiconductors("X1 a b c d e SPMCP_OA\n")
+    assert B.has_semiconductors("D1 a 0 DX\n")
+
+
+def test_worst_case_names_the_limit_the_corner_and_the_part():
+    cons = [{"metric": "vd", "op": ">=", "value": 0.6}]
+    rows = []
+    for i, r in enumerate((0.99, 1.01, 0.99, 1.01)):
+        bad = r > 1
+        rows.append({"passed": not bad, "failed": ["vd"] if bad else [],
+                     "failed_at_temps": [85] if bad else [],
+                     "parts": {"R1": 1000 * r}, "worst": {"vd": 0.59 if bad else 0.61},
+                     "worst_temp": {"vd": 85}})
+    w = B.worst_case(rows, cons, {"R1": 0.01}, {"R1": 1000})
+    assert w["boards_failing"] == 2 and w["tightest_limit"] == "vd"
+    assert w["limits"]["vd"]["worst"] == 0.59 and w["limits"]["vd"]["at_temp_c"] == 85
+    assert w["most_failures_at_c"] == 85
+    assert w["part_driving_failures"] == {"part": "R1", "direction": "high",
+                                          "strength": 2.0}
+
+
+DIODE = ("* diode\nV1 in 0 5\nR1 in a {R1}\nD1 a 0 DX\n.model DX D(IS=1e-14)\n"
+         ".dc V1 5 5.001 0.001\n.meas DC vd FIND V(a) AT 5.0005\n.end\n")
+
+
+@needs_ngspice
+def test_a_design_that_passes_at_room_temperature_fails_at_85c(project):
+    server.start_optimization(
+        "d", DIODE, [server.Param(name="R1", min=1e3, max=1e5)],
+        [server.Goal(metric="vd", direction="max")], [server.Limit(metric="vd", min=0.62)],
+        sim_options=server.SimOptions(backend="ngspice"))
+    engine.evaluate(server.con(), "d", {"R1": 1000}, None, None, False, "llm")
+    room = server.finish_design("d", yield_runs=4, seed=1)
+    assert room["yield"]["passed"] == 4 and "27" in room["yield"]["covers"]
+    hot = server.finish_design("d", yield_runs=4, seed=1, temps_c=[-40, 25, 85])
+    assert hot["yield"]["passed"] == 0 and "85" in hot["yield"]["covers"]
+    wc = hot["yield"]["worst_case"]
+    assert wc["most_failures_at_c"] == 85 and wc["tightest"]["worst"] < 0.62
+    assert "85 C" in hot["next_step"]
+
+
+SWITCH = ("* switch\nV1 in 0 PULSE(0 5 0 1u 1u 5u 10u)\nR1 in a 10\nL1 a b 10u\nD1 b c DX\n"
+          "C1 c 0 1u\nM1 c g 0 0 NM\nVg g 0 2\n.model DX D(IS=1e-14)\n"
+          ".model NM NMOS(VTO=1 KP=1e-3)\n.tran 0.1u 100u\n.end\n")
+
+
+def test_stress_probes_every_top_level_part_and_skips_blocks_and_fixtures():
+    from spicemcp import stress
+    net = SWITCH.replace(".end", ".subckt BLK a b\nR9 a b 1k\n.ends\nLbrk c x 1k\n.end")
+    names = [n for n, _, _ in stress.parts(net)]
+    assert names == ["R1", "L1", "D1", "C1", "M1"]
+    probed = stress.instrument(net)
+    assert ".meas TRAN st_d1_vr MAX V(c,b)" in probed
+    assert ".meas TRAN st_m1_pavg AVG V(c)*Id(M1)" in probed
+    assert stress.instrument("* ac\nV1 a 0 AC 1\nR1 a 0 1k\n.ac dec 5 1 10\n.end") is None
+    assert stress._up(4.1, stress.C_V) == 6.3 and stress._up(0.2, stress.R_W) == 0.25
+
+
+def test_ngspice_measures_expressions_and_device_currents():
+    ng = sim.to_ngspice("* t\nV1 a 0 1\n.tran 1u\n.meas TRAN p AVG V(a,b)*Id(M1)\n"
+                        ".meas TRAN q MAX V(a)\n.meas TRAN r MAX I(L1) FROM 1u TO 2u\n.end\n")
+    assert ".options savecurrents" in ng
+    assert "let x_p = (v(a)-v(b))*@m1[id]" in ng and "meas tran p AVG x_p" in ng
+    assert "meas tran q MAX V(a)" in ng
+    assert "meas tran r MAX x_r FROM=1u TO=2u" in ng
+    ng = sim.to_ngspice("* n\n.noise V(out) V1 dec 20 10 1k\n.meas NOISE vn INTEG V(onoise)\n"
+                        ".meas NOISE vn_uv PARAM vn*1e6\n.end\n")
+    assert "let vn = onoise_total" in ng and "let vn_uv = vn*1e6" in ng
+
+
+@needs_ngspice
+def test_stress_gives_a_rating_to_buy_for_each_part(tmp_path):
+    from spicemcp import stress
+    st = stress.check(SWITCH, {"backend": "ngspice"}, tmp_path)
+    p = st["parts"]
+    assert st["checked"] and set(p) == {"R1", "L1", "D1", "C1", "M1"}
+    assert p["L1"]["peak_a"] == pytest.approx(0.349, rel=0.02)
+    assert p["R1"]["buy"] == "0.25 W" and p["C1"]["buy"] == "10 V"
+    assert p["D1"]["reverse_v"] == pytest.approx(4.9, rel=0.05)
+    assert p["M1"]["dissipates_w"] == pytest.approx(1.73e-3, rel=0.05)
+    assert not stress.check("* ac\nV1 a 0 AC 1\nR1 a 0 1k\n.ac dec 5 1 10\n.end\n",
+                            {"backend": "ngspice"}, tmp_path)["checked"]
+
+
+@needs_ngspice
+def test_amplifier_and_filter_report_output_noise(tmp_path):
+    from spicemcp import ir, topologies as T
+    for name, spec, lo, hi in (("noninverting_amp", {"gain": 10, "bw": 1e5}, 50, 500),
+                               ("sallen_key_lowpass", {"fc": 1e4}, 1, 20)):
+        d = T.get(name).design(spec)
+        net, _ = ir.render(d.netlist, d.start)
+        r = sim.simulate(sim.decks(net)[-1], {}, {"backend": "ngspice"}, tmp_path, name)
+        assert lo < r.metrics["vn_uv"] < hi, (name, r.metrics)
+    d = T.get("noninverting_amp").design({"gain": 10, "bw": 1e5, "noise_uv": 100})
+    assert {"metric": "vn_uv", "max": 100} in d.limits
