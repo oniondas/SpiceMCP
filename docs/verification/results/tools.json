@@ -1,0 +1,97 @@
+{
+ "n_tools": 13,
+ "tools": [
+  {
+   "name": "check_setup",
+   "desc_chars": 90,
+   "desc_lines": 2,
+   "n_inputs": 0,
+   "untyped_inputs": []
+  },
+  {
+   "name": "simulate",
+   "desc_chars": 146,
+   "desc_lines": 2,
+   "n_inputs": 4,
+   "untyped_inputs": []
+  },
+  {
+   "name": "check_feasibility",
+   "desc_chars": 156,
+   "desc_lines": 2,
+   "n_inputs": 7,
+   "untyped_inputs": []
+  },
+  {
+   "name": "list_templates",
+   "desc_chars": 155,
+   "desc_lines": 2,
+   "n_inputs": 0,
+   "untyped_inputs": []
+  },
+  {
+   "name": "start_from_template",
+   "desc_chars": 144,
+   "desc_lines": 2,
+   "n_inputs": 4,
+   "untyped_inputs": []
+  },
+  {
+   "name": "start_optimization",
+   "desc_chars": 131,
+   "desc_lines": 2,
+   "n_inputs": 9,
+   "untyped_inputs": []
+  },
+  {
+   "name": "run_optimization",
+   "desc_chars": 142,
+   "desc_lines": 2,
+   "n_inputs": 2,
+   "untyped_inputs": []
+  },
+  {
+   "name": "evaluate_candidate",
+   "desc_chars": 136,
+   "desc_lines": 2,
+   "n_inputs": 3,
+   "untyped_inputs": []
+  },
+  {
+   "name": "query_run",
+   "desc_chars": 142,
+   "desc_lines": 2,
+   "n_inputs": 7,
+   "untyped_inputs": []
+  },
+  {
+   "name": "rollback_to_candidate",
+   "desc_chars": 138,
+   "desc_lines": 2,
+   "n_inputs": 2,
+   "untyped_inputs": []
+  },
+  {
+   "name": "finish_design",
+   "desc_chars": 150,
+   "desc_lines": 2,
+   "n_inputs": 8,
+   "untyped_inputs": []
+  },
+  {
+   "name": "generate_design_report",
+   "desc_chars": 163,
+   "desc_lines": 2,
+   "n_inputs": 8,
+   "untyped_inputs": []
+  },
+  {
+   "name": "render_schematic",
+   "desc_chars": 138,
+   "desc_lines": 2,
+   "n_inputs": 3,
+   "untyped_inputs": []
+  }
+ ],
+ "tool_list_chars": 14576
+}

@@ -1,0 +1,2133 @@
+{
+ "list_templates": {
+  "templates": [
+   {
+    "name": "rc_lowpass",
+    "title": "RC low-pass filter",
+    "circuit_type": "filter",
+    "summary": "First-order passive low-pass. 20 dB/decade roll-off.",
+    "spec": {
+     "fc": "Hz, -3 dB cutoff frequency (required)"
+    }
+   },
+   {
+    "name": "sallen_key_lowpass",
+    "title": "Sallen-Key low-pass filter (2nd order)",
+    "circuit_type": "filter",
+    "summary": "Unity-gain active low-pass, 40 dB/decade. Q 0.707 = Butterworth.",
+    "spec": {
+     "fc": "Hz, cutoff frequency (required)",
+     "q": ", quality factor (default 0.707107)",
+     "cload": "F, capacitance on the output (default 1e-10)"
+    }
+   },
+   {
+    "name": "noninverting_amp",
+    "title": "Non-inverting op-amp amplifier",
+    "circuit_type": "opamp",
+    "summary": "Gain 1 + R2/R1 around a transistor-level CMOS op-amp.",
+    "spec": {
+     "gain": "V/V, closed-loop gain (>= 1) (required)",
+     "bw": "Hz, minimum -3 dB bandwidth (required)",
+     "gbw": "Hz, op-amp gain-bandwidth product (default 1e+07)",
+     "cload": "F, capacitance on the output (default 1e-10)"
+    }
+   },
+   {
+    "name": "ldo",
+    "title": "PMOS LDO voltage regulator",
+    "circuit_type": "ldo",
+    "summary": "Linear regulator: PMOS pass device, 1.2 V reference, resistor divider, output capacitor; checked for phase margin and load step.",
+    "spec": {
+     "vin": "V, nominal input voltage (required)",
+     "vout": "V, output voltage (> 1.2 V) (required)",
+     "iload": "A, load current (required)",
+     "dropout": "V, max input-output difference at full load (default 0.3)",
+     "cout": "F, output capacitor (default 1e-06)",
+     "step_pct": "%, max output change on a 10%-to-100% load step (default 3)"
+    }
+   },
+   {
+    "name": "buck",
+    "title": "Buck DC-DC converter (closed loop)",
+    "circuit_type": "dcdc",
+    "summary": "Step-down switching converter: P-MOSFET switch, diode, L, C, and a voltage-mode PWM controller that holds the output.",
+    "spec": {
+     "vin": "V, input voltage (required)",
+     "vout": "V, output voltage (required)",
+     "iout": "A, load current (required)",
+     "fsw": "Hz, switching frequency (default 500000)",
+     "ripple_mv": "mV, max output ripple, peak to peak (default 50)"
+    }
+   }
+  ],
+  "next_step": "Call start_from_template(run_id, template, spec)."
+ },
+ "rc_lowpass": {
+  "start": {
+   "run_id": "rc_lowpass",
+   "objectives": [
+    {
+     "metric": "param_c1",
+     "direction": "min",
+     "weight": 1.0,
+     "ref": 1.5915494309189534e-08
+    }
+   ],
+   "constraints": [
+    {
+     "metric": "fc",
+     "op": ">=",
+     "value": 980.0
+    },
+    {
+     "metric": "fc",
+     "op": "<=",
+     "value": 1020.0
+    }
+   ],
+   "parameters": [
+    "C1",
+    "R1"
+   ],
+   "seed": 0,
+   "feasibility": {
+    "status": "unverified",
+    "passed": true,
+    "mode": "practical",
+    "circuit_type": "filter",
+    "summary": "nothing was ruled out, but the domain physics could not be checked: physics:filter_order needs technology_params ['f_stop', 'ripple_db', 'atten_db'] (Hz, Hz, dB, dB)",
+    "violations": [],
+    "n_errors": 0,
+    "n_warnings": 0,
+    "suggestions": [],
+    "details": {
+     "measured_metrics": [
+      "atten10_db",
+      "fc"
+     ],
+     "reactive_elements": 1,
+     "max_order_from_topology": 1,
+     "active_elements": [],
+     "units": {
+      "f_pass": "Hz"
+     },
+     "technology_params_used": {
+      "f_pass": 1000.0
+     },
+     "constraints_read": [
+      "fc>=980",
+      "fc<=1020"
+     ]
+    },
+    "checks_run": [
+     "static:constraint_consistency",
+     "static:objective_consistency",
+     "static:param_space",
+     "template:metrics_have_meas",
+     "template:placeholders_match_param_space",
+     "practical:component_values"
+    ],
+    "checks_skipped": [
+     "physics:filter_order needs technology_params ['f_stop', 'ripple_db', 'atten_db'] (Hz, Hz, dB, dB)"
+    ]
+   },
+   "schematic_asc": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/schematics/rc_lowpass.asc",
+   "template": "rc_lowpass",
+   "hand_calculation": [
+    "fc = 1 / (2\u00b7\u03c0\u00b7R\u00b7C). Pick R = 10 k\u03a9 (low noise, light load).",
+    "C = 1 / (2\u00b7\u03c0\u00b71000\u00b71e+04) = 15.9 nF.",
+    "Search R from 100 \u03a9 to 100 k\u03a9: higher R means more noise and more sensitivity to the load.",
+    "Goal: the smallest capacitor that keeps fc within \u00b12%."
+   ],
+   "start_point": {
+    "R1": 10000.0,
+    "C1": 1.5915494309189534e-08
+   },
+   "start_result": {
+    "candidate_id": "cand_0001",
+    "status": "ok",
+    "metrics": {
+     "fc": 1000.019,
+     "atten10_db": -20.04321,
+     "param_c1": 1.5915494309189534e-08
+    },
+    "feasible": true,
+    "failure_message": null
+   },
+   "next_step": "Start point already meets every limit. Call run_optimization(run_id='rc_lowpass', iterations=20) to improve the goal, or generate_design_report."
+  },
+  "opt": {
+   "iterations_run": 20,
+   "cached_hits": 0,
+   "step_frac_final": 0.03125,
+   "run_id": "rc_lowpass",
+   "status": "running",
+   "iterations_evaluated": 21,
+   "unique_candidates": 21,
+   "failures": 0,
+   "current_candidate": "cand_0021",
+   "best_candidate": "cand_0010",
+   "best_metrics": {
+    "atten10_db": -20.04321,
+    "fc": 1000.019,
+    "param_c1": 1.59154943e-09
+   },
+   "best_score": -0.09999999994226046,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "fc",
+     "required": ">=980",
+     "actual": 1000.019,
+     "passed": true
+    },
+    {
+     "constraint": "fc",
+     "required": "<=1020",
+     "actual": 1000.019,
+     "passed": true
+    }
+   ],
+   "pareto_size": 1,
+   "useful_observation": "C1 decreases fc (-3.953e+09/unit, finite_difference, conf 1.0)",
+   "promising_unexplored_region": "C1 = 6.71151e-09..1.59155e-08",
+   "at_param_space_bound": [
+    "C1=1.59155e-09 (at min)",
+    "R1=100000 (at max)"
+   ],
+   "next_step": "Best design sits on a param bound: C1=1.59155e-09 (at min), R1=100000 (at max). Start a new run with a wider range for those params."
+  },
+  "best": {
+   "run_id": "rc_lowpass",
+   "current_candidate": "cand_0021",
+   "best": {
+    "candidate_id": "cand_0010",
+    "iteration": 10,
+    "status": "ok",
+    "metrics": {
+     "atten10_db": -20.04321,
+     "fc": 1000.019,
+     "param_c1": 1.59154943e-09
+    },
+    "constraints": [
+     {
+      "actual": 1000.019,
+      "constraint": "fc",
+      "passed": true,
+      "required": ">=980"
+     },
+     {
+      "actual": 1000.019,
+      "constraint": "fc",
+      "passed": true,
+      "required": "<=1020"
+     }
+    ],
+    "feasible": true,
+    "score": -0.09999999994226046,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "best_feasible": {
+    "candidate_id": "cand_0010",
+    "iteration": 10,
+    "status": "ok",
+    "metrics": {
+     "atten10_db": -20.04321,
+     "fc": 1000.019,
+     "param_c1": 1.59154943e-09
+    },
+    "constraints": [
+     {
+      "actual": 1000.019,
+      "constraint": "fc",
+      "passed": true,
+      "required": ">=980"
+     },
+     {
+      "actual": 1000.019,
+      "constraint": "fc",
+      "passed": true,
+      "required": "<=1020"
+     }
+    ],
+    "feasible": true,
+    "score": -0.09999999994226046,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "next_step": "Call generate_design_report(run_id='rc_lowpass') when the design is good."
+  },
+  "finish": {
+   "run_id": "rc_lowpass",
+   "from_candidate": "cand_0010",
+   "buildable_candidate": "cand_0042",
+   "parts": {
+    "C1": {
+     "value": 1.8e-09,
+     "label": "1.8n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "optimised_value": 1.59154943e-09,
+     "change_pct": 13.1
+    },
+    "R1": {
+     "value": 88700.0,
+     "label": "88.7k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 100000.0,
+     "change_pct": -11.3
+    }
+   },
+   "other_values": {},
+   "metrics": {
+    "fc": 996.8711,
+    "atten10_db": -20.07046,
+    "param_c1": 1.8e-09
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.722,
+   "optimised_metrics": {
+    "atten10_db": -20.04321,
+    "fc": 1000.019,
+    "param_c1": 1.59154943e-09
+   },
+   "nearest_values_meet_limits": false,
+   "nearest_values_margin_pct": -4.028,
+   "combinations_simulated": 21,
+   "yield": {
+    "runs": 40,
+    "passed": 18,
+    "yield_pct": 45.0,
+    "distribution": "uniform inside each part's tolerance",
+    "resolution_note": "40 runs resolve yield to about 2%",
+    "spread": {
+     "fc": {
+      "min": 954.9845,
+      "max": 1050.055,
+      "limit": "<=1020"
+     }
+    },
+    "samples_path": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/simulations/rc_lowpass/yield/samples.json"
+   },
+   "alternatives": [
+    {
+     "candidate_id": "cand_0042",
+     "parts": {
+      "C1": "1.8n",
+      "R1": "88.7k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 1.722,
+     "yield_pct": 45.0
+    },
+    {
+     "candidate_id": "cand_0041",
+     "parts": {
+      "C1": "1.8n",
+      "R1": "86.6k"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.102,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0022",
+     "parts": {
+      "C1": "1.5n",
+      "R1": "100k"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -4.028,
+     "yield_pct": null
+    }
+   ],
+   "next_step": "Standard values meet the limits but yield is low: tighten tolerance_pct (e.g. 1% capacitors) or relax a limit."
+  },
+  "finish_precise": null,
+  "secs": 0.8561258316040039
+ },
+ "sallen_key_lowpass": {
+  "start": {
+   "run_id": "sallen_key_lowpass",
+   "objectives": [
+    {
+     "metric": "param_c1",
+     "direction": "min",
+     "weight": 1.0,
+     "ref": 2.2507907903927646e-09
+    }
+   ],
+   "constraints": [
+    {
+     "metric": "peak_db",
+     "op": "<=",
+     "value": 0.1
+    },
+    {
+     "metric": "pm_deg",
+     "op": ">=",
+     "value": 45.0
+    },
+    {
+     "metric": "f3db",
+     "op": ">=",
+     "value": 9700.0
+    },
+    {
+     "metric": "f3db",
+     "op": "<=",
+     "value": 10300.0
+    },
+    {
+     "metric": "g_half_db",
+     "op": ">=",
+     "value": -0.5
+    },
+    {
+     "metric": "atten10_db",
+     "op": "<=",
+     "value": -39.0
+    }
+   ],
+   "parameters": [
+    "C1",
+    "C2",
+    "R1",
+    "R2"
+   ],
+   "seed": 0,
+   "feasibility": {
+    "status": "unverified",
+    "passed": true,
+    "mode": "practical",
+    "circuit_type": "filter",
+    "summary": "nothing was ruled out, but the domain physics could not be checked: physics:filter_order needs technology_params ['f_stop', 'ripple_db', 'atten_db'] (Hz, Hz, dB, dB)",
+    "violations": [
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Lbrk = 1000 H is outside the practical 1e-12..1 H window",
+      "suggestion": "rescale the impedance level around Lbrk",
+      "details": {
+       "element": "Lbrk"
+      }
+     },
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Cinj = 1000 F is outside the practical 1e-16..0.001 F window",
+      "suggestion": "rescale the impedance level around Cinj",
+      "details": {
+       "element": "Cinj"
+      }
+     }
+    ],
+    "n_errors": 0,
+    "n_warnings": 2,
+    "suggestions": [
+     "rescale the impedance level around Lbrk",
+     "rescale the impedance level around Cinj"
+    ],
+    "details": {
+     "measured_metrics": [
+      "atten10_db",
+      "f3db",
+      "g_half_db",
+      "peak_db",
+      "pm",
+      "ugf"
+     ],
+     "reactive_elements": 10,
+     "max_order_from_topology": 10,
+     "active_elements": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M7",
+      "M8",
+      "X1"
+     ],
+     "units": {
+      "f_pass": "Hz"
+     },
+     "technology_params_used": {
+      "f_pass": 10000.0
+     },
+     "constraints_read": [
+      "peak_db<=0.1",
+      "pm_deg>=45",
+      "f3db>=9700",
+      "f3db<=10300",
+      "g_half_db>=-0.5",
+      "atten10_db<=-39"
+     ]
+    },
+    "checks_run": [
+     "static:constraint_consistency",
+     "static:objective_consistency",
+     "static:param_space",
+     "template:metrics_have_meas",
+     "template:placeholders_match_param_space",
+     "practical:component_values",
+     "practical:phase_margin"
+    ],
+    "checks_skipped": [
+     "physics:filter_order needs technology_params ['f_stop', 'ripple_db', 'atten_db'] (Hz, Hz, dB, dB)"
+    ]
+   },
+   "schematic_asc": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/schematics/sallen_key_lowpass.asc",
+   "template": "sallen_key_lowpass",
+   "hand_calculation": [
+    "Equal resistors R1 = R2 = 10 k\u03a9, \u03c90 = 2\u00b7\u03c0\u00b710000.",
+    "C1 = 2\u00b7Q / (\u03c90\u00b7R) = 2.25 nF (feedback cap).",
+    "C2 = 1 / (2\u00b7Q\u00b7\u03c90\u00b7R) = 1.13 nF (cap to ground).",
+    "Q = 0.707107 (0.707 = Butterworth, maximally flat).",
+    "Op-amp: two-stage CMOS (MOSFETs) on \u00b15 V, GBW 1 MHz (100\u00d7 fc), wired as a unity-gain follower.",
+    "Stability: a follower is the op-amp's hardest case. With 100 pF on the output, phase margin must stay above 45\u00b0 (second deck, loop broken at the op-amp input)."
+   ],
+   "start_point": {
+    "R1": 10000.0,
+    "R2": 10000.0,
+    "C1": 2.2507907903927646e-09,
+    "C2": 1.1253953951963827e-09
+   },
+   "start_result": {
+    "candidate_id": "cand_0043",
+    "status": "ok",
+    "metrics": {
+     "f3db": 9997.794,
+     "peak_db": 0.0007431806,
+     "atten10_db": -40.25223,
+     "g_half_db": -0.2432995,
+     "ugf": 1030179.0,
+     "pm": -0.002038435,
+     "pm_deg": 85.95744,
+     "param_c1": 2.2507907903927646e-09
+    },
+    "feasible": true,
+    "failure_message": null
+   },
+   "next_step": "Start point already meets every limit. Call run_optimization(run_id='sallen_key_lowpass', iterations=20) to improve the goal, or generate_design_report."
+  },
+  "opt": {
+   "iterations_run": 20,
+   "cached_hits": 0,
+   "step_frac_final": 0.0625,
+   "run_id": "sallen_key_lowpass",
+   "status": "running",
+   "iterations_evaluated": 21,
+   "unique_candidates": 21,
+   "failures": 0,
+   "current_candidate": "cand_0063",
+   "best_candidate": "cand_0055",
+   "best_metrics": {
+    "atten10_db": -39.00786,
+    "f3db": 9955.956,
+    "g_half_db": -0.4511678,
+    "param_c1": 1.94910452e-09,
+    "peak_db": -9.486837e-05,
+    "pm": -0.002038558,
+    "pm_deg": 85.95334,
+    "ugf": 1030177.0
+   },
+   "best_score": -0.8659643216595355,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "peak_db",
+     "required": "<=0.1",
+     "actual": -9.486837e-05,
+     "passed": true
+    },
+    {
+     "constraint": "pm_deg",
+     "required": ">=45",
+     "actual": 85.95334,
+     "passed": true
+    },
+    {
+     "constraint": "f3db",
+     "required": ">=9700",
+     "actual": 9955.956,
+     "passed": true
+    },
+    {
+     "constraint": "f3db",
+     "required": "<=10300",
+     "actual": 9955.956,
+     "passed": true
+    },
+    {
+     "constraint": "g_half_db",
+     "required": ">=-0.5",
+     "actual": -0.4511678,
+     "passed": true
+    },
+    {
+     "constraint": "atten10_db",
+     "required": "<=-39",
+     "actual": -39.00786,
+     "passed": true
+    }
+   ],
+   "pareto_size": 1,
+   "useful_observation": "C2 increases ugf (2.326e+13/unit, finite_difference, conf 1.0)",
+   "promising_unexplored_region": "C2 = 1.1254e-10..6.32856e-10",
+   "at_param_space_bound": null,
+   "next_step": "Design meets all limits. Call finish_design(run_id='sallen_key_lowpass') for standard part values and yield, then generate_design_report."
+  },
+  "best": {
+   "run_id": "sallen_key_lowpass",
+   "current_candidate": "cand_0063",
+   "best": {
+    "candidate_id": "cand_0055",
+    "iteration": 13,
+    "status": "ok",
+    "metrics": {
+     "atten10_db": -39.00786,
+     "f3db": 9955.956,
+     "g_half_db": -0.4511678,
+     "param_c1": 1.94910452e-09,
+     "peak_db": -9.486837e-05,
+     "pm": -0.002038558,
+     "pm_deg": 85.95334,
+     "ugf": 1030177.0
+    },
+    "constraints": [
+     {
+      "actual": -9.486837e-05,
+      "constraint": "peak_db",
+      "passed": true,
+      "required": "<=0.1"
+     },
+     {
+      "actual": 85.95334,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     },
+     {
+      "actual": 9955.956,
+      "constraint": "f3db",
+      "passed": true,
+      "required": ">=9700"
+     },
+     {
+      "actual": 9955.956,
+      "constraint": "f3db",
+      "passed": true,
+      "required": "<=10300"
+     },
+     {
+      "actual": -0.4511678,
+      "constraint": "g_half_db",
+      "passed": true,
+      "required": ">=-0.5"
+     },
+     {
+      "actual": -39.00786,
+      "constraint": "atten10_db",
+      "passed": true,
+      "required": "<=-39"
+     }
+    ],
+    "feasible": true,
+    "score": -0.8659643216595355,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "best_feasible": {
+    "candidate_id": "cand_0055",
+    "iteration": 13,
+    "status": "ok",
+    "metrics": {
+     "atten10_db": -39.00786,
+     "f3db": 9955.956,
+     "g_half_db": -0.4511678,
+     "param_c1": 1.94910452e-09,
+     "peak_db": -9.486837e-05,
+     "pm": -0.002038558,
+     "pm_deg": 85.95334,
+     "ugf": 1030177.0
+    },
+    "constraints": [
+     {
+      "actual": -9.486837e-05,
+      "constraint": "peak_db",
+      "passed": true,
+      "required": "<=0.1"
+     },
+     {
+      "actual": 85.95334,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     },
+     {
+      "actual": 9955.956,
+      "constraint": "f3db",
+      "passed": true,
+      "required": ">=9700"
+     },
+     {
+      "actual": 9955.956,
+      "constraint": "f3db",
+      "passed": true,
+      "required": "<=10300"
+     },
+     {
+      "actual": -0.4511678,
+      "constraint": "g_half_db",
+      "passed": true,
+      "required": ">=-0.5"
+     },
+     {
+      "actual": -39.00786,
+      "constraint": "atten10_db",
+      "passed": true,
+      "required": "<=-39"
+     }
+    ],
+    "feasible": true,
+    "score": -0.8659643216595355,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "next_step": "Call generate_design_report(run_id='sallen_key_lowpass') when the design is good."
+  },
+  "finish": {
+   "run_id": "sallen_key_lowpass",
+   "from_candidate": "cand_0055",
+   "buildable_candidate": "cand_0124",
+   "parts": {
+    "C1": {
+     "value": 2.2e-09,
+     "label": "2.2n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "optimised_value": 1.94910452e-09,
+     "change_pct": 12.87
+    },
+    "C2": {
+     "value": 1e-09,
+     "label": "1n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "optimised_value": 1.1253954e-09,
+     "change_pct": -11.14
+    },
+    "R1": {
+     "value": 13300.0,
+     "label": "13.3k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 10000.0,
+     "change_pct": 33.0
+    },
+    "R2": {
+     "value": 9310.0,
+     "label": "9.31k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 10000.0,
+     "change_pct": -6.9
+    }
+   },
+   "other_values": {},
+   "metrics": {
+    "f3db": 9937.333,
+    "peak_db": 0.02542114,
+    "atten10_db": -40.90923,
+    "g_half_db": -0.1406703,
+    "ugf": 1028989.0,
+    "pm": -0.002069265,
+    "pm_deg": 85.9599,
+    "param_c1": 2.2e-09
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 2.447,
+   "optimised_metrics": {
+    "atten10_db": -39.00786,
+    "f3db": 9955.956,
+    "g_half_db": -0.4511678,
+    "param_c1": 1.94910452e-09,
+    "peak_db": -9.486837e-05,
+    "pm": -0.002038558,
+    "pm_deg": 85.95334,
+    "ugf": 1030177.0
+   },
+   "nearest_values_meet_limits": false,
+   "nearest_values_margin_pct": -46.326,
+   "combinations_simulated": 62,
+   "yield": {
+    "runs": 40,
+    "passed": 27,
+    "yield_pct": 67.5,
+    "distribution": "uniform inside each part's tolerance",
+    "resolution_note": "40 runs resolve yield to about 2%",
+    "spread": {
+     "peak_db": {
+      "min": 0.0004655136,
+      "max": 0.1073556,
+      "limit": "<=0.1"
+     },
+     "pm_deg": {
+      "min": 85.95535,
+      "max": 85.96438,
+      "limit": ">=45"
+     },
+     "f3db": {
+      "min": 9495.992,
+      "max": 10355.94,
+      "limit": "<=10300"
+     },
+     "g_half_db": {
+      "min": -0.2833729,
+      "max": 0.04771729,
+      "limit": ">=-0.5"
+     },
+     "atten10_db": {
+      "min": -41.63678,
+      "max": -40.37349,
+      "limit": "<=-39"
+     }
+    },
+    "samples_path": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/simulations/sallen_key_lowpass/yield/samples.json"
+   },
+   "alternatives": [
+    {
+     "candidate_id": "cand_0123",
+     "parts": {
+      "C1": "2.2n",
+      "C2": "1n",
+      "R1": "13k",
+      "R2": "9.53k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 2.78,
+     "yield_pct": 65.0
+    },
+    {
+     "candidate_id": "cand_0124",
+     "parts": {
+      "C1": "2.2n",
+      "C2": "1n",
+      "R1": "13.3k",
+      "R2": "9.31k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 2.447,
+     "yield_pct": 67.5
+    },
+    {
+     "candidate_id": "cand_0122",
+     "parts": {
+      "C1": "2.2n",
+      "C2": "1n",
+      "R1": "13k",
+      "R2": "9.31k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 2.239,
+     "yield_pct": 65.0
+    },
+    {
+     "candidate_id": "cand_0091",
+     "parts": {
+      "C1": "2.2n",
+      "C2": "1.2n",
+      "R1": "8.87k",
+      "R2": "10k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 1.452,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0125",
+     "parts": {
+      "C1": "2.2n",
+      "C2": "1n",
+      "R1": "13.3k",
+      "R2": "9.53k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 1.445,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0092",
+     "parts": {
+      "C1": "2.2n",
+      "C2": "1.2n",
+      "R1": "9.09k",
+      "R2": "10k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 1.126,
+     "yield_pct": null
+    }
+   ],
+   "next_step": "Standard values meet the limits but yield is low: tighten tolerance_pct (e.g. 1% capacitors) or relax a limit."
+  },
+  "finish_precise": null,
+  "secs": 5.487981796264648
+ },
+ "noninverting_amp": {
+  "start": {
+   "run_id": "noninverting_amp",
+   "objectives": [
+    {
+     "metric": "bw",
+     "direction": "max",
+     "weight": 1.0,
+     "ref": 100000.0
+    }
+   ],
+   "constraints": [
+    {
+     "metric": "gain_db",
+     "op": ">=",
+     "value": 19.9
+    },
+    {
+     "metric": "gain_db",
+     "op": "<=",
+     "value": 20.1
+    },
+    {
+     "metric": "bw",
+     "op": ">=",
+     "value": 100000.0
+    },
+    {
+     "metric": "pm_deg",
+     "op": ">=",
+     "value": 45.0
+    }
+   ],
+   "parameters": [
+    "R1",
+    "R2"
+   ],
+   "seed": 0,
+   "feasibility": {
+    "status": "unverified",
+    "passed": true,
+    "mode": "practical",
+    "circuit_type": "opamp",
+    "summary": "nothing was ruled out, but the domain physics could not be checked: physics:opamp bounds need technology_params vdd (V) and cload (F)",
+    "violations": [
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Lbrk = 1000 H is outside the practical 1e-12..1 H window",
+      "suggestion": "rescale the impedance level around Lbrk",
+      "details": {
+       "element": "Lbrk"
+      }
+     },
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Cinj = 1000 F is outside the practical 1e-16..0.001 F window",
+      "suggestion": "rescale the impedance level around Cinj",
+      "details": {
+       "element": "Cinj"
+      }
+     }
+    ],
+    "n_errors": 0,
+    "n_warnings": 2,
+    "suggestions": [
+     "rescale the impedance level around Lbrk",
+     "rescale the impedance level around Cinj"
+    ],
+    "details": {
+     "measured_metrics": [
+      "bw",
+      "gain_db",
+      "pm",
+      "ugf"
+     ],
+     "reactive_elements": 6,
+     "max_order_from_topology": 6,
+     "active_elements": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M7",
+      "M8",
+      "X1"
+     ],
+     "units": {},
+     "technology_params_used": {},
+     "constraints_read": [
+      "gain_db>=19.9",
+      "gain_db<=20.1",
+      "bw>=100000",
+      "pm_deg>=45"
+     ]
+    },
+    "checks_run": [
+     "static:constraint_consistency",
+     "static:objective_consistency",
+     "static:param_space",
+     "template:metrics_have_meas",
+     "template:placeholders_match_param_space",
+     "template:gain_needs_active_element",
+     "practical:component_values",
+     "practical:phase_margin"
+    ],
+    "checks_skipped": [
+     "physics:opamp bounds need technology_params vdd (V) and cload (F)"
+    ]
+   },
+   "schematic_asc": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/schematics/noninverting_amp.asc",
+   "template": "noninverting_amp",
+   "hand_calculation": [
+    "Gain = 1 + R2/R1. Pick R1 = 10 k\u03a9.",
+    "R2 = R1\u00b7(G \u2212 1) = 90 k\u03a9.",
+    "Bandwidth \u2248 GBW / G = 1e+07 / 10 = 1 MHz (spec 100 kHz).",
+    "The 10 k\u03a9 load and the R2+R1 divider also load the output.",
+    "Op-amp: two-stage CMOS (MOSFETs) on \u00b15 V. Compensation Cc = gm1 / (2\u00b7\u03c0\u00b7GBW) = 4.03 pF; slew 9.9 V/\u00b5s.",
+    "Stability: 100 pF load. Phase margin falls as the load capacitance rises and as the gain falls; it must stay above 45\u00b0. If it does not, lower gbw or isolate the load with a series resistor."
+   ],
+   "start_point": {
+    "R1": 10000.0,
+    "R2": 90000.0
+   },
+   "start_result": {
+    "candidate_id": "cand_0126",
+    "status": "ok",
+    "metrics": {
+     "gain_db": 19.99619,
+     "bw": 1119545.0,
+     "ugf": 1022475.0,
+     "pm": -0.002330555,
+     "pm_deg": 85.34539
+    },
+    "feasible": true,
+    "failure_message": null
+   },
+   "next_step": "Start point already meets every limit. Call run_optimization(run_id='noninverting_amp', iterations=20) to improve the goal, or generate_design_report."
+  },
+  "opt": {
+   "iterations_run": 20,
+   "cached_hits": 0,
+   "step_frac_final": 0.0625,
+   "run_id": "noninverting_amp",
+   "status": "running",
+   "iterations_evaluated": 21,
+   "unique_candidates": 21,
+   "failures": 0,
+   "current_candidate": "cand_0146",
+   "best_candidate": "cand_0126",
+   "best_metrics": {
+    "bw": 1119545.0,
+    "gain_db": 19.99619,
+    "pm": -0.002330555,
+    "pm_deg": 85.34539,
+    "ugf": 1022475.0
+   },
+   "best_score": 11.19545,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "gain_db",
+     "required": ">=19.9",
+     "actual": 19.99619,
+     "passed": true
+    },
+    {
+     "constraint": "gain_db",
+     "required": "<=20.1",
+     "actual": 19.99619,
+     "passed": true
+    },
+    {
+     "constraint": "bw",
+     "required": ">=100000",
+     "actual": 1119545.0,
+     "passed": true
+    },
+    {
+     "constraint": "pm_deg",
+     "required": ">=45",
+     "actual": 85.34539,
+     "passed": true
+    }
+   ],
+   "pareto_size": 1,
+   "useful_observation": "R1 increases ugf (104.2/unit, finite_difference, conf 1.0)",
+   "promising_unexplored_region": "R1 = 5011.87..10000",
+   "at_param_space_bound": null,
+   "next_step": "Design meets all limits. Call finish_design(run_id='noninverting_amp') for standard part values and yield, then generate_design_report."
+  },
+  "best": {
+   "run_id": "noninverting_amp",
+   "current_candidate": "cand_0146",
+   "best": {
+    "candidate_id": "cand_0138",
+    "iteration": 13,
+    "status": "ok",
+    "metrics": {
+     "bw": 1361012.0,
+     "gain_db": 23.35917,
+     "pm": -0.001026472,
+     "pm_deg": 86.84147,
+     "ugf": 696017.6
+    },
+    "constraints": [
+     {
+      "actual": 23.35917,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": ">=19.9"
+     },
+     {
+      "actual": 23.35917,
+      "constraint": "gain_db",
+      "passed": false,
+      "required": "<=20.1"
+     },
+     {
+      "actual": 1361012.0,
+      "constraint": "bw",
+      "passed": true,
+      "required": ">=100000"
+     },
+     {
+      "actual": 86.84147,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     }
+    ],
+    "feasible": false,
+    "score": 11.988642388059702,
+    "failure_type": "constraint_violation",
+    "failure_message": "gain_db needs <=20.1 got 23.35917"
+   },
+   "best_feasible": {
+    "candidate_id": "cand_0126",
+    "iteration": 1,
+    "status": "ok",
+    "metrics": {
+     "bw": 1119545.0,
+     "gain_db": 19.99619,
+     "pm": -0.002330555,
+     "pm_deg": 85.34539,
+     "ugf": 1022475.0
+    },
+    "constraints": [
+     {
+      "actual": 19.99619,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": ">=19.9"
+     },
+     {
+      "actual": 19.99619,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": "<=20.1"
+     },
+     {
+      "actual": 1119545.0,
+      "constraint": "bw",
+      "passed": true,
+      "required": ">=100000"
+     },
+     {
+      "actual": 85.34539,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     }
+    ],
+    "feasible": true,
+    "score": 11.19545,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "next_step": "Call generate_design_report(run_id='noninverting_amp') when the design is good."
+  },
+  "finish": {
+   "run_id": "noninverting_amp",
+   "from_candidate": "cand_0126",
+   "buildable_candidate": "cand_0172",
+   "parts": {
+    "R1": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 10000.0,
+     "change_pct": 0.0
+    },
+    "R2": {
+     "value": 90900.0,
+     "label": "90.9k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 90000.0,
+     "change_pct": 1.0
+    }
+   },
+   "other_values": {},
+   "metrics": {
+    "gain_db": 20.07398,
+    "bw": 1128372.0,
+    "ugf": 1013332.0,
+    "pm": -0.001883901,
+    "pm_deg": 85.38713
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.129,
+   "optimised_metrics": {
+    "bw": 1119545.0,
+    "gain_db": 19.99619,
+    "pm": -0.002330555,
+    "pm_deg": 85.34539,
+    "ugf": 1022475.0
+   },
+   "nearest_values_meet_limits": true,
+   "nearest_values_margin_pct": 0.129,
+   "combinations_simulated": 27,
+   "yield": {
+    "runs": 40,
+    "passed": 20,
+    "yield_pct": 50.0,
+    "distribution": "uniform inside each part's tolerance",
+    "resolution_note": "40 runs resolve yield to about 2%",
+    "spread": {
+     "gain_db": {
+      "min": 19.93488,
+      "max": 20.21665,
+      "limit": "<=20.1"
+     },
+     "bw": {
+      "min": 1112470.0,
+      "max": 1143803.0,
+      "limit": ">=100000"
+     },
+     "pm_deg": {
+      "min": 85.31265,
+      "max": 85.46333,
+      "limit": ">=45"
+     }
+    },
+    "samples_path": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/simulations/noninverting_amp/yield/samples.json"
+   },
+   "alternatives": [
+    {
+     "candidate_id": "cand_0172",
+     "parts": {
+      "R1": "10k",
+      "R2": "90.9k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.129,
+     "yield_pct": 50.0
+    },
+    {
+     "candidate_id": "cand_0171",
+     "parts": {
+      "R1": "10k",
+      "R2": "88.7k"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.088,
+     "yield_pct": null
+    }
+   ],
+   "next_step": "Standard values meet the limits but yield is low: tighten tolerance_pct (e.g. 1% capacitors) or relax a limit."
+  },
+  "finish_precise": null,
+  "secs": 1.6785943508148193
+ },
+ "ldo": {
+  "start": {
+   "run_id": "ldo",
+   "objectives": [
+    {
+     "metric": "param_w",
+     "direction": "min",
+     "weight": 1.0,
+     "ref": 0.003636363636363638
+    }
+   ],
+   "constraints": [
+    {
+     "metric": "vout",
+     "op": ">=",
+     "value": 3.267
+    },
+    {
+     "metric": "vout",
+     "op": "<=",
+     "value": 3.3329999999999997
+    },
+    {
+     "metric": "vout_low",
+     "op": ">=",
+     "value": 3.234
+    },
+    {
+     "metric": "pm_deg",
+     "op": ">=",
+     "value": 45.0
+    },
+    {
+     "metric": "step_mv",
+     "op": "<=",
+     "value": 98.99999999999999
+    },
+    {
+     "metric": "kick_mv",
+     "op": "<=",
+     "value": 98.99999999999999
+    }
+   ],
+   "parameters": [
+    "R1",
+    "RZ",
+    "W"
+   ],
+   "seed": 0,
+   "feasibility": {
+    "status": "impractical",
+    "passed": true,
+    "mode": "practical",
+    "circuit_type": "ldo",
+    "summary": "no hard impossibility, 2 practical concern(s). Buildable, but expect the flagged parts to be the hard ones.",
+    "violations": [
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Lbrk = 1000 H is outside the practical 1e-12..1 H window",
+      "suggestion": "rescale the impedance level around Lbrk",
+      "details": {
+       "element": "Lbrk"
+      }
+     },
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Cinj = 1000 F is outside the practical 1e-16..0.001 F window",
+      "suggestion": "rescale the impedance level around Cinj",
+      "details": {
+       "element": "Cinj"
+      }
+     }
+    ],
+    "n_errors": 0,
+    "n_warnings": 2,
+    "suggestions": [
+     "rescale the impedance level around Lbrk",
+     "rescale the impedance level around Cinj"
+    ],
+    "details": {
+     "measured_metrics": [
+      "kick_mv",
+      "pm",
+      "step_mv",
+      "ugf",
+      "v_dip",
+      "v_kick",
+      "v_light",
+      "vout",
+      "vout_high",
+      "vout_low"
+     ],
+     "reactive_elements": 8,
+     "max_order_from_topology": 8,
+     "active_elements": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M7",
+      "M8",
+      "X1"
+     ],
+     "max_linear_efficiency": 0.6599999999999999,
+     "theoretical_min_power": 0.17000000000000004,
+     "pass_device_dissipation_w": 0.17000000000000004,
+     "units": {
+      "iload": "A",
+      "vin": "V",
+      "vout": "V"
+     },
+     "technology_params_used": {
+      "iload": 0.1,
+      "vin": 5.0,
+      "vout": 3.3
+     },
+     "constraints_read": [
+      "vout>=3.267",
+      "vout<=3.333",
+      "vout_low>=3.234",
+      "pm_deg>=45",
+      "step_mv<=99",
+      "kick_mv<=99"
+     ]
+    },
+    "checks_run": [
+     "static:constraint_consistency",
+     "static:objective_consistency",
+     "static:param_space",
+     "template:metrics_have_meas",
+     "template:placeholders_match_param_space",
+     "physics:ldo_headroom",
+     "physics:ldo_dissipation",
+     "practical:component_values",
+     "practical:phase_margin"
+    ],
+    "checks_skipped": []
+   },
+   "schematic_asc": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/schematics/ldo.asc",
+   "template": "ldo",
+   "hand_calculation": [
+    "Vout = Vref\u00b7(1 + R1/R2), Vref = 1.2 V. R2 = 100 k\u03a9, R1 = 175 k\u03a9.",
+    "At dropout (3.6 V in) the gate is at 0 V, so Vsg = 3.6 V and the PMOS is in triode with Vsd = 0.3 V.",
+    "I = KP\u00b7(W/L)\u00b7((Vsg\u2212|Vt|)\u00b7Vsd \u2212 Vsd\u00b2/2) \u2192 W = 3.64 mm (1.5\u00d7 margin on 100 mA).",
+    "Goal: the smallest pass device that still meets dropout.",
+    "Error amplifier: two-stage CMOS op-amp (MOSFETs) running from the input, GBW 10 MHz, so it loses headroom as the input falls.",
+    "Stability: the amplifier's pole and the 1 \u00b5F output pole are both below crossover, which alone leaves almost no phase margin. A zero fixes it: Rz in series with Cout. Pass-device gm = \u221a(2\u00b7KP\u00b7W/L\u00b7I) = 0.191 S, \u03b2 = Vref/Vout = 0.364.",
+    "Crossover fc = GBW\u00b7gm\u00b7\u03b2\u00b7Rz and zero fz = 1/(2\u03c0\u00b7Rz\u00b7Cout). Put fc = 3\u00b7fz: Rz = \u221a(3 / (2\u03c0\u00b7Cout\u00b7GBW\u00b7gm\u00b7\u03b2)) = 830 m\u03a9, fc \u2248 575 kHz. A capacitor whose ESR is this value does the same job.",
+    "Load step 10 mA \u2192 100 mA: the output may move at most 3% (99 mV)."
+   ],
+   "start_point": {
+    "R1": 175000.0,
+    "W": 0.003636363636363638,
+    "RZ": 0.829793853464393
+   },
+   "start_result": {
+    "candidate_id": "cand_0173",
+    "status": "ok",
+    "metrics": {
+     "vout": 3.300584,
+     "vout_low": 3.300325,
+     "vout_high": 3.300728,
+     "ugf": 594894.7,
+     "pm": -0.002260637,
+     "pm_deg": 72.18096,
+     "v_light": 3.300609,
+     "v_dip": 3.262095,
+     "v_kick": 3.334214,
+     "step_mv": 38.514,
+     "kick_mv": 33.605,
+     "param_w": 0.003636363636363638
+    },
+    "feasible": true,
+    "failure_message": null
+   },
+   "next_step": "Start point already meets every limit. Call run_optimization(run_id='ldo', iterations=20) to improve the goal, or generate_design_report."
+  },
+  "opt": {
+   "iterations_run": 20,
+   "cached_hits": 0,
+   "step_frac_final": 0.00390625,
+   "run_id": "ldo",
+   "status": "running",
+   "iterations_evaluated": 21,
+   "unique_candidates": 21,
+   "failures": 0,
+   "current_candidate": "cand_0193",
+   "best_candidate": "cand_0173",
+   "best_metrics": {
+    "kick_mv": 33.605,
+    "param_w": 0.003636363636363638,
+    "pm": -0.002260637,
+    "pm_deg": 72.18096,
+    "step_mv": 38.514,
+    "ugf": 594894.7,
+    "v_dip": 3.262095,
+    "v_kick": 3.334214,
+    "v_light": 3.300609,
+    "vout": 3.300584,
+    "vout_high": 3.300728,
+    "vout_low": 3.300325
+   },
+   "best_score": -1.0,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "vout",
+     "required": ">=3.267",
+     "actual": 3.300584,
+     "passed": true
+    },
+    {
+     "constraint": "vout",
+     "required": "<=3.333",
+     "actual": 3.300584,
+     "passed": true
+    },
+    {
+     "constraint": "vout_low",
+     "required": ">=3.234",
+     "actual": 3.300325,
+     "passed": true
+    },
+    {
+     "constraint": "pm_deg",
+     "required": ">=45",
+     "actual": 72.18096,
+     "passed": true
+    },
+    {
+     "constraint": "step_mv",
+     "required": "<=99",
+     "actual": 38.514,
+     "passed": true
+    },
+    {
+     "constraint": "kick_mv",
+     "required": "<=99",
+     "actual": 33.605,
+     "passed": true
+    }
+   ],
+   "pareto_size": 1,
+   "useful_observation": "W decreases kick_mv (-2.691e+04/unit, finite_difference, conf 1.0)",
+   "promising_unexplored_region": "W = 0.00363636..0.0363636",
+   "at_param_space_bound": null,
+   "next_step": "Design meets all limits. Call finish_design(run_id='ldo') for standard part values and yield, then generate_design_report."
+  },
+  "best": {
+   "run_id": "ldo",
+   "current_candidate": "cand_0193",
+   "best": {
+    "candidate_id": "cand_0173",
+    "iteration": 1,
+    "status": "ok",
+    "metrics": {
+     "kick_mv": 33.605,
+     "param_w": 0.003636363636363638,
+     "pm": -0.002260637,
+     "pm_deg": 72.18096,
+     "step_mv": 38.514,
+     "ugf": 594894.7,
+     "v_dip": 3.262095,
+     "v_kick": 3.334214,
+     "v_light": 3.300609,
+     "vout": 3.300584,
+     "vout_high": 3.300728,
+     "vout_low": 3.300325
+    },
+    "constraints": [
+     {
+      "actual": 3.300584,
+      "constraint": "vout",
+      "passed": true,
+      "required": ">=3.267"
+     },
+     {
+      "actual": 3.300584,
+      "constraint": "vout",
+      "passed": true,
+      "required": "<=3.333"
+     },
+     {
+      "actual": 3.300325,
+      "constraint": "vout_low",
+      "passed": true,
+      "required": ">=3.234"
+     },
+     {
+      "actual": 72.18096,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     },
+     {
+      "actual": 38.514,
+      "constraint": "step_mv",
+      "passed": true,
+      "required": "<=99"
+     },
+     {
+      "actual": 33.605,
+      "constraint": "kick_mv",
+      "passed": true,
+      "required": "<=99"
+     }
+    ],
+    "feasible": true,
+    "score": -1.0,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "best_feasible": {
+    "candidate_id": "cand_0173",
+    "iteration": 1,
+    "status": "ok",
+    "metrics": {
+     "kick_mv": 33.605,
+     "param_w": 0.003636363636363638,
+     "pm": -0.002260637,
+     "pm_deg": 72.18096,
+     "step_mv": 38.514,
+     "ugf": 594894.7,
+     "v_dip": 3.262095,
+     "v_kick": 3.334214,
+     "v_light": 3.300609,
+     "vout": 3.300584,
+     "vout_high": 3.300728,
+     "vout_low": 3.300325
+    },
+    "constraints": [
+     {
+      "actual": 3.300584,
+      "constraint": "vout",
+      "passed": true,
+      "required": ">=3.267"
+     },
+     {
+      "actual": 3.300584,
+      "constraint": "vout",
+      "passed": true,
+      "required": "<=3.333"
+     },
+     {
+      "actual": 3.300325,
+      "constraint": "vout_low",
+      "passed": true,
+      "required": ">=3.234"
+     },
+     {
+      "actual": 72.18096,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     },
+     {
+      "actual": 38.514,
+      "constraint": "step_mv",
+      "passed": true,
+      "required": "<=99"
+     },
+     {
+      "actual": 33.605,
+      "constraint": "kick_mv",
+      "passed": true,
+      "required": "<=99"
+     }
+    ],
+    "feasible": true,
+    "score": -1.0,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "next_step": "Call generate_design_report(run_id='ldo') when the design is good."
+  },
+  "finish": {
+   "run_id": "ldo",
+   "from_candidate": "cand_0173",
+   "buildable_candidate": "cand_0230",
+   "parts": {
+    "R1": {
+     "value": 174000.0,
+     "label": "174k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 175000.0,
+     "change_pct": -0.57
+    },
+    "RZ": {
+     "value": 0.825,
+     "label": "825m",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 0.829793853464393,
+     "change_pct": -0.58
+    }
+   },
+   "other_values": {
+    "W": 0.002250121424749604
+   },
+   "metrics": {
+    "vout": 3.288572,
+    "vout_low": 3.277968,
+    "vout_high": 3.288714,
+    "ugf": 478289.8,
+    "pm": -0.0001911533,
+    "pm_deg": 68.34874,
+    "v_light": 3.288604,
+    "v_dip": 3.241023,
+    "v_kick": 3.328589,
+    "step_mv": 47.581,
+    "kick_mv": 39.985,
+    "param_w": 0.002250121424749604
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.66,
+   "optimised_metrics": {
+    "kick_mv": 33.605,
+    "param_w": 0.003636363636363638,
+    "pm": -0.002260637,
+    "pm_deg": 72.18096,
+    "step_mv": 38.514,
+    "ugf": 594894.7,
+    "v_dip": 3.262095,
+    "v_kick": 3.334214,
+    "v_light": 3.300609,
+    "vout": 3.300584,
+    "vout_high": 3.300728,
+    "vout_low": 3.300325
+   },
+   "nearest_values_meet_limits": true,
+   "nearest_values_margin_pct": 0.661,
+   "combinations_simulated": 42,
+   "yield": {
+    "runs": 40,
+    "passed": 40,
+    "yield_pct": 100.0,
+    "distribution": "uniform inside each part's tolerance",
+    "resolution_note": "40 runs resolve yield to about 2%",
+    "spread": {
+     "vout": {
+      "min": 3.268096,
+      "max": 3.309302,
+      "limit": "<=3.333"
+     },
+     "vout_low": {
+      "min": 3.267595,
+      "max": 3.277998,
+      "limit": ">=3.234"
+     },
+     "pm_deg": {
+      "min": 67.4937,
+      "max": 69.07278,
+      "limit": ">=45"
+     },
+     "step_mv": {
+      "min": 46.274,
+      "max": 49.234,
+      "limit": "<=99"
+     },
+     "kick_mv": {
+      "min": 39.131,
+      "max": 41.151,
+      "limit": "<=99"
+     }
+    },
+    "samples_path": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/simulations/ldo/yield/samples.json"
+   },
+   "alternatives": [
+    {
+     "candidate_id": "cand_0230",
+     "parts": {
+      "R1": "174k",
+      "RZ": "825m"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.66,
+     "yield_pct": 100.0
+    },
+    {
+     "candidate_id": "cand_0231",
+     "parts": {
+      "R1": "174k",
+      "RZ": "845m"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.66,
+     "yield_pct": 100.0
+    },
+    {
+     "candidate_id": "cand_0232",
+     "parts": {
+      "R1": "178k",
+      "RZ": "825m"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.107,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0233",
+     "parts": {
+      "R1": "178k",
+      "RZ": "845m"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.107,
+     "yield_pct": null
+    }
+   ],
+   "next_step": "Buildable design found. Call generate_design_report(run_id='ldo')."
+  },
+  "finish_precise": null,
+  "secs": 10.204912662506104
+ },
+ "buck": {
+  "start": {
+   "run_id": "buck",
+   "objectives": [
+    {
+     "metric": "param_l",
+     "direction": "min",
+     "weight": 1.0,
+     "ref": 2.032258064516129e-05
+    },
+    {
+     "metric": "param_c",
+     "direction": "min",
+     "weight": 1.0,
+     "ref": 2.4671052631578943e-06
+    }
+   ],
+   "constraints": [
+    {
+     "metric": "vout",
+     "op": ">=",
+     "value": 4.9
+    },
+    {
+     "metric": "vout",
+     "op": "<=",
+     "value": 5.1
+    },
+    {
+     "metric": "ripple_mv",
+     "op": "<=",
+     "value": 50.0
+    }
+   ],
+   "parameters": [
+    "C",
+    "CI",
+    "L",
+    "R1"
+   ],
+   "seed": 0,
+   "schematic_asc": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/schematics/buck.asc",
+   "template": "buck",
+   "hand_calculation": [
+    "Duty D = (Vout + Vd) / (Vin + Vd) = 0.435 (Vd = 0.4 V diode); the controller finds it, this only sizes L.",
+    "Ripple current \u0394I = 30% of Iout = 300 mA.",
+    "L = (Vin \u2212 Vout)\u00b7D / (fsw\u00b7\u0394I) = 20.3 \u00b5H.",
+    "C = \u0394I / (8\u00b7fsw\u00b70.8\u00b7\u0394V) / (0.8\u00b70.95) = 2.47 \u00b5F: 50 mV ripple with 20% margin for the switch's real edges, still met with the inductor 20% and the capacitor 5% low.",
+    "Feedback divider: Vout = Vref\u00b7(1 + R1/R2), Vref = 1.2 V, R2 = 10 k\u03a9, R1 = 31.7 k\u03a9.",
+    "Controller: integrator (R1, CI) \u2192 comparator against a 0.5\u20132.5 V ramp \u2192 switch gate. Modulator gain Vin / Vramp = 6.",
+    "LC corner f0 = 22.5 kHz, Q = 1.7. Crossover fc = f0/10 = 2.25 kHz: CI = Vin / (Vramp\u00b7R1\u00b72\u03c0\u00b7fc) = 13.4 nF. Phase margin \u2248 90\u00b0; gain margin at the LC peak \u2248 15 dB.",
+    "Simulate 1.11 ms and measure the last 200 \u00b5s.",
+    "Switch: P-channel power MOSFET (50 m\u03a9, 1 nF gate), driven straight from the comparator's push-pull output stage (0 V = on, Vin = off)."
+   ],
+   "start_point": {
+    "L": 2.032258064516129e-05,
+    "C": 2.4671052631578943e-06,
+    "R1": 31666.666666666668,
+    "CI": 1.341628166893928e-08
+   },
+   "start_result": {
+    "candidate_id": "cand_0235",
+    "status": "ok",
+    "metrics": {
+     "vout": 4.999181,
+     "vmax": 5.01493,
+     "vmin": 4.98213,
+     "iin": -0.4654324,
+     "ripple_mv": 32.8,
+     "eff": 0.8949316,
+     "param_l": 2.032258064516129e-05,
+     "param_c": 2.4671052631578943e-06
+    },
+    "feasible": true,
+    "failure_message": null
+   },
+   "next_step": "Start point already meets every limit. Call run_optimization(run_id='buck', iterations=20) to improve the goal, or generate_design_report."
+  },
+  "opt": {
+   "iterations_run": 20,
+   "cached_hits": 0,
+   "step_frac_final": 0.25,
+   "run_id": "buck",
+   "status": "running",
+   "iterations_evaluated": 21,
+   "unique_candidates": 21,
+   "failures": 0,
+   "current_candidate": "cand_0255",
+   "best_candidate": "cand_0255",
+   "best_metrics": {
+    "eff": 0.8948722,
+    "iin": -0.4653769,
+    "param_c": 1.91023583e-06,
+    "param_l": 1.79375226e-05,
+    "ripple_mv": 46.822,
+    "vmax": 5.021277,
+    "vmin": 4.974455,
+    "vout": 4.998717
+   },
+   "best_score": -1.6569222573790476,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "vout",
+     "required": ">=4.9",
+     "actual": 4.998717,
+     "passed": true
+    },
+    {
+     "constraint": "vout",
+     "required": "<=5.1",
+     "actual": 4.998717,
+     "passed": true
+    },
+    {
+     "constraint": "ripple_mv",
+     "required": "<=50",
+     "actual": 46.822,
+     "passed": true
+    }
+   ],
+   "pareto_size": 3,
+   "useful_observation": "C decreases ripple_mv (-3.309e+07/unit, finite_difference, conf 1.0)",
+   "promising_unexplored_region": "C = 4.96672e-06..2.46711e-05",
+   "at_param_space_bound": null,
+   "next_step": "Design meets all limits. Call finish_design(run_id='buck') for standard part values and yield, then generate_design_report."
+  },
+  "best": {
+   "run_id": "buck",
+   "current_candidate": "cand_0255",
+   "best": {
+    "candidate_id": "cand_0255",
+    "iteration": 21,
+    "status": "ok",
+    "metrics": {
+     "eff": 0.8948722,
+     "iin": -0.4653769,
+     "param_c": 1.91023583e-06,
+     "param_l": 1.79375226e-05,
+     "ripple_mv": 46.822,
+     "vmax": 5.021277,
+     "vmin": 4.974455,
+     "vout": 4.998717
+    },
+    "constraints": [
+     {
+      "actual": 4.998717,
+      "constraint": "vout",
+      "passed": true,
+      "required": ">=4.9"
+     },
+     {
+      "actual": 4.998717,
+      "constraint": "vout",
+      "passed": true,
+      "required": "<=5.1"
+     },
+     {
+      "actual": 46.822,
+      "constraint": "ripple_mv",
+      "passed": true,
+      "required": "<=50"
+     }
+    ],
+    "feasible": true,
+    "score": -1.6569222573790476,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "best_feasible": {
+    "candidate_id": "cand_0255",
+    "iteration": 21,
+    "status": "ok",
+    "metrics": {
+     "eff": 0.8948722,
+     "iin": -0.4653769,
+     "param_c": 1.91023583e-06,
+     "param_l": 1.79375226e-05,
+     "ripple_mv": 46.822,
+     "vmax": 5.021277,
+     "vmin": 4.974455,
+     "vout": 4.998717
+    },
+    "constraints": [
+     {
+      "actual": 4.998717,
+      "constraint": "vout",
+      "passed": true,
+      "required": ">=4.9"
+     },
+     {
+      "actual": 4.998717,
+      "constraint": "vout",
+      "passed": true,
+      "required": "<=5.1"
+     },
+     {
+      "actual": 46.822,
+      "constraint": "ripple_mv",
+      "passed": true,
+      "required": "<=50"
+     }
+    ],
+    "feasible": true,
+    "score": -1.6569222573790476,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "next_step": "Call generate_design_report(run_id='buck') when the design is good."
+  },
+  "finish": {
+   "run_id": "buck",
+   "from_candidate": "cand_0255",
+   "buildable_candidate": "cand_0276",
+   "parts": {
+    "C": {
+     "value": 2.2e-06,
+     "label": "2.2u",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "optimised_value": 1.91023583e-06,
+     "change_pct": 15.17
+    },
+    "CI": {
+     "value": 2.2e-08,
+     "label": "22n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "optimised_value": 2.3768526e-08,
+     "change_pct": -7.44
+    },
+    "L": {
+     "value": 1.8e-05,
+     "label": "18u",
+     "series": "E12",
+     "tolerance_pct": 20.0,
+     "optimised_value": 1.79375226e-05,
+     "change_pct": 0.35
+    },
+    "R1": {
+     "value": 31600.0,
+     "label": "31.6k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 31666.6667,
+     "change_pct": -0.21
+    }
+   },
+   "other_values": {},
+   "metrics": {
+    "vout": 4.990616,
+    "vmax": 5.009901,
+    "vmin": 4.969837,
+    "iin": -0.4639129,
+    "ripple_mv": 40.064,
+    "eff": 0.8947889,
+    "param_c": 2.2e-06,
+    "param_l": 1.8e-05
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.849,
+   "optimised_metrics": {
+    "eff": 0.8948722,
+    "iin": -0.4653769,
+    "param_c": 1.91023583e-06,
+    "param_l": 1.79375226e-05,
+    "ripple_mv": 46.822,
+    "vmax": 5.021277,
+    "vmin": 4.974455,
+    "vout": 4.998717
+   },
+   "nearest_values_meet_limits": true,
+   "nearest_values_margin_pct": 1.847,
+   "combinations_simulated": 36,
+   "yield": {
+    "runs": 40,
+    "passed": 38,
+    "yield_pct": 95.0,
+    "distribution": "uniform inside each part's tolerance",
+    "resolution_note": "40 runs resolve yield to about 2%",
+    "spread": {
+     "vout": {
+      "min": 4.954572,
+      "max": 5.028036,
+      "limit": "<=5.1"
+     },
+     "ripple_mv": {
+      "min": 33.675,
+      "max": 50.726,
+      "limit": "<=50"
+     }
+    },
+    "samples_path": "/tmp/claude-0/-home-claude-SpiceMCP/0aeb150a-75d9-5606-a5e4-3814bde36452/scratchpad/v/proj_t/.ltspice-mcp/simulations/buck/yield/samples.json"
+   },
+   "alternatives": [
+    {
+     "candidate_id": "cand_0276",
+     "parts": {
+      "C": "2.2u",
+      "CI": "22n",
+      "L": "18u",
+      "R1": "31.6k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 1.849,
+     "yield_pct": 95.0
+    },
+    {
+     "candidate_id": "cand_0290",
+     "parts": {
+      "C": "1.8u",
+      "CI": "22n",
+      "L": "18u",
+      "R1": "31.6k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 1.847,
+     "yield_pct": 60.0
+    },
+    {
+     "candidate_id": "cand_0277",
+     "parts": {
+      "C": "2.2u",
+      "CI": "22n",
+      "L": "18u",
+      "R1": "32.4k"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.264,
+     "yield_pct": 70.0
+    },
+    {
+     "candidate_id": "cand_0291",
+     "parts": {
+      "C": "1.8u",
+      "CI": "22n",
+      "L": "18u",
+      "R1": "32.4k"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -1.66,
+     "yield_pct": null
+    }
+   ],
+   "next_step": "Buildable design found. Call generate_design_report(run_id='buck')."
+  },
+  "finish_precise": null,
+  "secs": 1310.6657044887543
+ }
+}
