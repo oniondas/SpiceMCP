@@ -17,6 +17,8 @@
   the capacitance it drives (`cload`, 100 pF by default).
 - ngspice: a complex `FIND V(x)` in AC is reported as dB and degrees, as LTspice does.
 - Schematics: a capacitor behind a series resistor hangs below its node.
+- LTspice: a run that reaches its operating point by Gmin stepping is no longer reported as
+  failed; only a stepping that fails is.
 
 ## 0.12.0
 

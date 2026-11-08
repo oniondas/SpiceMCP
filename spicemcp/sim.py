@@ -34,8 +34,10 @@ COMPONENT_LIMIT = "component_limit"
 NUMERICAL_INSTABILITY = "numerical_instability"
 
 _LOG_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"iteration limit|timestep too small|failed to converge|gmin stepping",
-                re.I), CONVERGENCE_FAILURE),
+    # "Starting Gmin stepping" is LTspice trying a second way to the operating point,
+    # not a failure: it is followed by "succeeded" or by "Gmin stepping failed".
+    (re.compile(r"iteration limit|timestep too small|failed to converge|stepping failed|"
+                r"operating point failed", re.I), CONVERGENCE_FAILURE),
     (re.compile(r"singular matrix|matrix is singular|no dc path", re.I),
      NUMERICAL_INSTABILITY),
     (re.compile(r"unknown subcircuit|could not open|unknown device|"

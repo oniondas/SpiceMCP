@@ -651,6 +651,12 @@ def test_lint_catches_silent_db_conversion():
     ("Fewer than two connections to node N004.", sim.STRUCTURAL_ERROR),
     ("Matrix is singular at node V(mid)", sim.NUMERICAL_INSTABILITY),
     ("Total elapsed time: 0.2 seconds", None),
+    # LTspice 26 on the closed-loop buck: a second route to the operating point, which
+    # worked; the run and every measurement completed
+    ("Direct Newton iteration failed to find .op point.  (Use \".option noopiter\" to skip.)\n"
+     "Starting Gmin stepping\nGmin stepping succeeded in finding the operating point.", None),
+    ("Starting Gmin stepping\nGmin stepping failed\nStarting source stepping\n"
+     "Source stepping failed", sim.CONVERGENCE_FAILURE),
 ])
 def test_failure_classification(log, kind):
     got, msg, detail = sim.classify_log(log)
