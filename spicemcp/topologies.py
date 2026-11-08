@@ -21,6 +21,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Callable
 
+from . import opamp
+
 TWO_PI = 2 * math.pi
 
 
@@ -145,17 +147,20 @@ def _sallen_key(s: dict) -> Design:
     fc, q = s["fc"], s["q"]
     w = TWO_PI * fc
     r = 10e3
+    gbw = max(1e6, 100 * fc)        # the op-amp must be much faster than the filter
     c1 = 2 * q / (w * r)            # feedback capacitor (to the output)
     c2 = 1 / (2 * q * w * r)        # capacitor to ground
     net = f"""* Sallen-Key low-pass, unity gain (SpiceMCP template sallen_key_lowpass)
-* fc target {fc:g} Hz, Q {q:g}; ideal op-amp as a high-gain follower
+* fc target {fc:g} Hz, Q {q:g}; transistor-level op-amp on +-5 V as the follower
 V1 in 0 AC 1
+Vcc vcc 0 5
+Vee vee 0 -5
 R1 in a {{R1}}
 R2 a b {{R2}}
 C1 a out {{C1}}
 C2 b 0 {{C2}}
-E1 out 0 b out 1e6
-.ac dec 100 {fc / 100:g} {fc * 100:g}
+X1 b out vcc vee out {opamp.NAME}
+{opamp.subckt(gbw, 10.0)}.ac dec 100 {fc / 100:g} {fc * 100:g}
 .meas AC f3db WHEN mag(V(out))=0.7071 FALL=1
 .meas AC peak_db MAX mag(V(out))
 .meas AC atten10_db FIND mag(V(out)) AT {fc * 10:g}
@@ -183,7 +188,9 @@ E1 out 0 b out 1e6
         working=[f"Equal resistors R1 = R2 = {_eng(r, 'Ω')}, ω0 = 2·π·{fc:g}.",
                  f"C1 = 2·Q / (ω0·R) = {_eng(c1, 'F')} (feedback cap).",
                  f"C2 = 1 / (2·Q·ω0·R) = {_eng(c2, 'F')} (cap to ground).",
-                 f"Q = {q:g} (0.707 = Butterworth, maximally flat)."],
+                 f"Q = {q:g} (0.707 = Butterworth, maximally flat).",
+                 f"Op-amp: two-stage CMOS (MOSFETs) on ±5 V, GBW {_eng(gbw, 'Hz')} "
+                 "(100× fc), wired as a unity-gain follower."],
         circuit_type="filter",
         tech={"f_pass": fc})
 
@@ -200,19 +207,17 @@ def _noninv_amp(s: dict) -> Design:
         raise TemplateError(f"noninverting_amp: gain x bw = {g * bw:.3g} Hz exceeds the "
                             f"op-amp GBW {gbw:.3g} Hz; raise gbw or lower gain or bw")
     g_db = 20 * math.log10(g)
-    a0, rp = 1e5, 1e3
-    cp = a0 / (TWO_PI * gbw * rp)
+    oa = opamp.design(gbw, 10.0)
     net = f"""* Non-inverting amplifier (SpiceMCP template noninverting_amp)
-* gain target {g:g} V/V, op-amp: A0 = 100 dB, GBW = {gbw:g} Hz (single pole)
+* gain target {g:g} V/V; transistor-level op-amp on +-5 V, GBW {gbw:g} Hz
 V1 in 0 AC 1
-E1 x 0 in inn {a0:g}
-Rp x y {rp:g}
-Cp y 0 {cp:.6g}
-E2 out 0 y 0 1
+Vcc vcc 0 5
+Vee vee 0 -5
+X1 in inn vcc vee out {opamp.NAME}
 R2 out inn {{R2}}
 R1 inn 0 {{R1}}
 RL out 0 10k
-.ac dec 100 10 {gbw * 10:g}
+{opamp.subckt(gbw, 10.0)}.ac dec 100 10 {gbw * 10:g}
 .meas AC gain_db FIND mag(V(out)) AT 10
 .meas AC bw WHEN mag(V(out))={0.7071 * g:.6g} FALL=1
 .end
@@ -228,7 +233,10 @@ RL out 0 10k
                  f"R2 = R1·(G − 1) = {_eng(r2, 'Ω')}.",
                  f"Bandwidth ≈ GBW / G = {gbw:g} / {g:g} = {_eng(gbw / g, 'Hz')} "
                  f"(spec {_eng(bw, 'Hz')}).",
-                 "The 10 kΩ load and the R2+R1 divider also load the output."],
+                 "The 10 kΩ load and the R2+R1 divider also load the output.",
+                 f"Op-amp: two-stage CMOS (MOSFETs) on ±5 V. Compensation "
+                 f"Cc = gm1 / (2·π·GBW) = {_eng(oa['cc'], 'F')}; slew "
+                 f"{oa['slew_v_per_us']:.2g} V/µs."],
         circuit_type="opamp",
         tech={"gbw": gbw})
 
@@ -250,16 +258,16 @@ def _ldo(s: dict) -> Design:
     vlow = vout + vdo
     net = f"""* PMOS LDO regulator (SpiceMCP template ldo)
 * vout target {vout:g} V from {vin:g} V at {iload:g} A, dropout spec {vdo:g} V
-* behavioural error amplifier (gain 2000, output clamped to the rails); resistive load
+* error amplifier: transistor-level op-amp powered from the input; resistive load
 Vin in 0 {vin:g}
 Vref ref 0 {vref:g}
-B1 g 0 V=max(0, min(V(in), 2000*(V(fb)-V(ref))))
+X1 fb ref in 0 g {opamp.NAME}
 M1 out g in in PMOD W={{W}} L={length:g}
 R1 out fb {{R1}}
 R2 fb 0 {r2:g}
 RL out 0 {vout / iload:.6g}
 .model PMOD PMOS(KP={kp:g} VTO=-{vt:g} LAMBDA=0.02)
-.dc Vin 0 {vin * 1.2:g} 0.01
+{opamp.subckt(1e6, vin)}.dc Vin 0 {vin * 1.2:g} 0.01
 .meas DC vout FIND V(out) AT {vin:g}
 .meas DC vout_low FIND V(out) AT {vlow:g}
 .meas DC vout_high FIND V(out) AT {vin * 1.15:g}
@@ -278,7 +286,9 @@ RL out 0 {vout / iload:.6g}
                  f"and the PMOS is in triode with Vsd = {vdo:g} V.",
                  f"I = KP·(W/L)·((Vsg−|Vt|)·Vsd − Vsd²/2) → W = {_eng(w, 'm')} "
                  f"(1.5× margin on {_eng(iload, 'A')}).",
-                 "Goal: the smallest pass device that still meets dropout."],
+                 "Goal: the smallest pass device that still meets dropout.",
+                 "Error amplifier: two-stage CMOS op-amp (MOSFETs) running from the input, "
+                 "so it loses headroom as the input falls, as a real one does."],
         circuit_type="ldo",
         tech={"vin": vin, "vout": vout, "iload": iload})
 
@@ -293,7 +303,7 @@ def _buck(s: dict) -> Design:
     d = (vout + vd) / (vin + vd)
     di = 0.3 * iout
     lval = (vin - vout) * d / (fsw * di)
-    cval = di / (8 * fsw * ripple * 1e-3)
+    cval = di / (8 * fsw * 0.8 * ripple * 1e-3)    # 20 % margin on the ripple
     rl = vout / iout
     t = 1 / fsw
     f0 = 1 / (TWO_PI * math.sqrt(lval * cval))
@@ -303,13 +313,13 @@ def _buck(s: dict) -> Design:
 * {vin:g} V -> {vout:g} V at {iout:g} A, {fsw / 1e3:g} kHz, ripple target {ripple:g} mV
 .param duty={{D}}
 Vin in 0 {vin:g}
-Vg g 0 PULSE(0 5 0 5n 5n {{duty*{t:g}}} {t:g})
-S1 in sw g 0 SWM
+Vdrv in g PULSE(0 {min(10.0, vin):g} 0 5n 5n {{duty*{t:g}}} {t:g})
+M1 sw g in PSW
 D1 0 sw DS
 L1 sw out {{L}}
 C1 out 0 {{C}}
 RL out 0 {rl:g}
-.model SWM SW(Ron=0.05 Roff=1Meg Vt=2.5 Vh=0)
+.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)
 .model DS D(Is=1e-6 Rs=0.02 N=1.2)
 .tran {t / 200:g} {tstop:g} 0 {t / 200:g}
 .meas TRAN vout AVG V(out) FROM {tstop - win:g} TO {tstop:g}
@@ -332,9 +342,12 @@ RL out 0 {rl:g}
         working=[f"Duty D = (Vout + Vd) / (Vin + Vd) = {d:.3f} (Vd = {vd} V diode).",
                  f"Ripple current ΔI = 30% of Iout = {_eng(di, 'A')}.",
                  f"L = (Vin − Vout)·D / (fsw·ΔI) = {_eng(lval, 'H')}.",
-                 f"C = ΔI / (8·fsw·ΔV) = {_eng(cval, 'F')} for {ripple:g} mV ripple.",
+                 f"C = ΔI / (8·fsw·0.8·ΔV) = {_eng(cval, 'F')}: {ripple:g} mV ripple with "
+                 "20% margin for the switch's real edges.",
                  f"LC corner {_eng(f0, 'Hz')}; simulate {_eng(tstop, 's')} and measure "
                  f"the last {_eng(win, 's')}.",
+                 "Switch: P-channel power MOSFET (50 mΩ, 1 nF gate) driven 10 V below Vin "
+                 "by a gate driver; the diode carries the current when it is off.",
                  "Open loop: no feedback controller, so Vout depends on D and the load."],
         circuit_type="dcdc",
         tech={"vin": vin, "vout": vout, "iload": iout, "fsw": fsw})
@@ -349,7 +362,7 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
              [SpecField("fc", "Hz", "cutoff frequency"),
               SpecField("q", "", "quality factor", 1 / math.sqrt(2))], _sallen_key),
     Template("noninverting_amp", "Non-inverting op-amp amplifier", "opamp",
-             "Gain 1 + R2/R1 with a single-pole op-amp model.",
+             "Gain 1 + R2/R1 around a transistor-level CMOS op-amp.",
              [SpecField("gain", "V/V", "closed-loop gain (>= 1)"),
               SpecField("bw", "Hz", "minimum -3 dB bandwidth"),
               SpecField("gbw", "Hz", "op-amp gain-bandwidth product", 10e6)], _noninv_amp),
@@ -361,7 +374,7 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
               SpecField("dropout", "V", "max input-output difference at full load", 0.3)],
              _ldo),
     Template("buck", "Buck DC-DC converter (open loop)", "dcdc",
-             "Step-down switching converter: switch, diode, L, C.",
+             "Step-down switching converter: P-MOSFET switch, diode, L, C.",
              [SpecField("vin", "V", "input voltage"), SpecField("vout", "V", "output voltage"),
               SpecField("iout", "A", "load current"),
               SpecField("fsw", "Hz", "switching frequency", 500e3),

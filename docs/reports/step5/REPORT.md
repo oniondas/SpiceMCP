@@ -1,5 +1,7 @@
 # Step 5: from optimised values to a parts list, with yield
 
+> Re-simulated in step 6: the op-amp circuits now use a transistor-level op-amp and the buck a power MOSFET (see `../step6/REPORT.md`). The numbers below are from that version.
+
 **In one line:** `finish_design` turns the optimiser's best design into standard parts
 you can order, and tells you how many built boards will meet the spec.
 
@@ -41,14 +43,14 @@ Defaults are what a designer would order: 1% resistors (E96), 5% capacitors (E12
 | circuit | nearest values meet limits? | finish_design meets limits? | worst margin |
 |---|:---:|:---:|---:|
 | RC low-pass (fc 1 kHz ±2%) | **no** | yes | 1.7% |
-| Sallen-Key low-pass (fc 10 kHz ±3%) | **no** | yes | 2.7% |
+| Sallen-Key low-pass (fc 10 kHz ±3%) | **no** | yes | 2.4% |
 | Non-inverting amp (gain 20 dB ±0.1 dB) | yes | yes | 0.1% |
 | LDO (3.3 V ±1%) | yes | yes | 0.8% |
-| Buck (5 V ±2%, ripple ≤ 50 mV) | yes | yes | 2.0% |
+| Buck (5 V ±2%, ripple ≤ 50 mV) | yes | yes | 1.8% |
 
 For the RC filter, 1.5 nF needs R = 106 kΩ, which is outside the allowed resistor
 range. `finish_design` goes to 1.8 nF and re-centres R to 88.7 kΩ. For the Sallen-Key it
-picks C1 = 2.7 nF and C2 = 1.2 nF, then re-centres R1 to 8.66 kΩ.
+picks C1 = 2.2 nF and C2 = 1.0 nF, then re-centres R1 to 13.3 kΩ and R2 to 9.31 kΩ.
 
 ## Result 2: yield, and what tolerance is really needed
 
@@ -57,10 +59,10 @@ picks C1 = 2.7 nF and C2 = 1.2 nF, then re-centres R1 to 8.66 kΩ.
 | circuit | rounded by hand | finish_design | finish_design, precision parts* |
 |---|---:|---:|---:|
 | RC low-pass | 5% | 45% | 100% |
-| Sallen-Key low-pass | 10% | 65% | 100% |
+| Sallen-Key low-pass | 0% | 68% | 100% |
 | Non-inverting amp | 50% | 50% | 100% |
 | LDO (+ ±5% supply) | 100% | 100% | 100% |
-| Buck (+ ±5% supply) | 30% | 32% | 38% |
+| Buck (+ ±5% supply) | 42% | 40% | 40% |
 
 \* precision parts: 0.1% resistors, 1% capacitors, 10% inductors.
 Both designs in each row are judged on the same random boards, so the comparison is
@@ -69,14 +71,15 @@ fair. With 40 boards, a yield figure is accurate to about ±8%.
 What an engineer should take from this:
 
 - **Filters:** a ±2–3% corner-frequency spec cannot be held with 5% capacitors, whatever
-  values you choose. `finish_design` gets the most out of them (5% → 45%, 10% → 65%),
+  values you choose. `finish_design` gets the most out of them (5% → 45%, 0% → 68%),
   but the real fix is 1% capacitors, which give 100%.
 - **Amplifier:** ±0.1 dB of gain is ±1.2%, and two 1% resistors can be off by 2% in
   ratio. Either use 0.1% resistors or loosen the spec.
 - **LDO:** its feedback loop holds the output against ±5% supply and 1% resistors
   (100%).
 - **Buck:** this template is open-loop, so its output follows the input. ±5% supply
-  gives ±5% output, against a ±2% spec. Precision parts barely help (38%). The fix is
+  gives ±5% output, against a ±2% spec. Precision parts do not help (40%; the 2-point
+  differences between columns are within the ±8% resolution). The fix is
   a feedback loop, not better parts. The yield run makes that visible before anything
   is built.
 

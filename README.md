@@ -228,6 +228,15 @@ run_optimization(run_id="buck_001", iterations=20)
 
 Goals and limits can name a part directly as `param_<NAME>` (for example "smallest
 `param_c1`"). Each template's hand-sized start is simulated in the test suite.
+
+The templates use real devices, not ideal stand-ins. The op-amp in the Sallen-Key, the
+non-inverting amplifier and the LDO's error amplifier is a transistor-level two-stage
+CMOS op-amp (`opamp.py`: PMOS input pair, current-mirror load, common-source second
+stage, Miller compensation) running from its own supply pins. Its gain, bandwidth,
+output swing, loading and slew come from the MOSFETs. The buck switches a P-channel power
+MOSFET (`VDMOS`, with on-resistance and gate capacitance) from a gate driver. The op-amp
+uses the usual 5-pin order (in+ in- V+ V- out), so a vendor macromodel with the same
+pins can replace it. Report: `docs/reports/step6/REPORT.md`.
 Report: `docs/reports/step3/REPORT.md`.
 
 On a machine without LTspice, `sim_options={"backend": "ngspice"}` runs the same LTspice
@@ -437,8 +446,10 @@ LTspice, and on Windows `asc.check()` can still netlist the file through LTspice
 connections, dangling ends) and the score comes back with the picture.
 
 `start_from_template` also draws its circuit, so a templated run has a schematic from
-its first step. Without an LTspice install, a small bundled symbol set (R, C, L, D,
-sources, controlled sources, switch, MOSFETs) stands in. A real LTspice library always
+its first step. A 5-pin op-amp subcircuit is drawn as LTspice's `opamp2` symbol with
+rail labels on its supply pins, and its `.subckt` is written beside the `.asc` as a
+`.lib`. Without an LTspice install, a small bundled symbol set (R, C, L, D, sources,
+controlled sources, switch, MOSFETs, op-amp) stands in. A real LTspice library always
 takes priority. Report: `docs/reports/step4/REPORT.md`.
 
 ## Rendering a schematic
@@ -608,7 +619,7 @@ Upgrading from 0.5: the 15 `get_*` / `list_runs` / `select_next_experiment` tool
 | `check_feasibility` inspects top level netlist elements | subcircuit internal pole modeling is required (handled during simulation in robustness) |
 | W/L aspect ratio check requires explicit W and L parameters | device geometry is defined via unified size parameters or model cards |
 | `render_schematic` applies single pass greedy label collision offsets | complex placement solver is required for high density schematics |
-| the auto-placer draws flat netlists (no `X` subcircuits) on one sheet | hierarchical designs need a block per subcircuit |
+| the auto-placer draws flat netlists on one sheet; the only subcircuit it draws is a 5-pin op-amp | hierarchical designs need a block per subcircuit |
 | `simulate_sweep` steps one parameter per launch | nested 2D parameter sweeps are needed (run sequentially across outer values) |
 
 ## Schematic rendering styles

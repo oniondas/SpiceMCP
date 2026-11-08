@@ -1,5 +1,7 @@
 # Step 4: schematics drawn from a netlist
 
+> Re-simulated in step 6: the op-amp circuits now use a transistor-level op-amp and the buck a power MOSFET (see `../step6/REPORT.md`). The numbers below are from that version.
+
 **In one line:** give SpiceMCP a netlist and it now draws the schematic an engineer
 would draw, and proves the drawing is the same circuit.
 
@@ -45,15 +47,15 @@ LTspice installed.
 | circuit | before: score | before: nodes shorted/broken | after: score | after: nodes shorted/broken |
 |---|---:|---:|---:|---:|
 | RC low-pass | 30 | 4 | 100 | 0 |
-| Sallen-Key low-pass | 0 | 8 | 88 | 0 |
-| Non-inverting amp | 0 | 9 | 97 | 0 |
-| LDO regulator | 0 | 9 | 88 | 0 |
-| Buck converter | 0 | 7 | 100 | 0 |
+| Sallen-Key low-pass | 0 | 20 | 100 | 0 |
+| Non-inverting amp | 0 | 12 | 100 | 0 |
+| LDO regulator | 0 | 9 | 97 | 0 |
+| Buck converter | 0 | 5 | 100 | 0 |
 
 The readability score starts at 100 and loses points for each wire crossing (12),
 wire through a part (20), overlapping part (20), connection hidden in the middle of a
-wire (25), dangling wire end (10) and excess corners (1 each). Sallen-Key and LDO keep
-one crossing each, where a feedback wire has to pass the main path.
+wire (25), dangling wire end (10) and excess corners (1 each). No template has a wire
+crossing.
 
 ## Circuits it was never tuned on
 
@@ -68,7 +70,7 @@ and are in the test suite so they stay this way:
 | common-source MOSFET amp | 99 | 0 |
 | Wheatstone bridge | 99 | 0 |
 | boost converter | 100 | 0 |
-| two-stage amp with feedback | 96 | 0 |
+| two-stage amp with feedback | 100 | 0 |
 | pi filter | 100 | 0 |
 | 5-stage RC ladder | 100 | 0 |
 | LC tank | 100 | 0 |
@@ -80,12 +82,14 @@ and are in the test suite so they stay this way:
   value is a different circuit.
 - A turned part has its name above and its value below, instead of both on one line.
 - `start_from_template` writes the run's schematic, so a run has a drawing from step one.
-- A small bundled symbol set (R, C, L, D, sources, controlled sources, switch, MOSFETs)
+- A small bundled symbol set (R, C, L, D, sources, controlled sources, switch, MOSFETs,
+  op-amp)
   lets this work without LTspice installed. A real LTspice library always wins.
 
 ## Limits
 
-- Flat netlists only: a subcircuit call (`X...`) is refused with a clear message.
+- Flat netlists plus 5-pin op-amp subcircuits (added in step 6). Any other subcircuit
+  call (`X...`) is refused with a clear message.
 - The bundled symbols use LTspice's pin positions as documented for its standard parts.
   On Windows the real LTspice library is used, and `asc.check()` can netlist the file
   through LTspice as a second check.

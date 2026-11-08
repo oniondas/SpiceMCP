@@ -31,28 +31,28 @@
   "sallen_key_lowpass": {
    "before": {
     "score": 0,
-    "crossings": 1,
-    "through_parts": 6,
+    "crossings": 6,
+    "through_parts": 8,
     "overlaps": 0,
-    "ambiguous": 4,
+    "ambiguous": 13,
     "dangling": 0,
     "bends": 5,
-    "wire_length": 1600,
+    "wire_length": 3744,
     "net_labels": 0,
-    "parts": 6,
-    "wrong_connections": 8
+    "parts": 8,
+    "wrong_connections": 20
    },
    "after": {
-    "score": 88,
-    "crossings": 1,
+    "score": 100,
+    "crossings": 0,
     "through_parts": 0,
     "overlaps": 0,
     "ambiguous": 0,
     "dangling": 0,
-    "bends": 4,
-    "wire_length": 1616,
-    "net_labels": 1,
-    "parts": 6,
+    "bends": 6,
+    "wire_length": 1632,
+    "net_labels": 5,
+    "parts": 8,
     "wrong_connections": 0
    }
   },
@@ -62,12 +62,40 @@
     "crossings": 1,
     "through_parts": 5,
     "overlaps": 0,
-    "ambiguous": 5,
+    "ambiguous": 6,
     "dangling": 0,
-    "bends": 4,
-    "wire_length": 2144,
+    "bends": 3,
+    "wire_length": 2096,
     "net_labels": 0,
-    "parts": 8,
+    "parts": 7,
+    "wrong_connections": 12
+   },
+   "after": {
+    "score": 100,
+    "crossings": 0,
+    "through_parts": 0,
+    "overlaps": 0,
+    "ambiguous": 0,
+    "dangling": 0,
+    "bends": 5,
+    "wire_length": 1376,
+    "net_labels": 5,
+    "parts": 7,
+    "wrong_connections": 0
+   }
+  },
+  "ldo": {
+   "before": {
+    "score": 0,
+    "crossings": 1,
+    "through_parts": 4,
+    "overlaps": 0,
+    "ambiguous": 3,
+    "dangling": 0,
+    "bends": 6,
+    "wire_length": 2000,
+    "net_labels": 0,
+    "parts": 7,
     "wrong_connections": 9
    },
    "after": {
@@ -77,37 +105,9 @@
     "overlaps": 0,
     "ambiguous": 0,
     "dangling": 0,
-    "bends": 11,
-    "wire_length": 2752,
-    "net_labels": 1,
-    "parts": 8,
-    "wrong_connections": 0
-   }
-  },
-  "ldo": {
-   "before": {
-    "score": 0,
-    "crossings": 0,
-    "through_parts": 2,
-    "overlaps": 0,
-    "ambiguous": 3,
-    "dangling": 0,
-    "bends": 3,
-    "wire_length": 1536,
-    "net_labels": 0,
-    "parts": 7,
-    "wrong_connections": 9
-   },
-   "after": {
-    "score": 88,
-    "crossings": 1,
-    "through_parts": 0,
-    "overlaps": 0,
-    "ambiguous": 0,
-    "dangling": 0,
-    "bends": 3,
-    "wire_length": 1904,
-    "net_labels": 4,
+    "bends": 10,
+    "wire_length": 3392,
+    "net_labels": 3,
     "parts": 7,
     "wrong_connections": 0
    }
@@ -116,15 +116,15 @@
    "before": {
     "score": 0,
     "crossings": 0,
-    "through_parts": 2,
+    "through_parts": 4,
     "overlaps": 0,
-    "ambiguous": 3,
+    "ambiguous": 2,
     "dangling": 0,
     "bends": 5,
-    "wire_length": 1296,
+    "wire_length": 1456,
     "net_labels": 0,
     "parts": 7,
-    "wrong_connections": 7
+    "wrong_connections": 5
    },
    "after": {
     "score": 100,
@@ -133,8 +133,8 @@
     "overlaps": 0,
     "ambiguous": 0,
     "dangling": 0,
-    "bends": 4,
-    "wire_length": 1328,
+    "bends": 7,
+    "wire_length": 1936,
     "net_labels": 1,
     "parts": 7,
     "wrong_connections": 0
@@ -173,10 +173,10 @@
    "overlaps": 0,
    "ambiguous": 0,
    "dangling": 0,
-   "bends": 5,
-   "wire_length": 1280,
-   "net_labels": 0,
-   "parts": 5
+   "bends": 6,
+   "wire_length": 1136,
+   "net_labels": 4,
+   "parts": 7
   },
   "pi_filter": {
    "score": 100,
@@ -203,16 +203,16 @@
    "parts": 7
   },
   "two_stage": {
-   "score": 96,
+   "score": 100,
    "crossings": 0,
    "through_parts": 0,
    "overlaps": 0,
    "ambiguous": 0,
    "dangling": 0,
-   "bends": 11,
-   "wire_length": 2640,
-   "net_labels": 0,
-   "parts": 7
+   "bends": 9,
+   "wire_length": 2656,
+   "net_labels": 6,
+   "parts": 9
   },
   "boost": {
    "score": 100,
@@ -221,8 +221,8 @@
    "overlaps": 0,
    "ambiguous": 0,
    "dangling": 0,
-   "bends": 6,
-   "wire_length": 1536,
+   "bends": 5,
+   "wire_length": 1440,
    "net_labels": 0,
    "parts": 7
   },
