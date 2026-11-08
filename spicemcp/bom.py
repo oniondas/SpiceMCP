@@ -3,7 +3,8 @@
 One line per distinct part (same kind, value, tolerance and rating), with the quantity
 and the reference designators, the way a purchasing BOM reads. Values come from the
 finished, standard-value design; the "rating" column is the stress check's "buy at
-least"; a part chosen by number (find_part) is named. Sources, loads (RL, CL) and
+least"; a part chosen by number (find_part) is named. A fixed value the optimiser did
+not tune and that is off the standard series is flagged with the nearest standard one. Sources, loads (RL, CL) and
 loop-test fixtures are the test bench, not board parts, and are left out.
 
 The .xlsx is written with the standard library (it is a zip of XML files), so there is
@@ -17,11 +18,12 @@ import zipfile
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from . import ir, sim, stress
+from . import buildable, ir, sim, stress
 
 KIND = {"r": "Resistor", "c": "Capacitor", "l": "Inductor", "d": "Diode",
         "m": "MOSFET", "q": "Transistor (BJT)", "x": "IC"}
 UNIT = {"r": "Ω", "c": "F", "l": "H"}
+STD = {"r": "E96", "c": "E24", "l": "E24"}     # what a fixed value should sit on
 HEAD = ["Qty", "Reference", "Part", "Value", "Tolerance", "Rated at least", "Part number",
         "Notes"]
 _BENCH = re.compile(r"^(r|c)(l|load)\d*$|^(lbrk|cinj)$", re.I)
@@ -60,10 +62,15 @@ def rows(netlist: str, finish: dict, parts_chosen: dict | None = None) -> list[l
         k = low[0]
         if depth or k not in KIND or _BENCH.match(low):
             continue
+        std = ""
         if k in UNIT:
             v = ir.parse_value(t[3]) if len(t) > 3 else None
             value = _eng(v, UNIT[k]) if v is not None else " ".join(t[3:])
             part = ""
+            if v and low not in series:
+                s_ = buildable.snap(v, STD[k])
+                if abs(s_ / v - 1) > 0.001:
+                    std = f"not a standard value: use {_eng(s_, UNIT[k])} ({STD[k]})"
         else:
             n = {"d": 2, "m": 3, "q": 3}.get(k)
             if k == "x":
@@ -74,11 +81,11 @@ def rows(netlist: str, finish: dict, parts_chosen: dict | None = None) -> list[l
             value = ""
         pn = named.get(low) or named.get("x" + low) or ""
         tl = tol.get(low)
-        key = (KIND[k], value, part, f"±{tl:g}%" if tl else "", buy.get(low) or "", pn)
+        key = (KIND[k], value, part, f"±{tl:g}%" if tl else "", buy.get(low) or "", pn, std)
         lines.setdefault(key, []).append(t[0])
     out = []
-    for (kind, value, part, tl, rating, pn), refs in lines.items():
-        note = []
+    for (kind, value, part, tl, rating, pn, std), refs in lines.items():
+        note = [std] if std else []
         if series.get(refs[0].lower()):
             note.append(f"{series[refs[0].lower()]} series")
         if part.upper().startswith("SPMCP_"):

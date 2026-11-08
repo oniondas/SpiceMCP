@@ -51,3 +51,10 @@ def test_csv_and_xlsx_are_written(tmp_path):
     sheet = z.read("xl/worksheets/sheet1.xml").decode()
     assert "10 kΩ" in sheet and '<c r="A2"><v>1</v></c>' in sheet.replace(' s="1"', "")
     assert bom._col(0) == "A" and bom._col(25) == "Z" and bom._col(26) == "AA"
+
+
+def test_a_fixed_value_off_the_standard_series_is_flagged():
+    net = "* t\nV1 in 0 5\nR1 in a 6.63k\nR2 a 0 10k\nC1 a 0 13.1u\n.op\n.end\n"
+    notes = {r[1]: r[7] for r in bom.rows(net, {"parts": {"R2": {"tolerance_pct": 1}}})}
+    assert "6.65 kΩ (E96)" in notes["R1"] and "13 µF (E24)" in notes["C1"]
+    assert notes["R2"] == ""
