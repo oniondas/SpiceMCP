@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0
+
+- Checked in real LTspice 26 on Windows 11 (`tools/ltspice_check.py`). LTspice netlists all
+  13 drawn schematics back to the same circuit, and all 5 templates meet their spec in
+  LTspice. LTspice and ngspice agree within 2% (see `docs/reports/step7/REPORT.md`).
+- The LTspice reference files the waveform tests read (`tests/fixtures/*.raw`, `*.log`) are
+  committed, so the whole suite runs without LTspice.
+- CI: GitHub Actions runs the tests on Ubuntu (with ngspice) and Windows, Python 3.11 and 3.13.
+- The version is read from `pyproject.toml`; a test checks the changelog has an entry for it.
+- Fixed a stale test that still called the old `simulate_sweep` tool.
+
 ## 0.11.0
 
 - The templates use real devices instead of ideal controlled sources. A transistor-level

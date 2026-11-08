@@ -8,7 +8,7 @@ on every call, so a long optimization can't drift into remembering a circuit tha
 never existed.
 
 > ### Prototype Status & Live Example
-> **SpiceMCP is currently an experimental prototype.**
+> **SpiceMCP is pre-1.0 (0.12).** Every drawn schematic and ready-made circuit is checked in LTspice 26 on Windows (`docs/reports/step7/REPORT.md`), and the test suite runs on Linux and Windows for every change. The tool names and inputs may still change before 1.0.
 >
 > Below is a demonstration of what SpiceMCP generated and analyzed autonomously for **Chua's Chaotic Circuit** showcasing automated `.asc` schematic generation, batch LTspice simulations, binary `.raw` waveform parsing, parameter sweeps, and visualization:
 >
@@ -28,7 +28,7 @@ never existed.
 > | *Orthogonal projections ($V_{C1}-V_{C2}, V_{C1}-I_L$) with orbital density* | *Piecewise-linear Negative Differential Resistance ($G_a, G_b$) DC sweep* |
 
 
-**Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 0.10, written for circuit designers.
+**Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 0.12, written for circuit designers.
 
 ## Architecture
 
