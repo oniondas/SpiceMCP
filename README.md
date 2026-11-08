@@ -54,7 +54,7 @@ never existed.
 
 Circuits 1 to 14 were each drawn by SpiceMCP and read back by LTspice as the same circuit.
 
-**Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 0.13, written for circuit designers.
+**Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 1.0, written for circuit designers.
 
 ## Architecture
 
@@ -658,6 +658,24 @@ to the model on every turn. Every answer ends with `next_step` (the call that mo
 Upgrading from 0.5: the 15 `get_*` / `list_runs` / `select_next_experiment` tools are now
 `query_run(what=...)`; `simulate_netlist` and `simulate_sweep` are `simulate`;
 `check_ltspice` is `check_setup`; `get_visual_style` is the `spicemcp://style` resource.
+
+## Stability: what 1.0 promises
+
+From 1.0.0 the commands are frozen for the whole 1.x line. A client, a saved prompt or a
+script written against 1.0 keeps working:
+
+* No tool, template, parameter, spec key or accepted value (such as a `query_run` `what`)
+  is removed or renamed, and no optional input becomes required.
+* New tools, templates, optional parameters and answer fields may be added in a MINOR
+  release (1.1, 1.2 ...). Fixes are PATCH releases.
+* Anything that breaks the above waits for 2.0.0, with the old name kept as an alias
+  where that is possible.
+
+`tests/test_api_freeze.py` checks every build against the 1.0 snapshot in
+`tests/fixtures/api_v1.json`. The numbers in answers (a yield, a margin) may change when
+the models get better; their names and meaning do not. 1.0 is a promise about the
+interface, not a claim that designs are proven on hardware: see the engineering report
+for what has and has not been checked.
 
 ## Guarantees worth knowing
 
