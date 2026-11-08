@@ -1,0 +1,389 @@
+{
+ "ltspice": "C:\\Users\\Shounak Das\\AppData\\Local\\Programs\\ADI\\LTspice\\LTspice.exe",
+ "platform": "Windows-11-10.0.26300-SP0",
+ "python": "3.12.10",
+ "fixtures": [
+  {
+   "fixture": "ac_loop.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 1.3
+  },
+  {
+   "fixture": "dc_sweep.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.72
+  },
+  {
+   "fixture": "mc_op.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 1.15
+  },
+  {
+   "fixture": "op_mos.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.72
+  },
+  {
+   "fixture": "rc_ac.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.7
+  },
+  {
+   "fixture": "rc_tran.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.72
+  },
+  {
+   "fixture": "rlc_tran.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.72
+  },
+  {
+   "fixture": "step_ac.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.89
+  },
+  {
+   "fixture": "temp_op.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.73
+  },
+  {
+   "fixture": "thd_tran.cir",
+   "exit": 0,
+   "raw": true,
+   "log": true,
+   "seconds": 0.94
+  }
+ ],
+ "schematics": [
+  {
+   "circuit": "template:rc_lowpass",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "R1 N001 out 10000.0",
+    "C1 out 0 1.5915494309189534e-08",
+    "V1 N001 0 AC 1",
+    ".ac dec 100 1 1e+06",
+    ".meas AC fc WHEN mag(V(out))=0.7071 FALL=1",
+    ".meas AC atten10_db FIND mag(V(out)) AT 10000"
+   ]
+  },
+  {
+   "circuit": "template:sallen_key_lowpass",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "XX1 N003 out vcc vee out SPMCP_OA",
+    "C1 N001 out 2.2507907903927646e-09",
+    "R1 N002 N001 10000.0",
+    "R2 N001 N003 10000.0",
+    "C2 N003 0 1.1253953951963827e-09",
+    "V1 N002 0 AC 1",
+    "Vcc vcc 0 5",
+    "Vee vee 0 -5",
+    ".ac dec 100 100 1e+06",
+    ".meas AC f3db WHEN mag(V(out))=0.7071 FALL=1",
+    ".meas AC peak_db MAX mag(V(out))",
+    ".meas AC atten10_db FIND mag(V(out)) AT 100000",
+    ".meas AC g_half_db FIND mag(V(out)) AT 5000",
+    ".lib SPMCP_OA.lib"
+   ]
+  },
+  {
+   "circuit": "template:noninverting_amp",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "XX1 N002 N001 vcc vee out SPMCP_OA",
+    "R2 out N001 90000.0",
+    "R1 N001 0 10000.0",
+    "RL out 0 10k",
+    "V1 N002 0 AC 1",
+    "Vcc vcc 0 5",
+    "Vee vee 0 -5",
+    ".ac dec 100 10 1e+08",
+    ".meas AC gain_db FIND mag(V(out)) AT 10",
+    ".meas AC bw WHEN mag(V(out))=7.071 FALL=1",
+    ".lib SPMCP_OA.lib"
+   ]
+  },
+  {
+   "circuit": "template:ldo",
+   "same_circuit": true,
+   "readability": 97,
+   "ltspice_netlist": [
+    "XX1 N002 N001 in 0 N003 SPMCP_OA",
+    "M1 out N003 in in PMOD W=0.003636363636363638 L=1e-06",
+    "R1 out N002 175000.0",
+    "R2 N002 0 100000",
+    "RL out 0 33",
+    "Vin in 0 5",
+    "Vref N001 0 1.2",
+    ".model NMOS NMOS",
+    ".model PMOS PMOS",
+    ".lib C:\\Users\\Shounak Das\\AppData\\Local\\LTspice\\lib\\cmp\\standard.mos",
+    ".model PMOD PMOS(KP=5e-05 VTO=-0.7 LAMBDA=0.02)",
+    ".dc Vin 0 6 0.01",
+    ".meas DC vout FIND V(out) AT 5",
+    ".meas DC vout_low FIND V(out) AT 3.6",
+    ".meas DC vout_high FIND V(out) AT 5.75",
+    ".lib SPMCP_OA.lib"
+   ]
+  },
+  {
+   "circuit": "template:buck",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "L1 N002 out 2.032258064516129e-05",
+    "M1 N002 N003 N001 N001 PSW",
+    "Vdrv N001 N003 PULSE(0 10 0 5n 5n {duty*2e-06} 2e-06)",
+    "C1 out 0 1.8749999999999998e-06",
+    "D1 0 N002 DS",
+    "RL out 0 5",
+    "Vin N001 0 12",
+    ".model D D",
+    ".lib C:\\Users\\Shounak Das\\AppData\\Local\\LTspice\\lib\\cmp\\standard.dio",
+    ".model NMOS NMOS",
+    ".model PMOS PMOS",
+    ".lib C:\\Users\\Shounak Das\\AppData\\Local\\LTspice\\lib\\cmp\\standard.mos",
+    ".param duty=0.43548387096774194",
+    ".model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)",
+    ".model DS D(Is=1e-6 Rs=0.02 N=1.2)",
+    ".tran 1e-08 0.00232713 0 1e-08",
+    ".meas TRAN vout AVG V(out) FROM 0.00212713 TO 0.00232713",
+    ".meas TRAN vmax MAX V(out) FROM 0.00212713 TO 0.00232713",
+    ".meas TRAN vmin MIN V(out) FROM 0.00212713 TO 0.00232713",
+    ".meas TRAN iin AVG I(Vin) FROM 0.00212713 TO 0.00232713",
+    ".meas TRAN ripple_mv PARAM (vmax-vmin)*1000",
+    ".meas TRAN eff PARAM vout*vout/5/(-12*iin)"
+   ]
+  },
+  {
+   "circuit": "test:ladder5",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "R0 N001 N002 1k",
+    "R1 N002 N003 1k",
+    "R2 N003 N004 1k",
+    "R3 N004 N005 1k",
+    "R4 N005 N006 1k",
+    "C0 N002 0 1n",
+    "C1 N003 0 1n",
+    "C2 N004 0 1n",
+    "C3 N005 0 1n",
+    "C4 N006 0 1n",
+    "V1 N001 0 AC 1"
+   ]
+  },
+  {
+   "circuit": "test:bridge",
+   "same_circuit": true,
+   "readability": 99,
+   "ltspice_netlist": [
+    "R1 N001 N002 1k",
+    "R2 N001 N003 1k",
+    "R5 N002 N003 10k",
+    "R3 N002 0 1k",
+    "R4 N003 0 1.1k",
+    "V1 N001 0 10"
+   ]
+  },
+  {
+   "circuit": "test:inverting",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "XX1 0 N001 vcc vee N002 SPMCP_OA",
+    "R1 N003 N001 1k",
+    "R2 N001 N002 10k",
+    "RL N002 0 2k",
+    "V1 N003 0 AC 1",
+    "Vcc vcc 0 5",
+    "Vee vee 0 -5",
+    ".lib SPMCP_OA.lib"
+   ]
+  },
+  {
+   "circuit": "test:pi_filter",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "L1 N002 N003 1\u00b5",
+    "RL N003 N004 1",
+    "Rs N001 N002 50",
+    "C1 N002 0 1n",
+    "C2 N003 0 1n",
+    "R9 N004 0 50",
+    "V1 N001 0 AC 1"
+   ]
+  },
+  {
+   "circuit": "test:cs_amp",
+   "same_circuit": true,
+   "readability": 99,
+   "ltspice_netlist": [
+    "M1 N002 N004 N003 N003 NM",
+    "Rd N001 N002 2k",
+    "Cs N003 0 10\u00b5",
+    "RL N002 0 10k",
+    "Rs N003 0 200",
+    "Vdd N001 0 5",
+    "Vin N004 0 AC 1 1.5",
+    ".model NMOS NMOS",
+    ".model PMOS PMOS",
+    ".lib C:\\Users\\Shounak Das\\AppData\\Local\\LTspice\\lib\\cmp\\standard.mos",
+    ".model NM NMOS(KP=1m VTO=1)"
+   ]
+  },
+  {
+   "circuit": "test:two_stage",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "XX1 N001 N005 vcc vee N003 SPMCP_OA",
+    "XX2 N002 N004 vcc vee N004 SPMCP_OA",
+    "R1 N003 N002 1k",
+    "R2 N004 N005 9k",
+    "C1 N002 0 1n",
+    "R3 N005 0 1k",
+    "V1 N001 0 AC 1",
+    "Vcc vcc 0 5",
+    "Vee vee 0 -5",
+    ".lib SPMCP_OA.lib"
+   ]
+  },
+  {
+   "circuit": "test:boost",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "D1 N002 N003 DS",
+    "L1 N001 N002 10\u00b5",
+    "C1 N003 0 10\u00b5",
+    "M1 N002 N004 0 0 NSW",
+    "RL N003 0 50",
+    "Vg N004 0 PULSE(0 5 0 1n 1n 1u 2u)",
+    "Vin N001 0 5",
+    ".model D D",
+    ".lib C:\\Users\\Shounak Das\\AppData\\Local\\LTspice\\lib\\cmp\\standard.dio",
+    ".model NMOS NMOS",
+    ".model PMOS PMOS",
+    ".lib C:\\Users\\Shounak Das\\AppData\\Local\\LTspice\\lib\\cmp\\standard.mos",
+    ".model NSW VDMOS(Vto=2 Kp=20 Rd=0.05)",
+    ".model DS D"
+   ]
+  },
+  {
+   "circuit": "test:lc_tank",
+   "same_circuit": true,
+   "readability": 100,
+   "ltspice_netlist": [
+    "C1 N001 0 1n",
+    "I1 0 N001 AC 1m",
+    "L1 N001 0 1\u00b5",
+    "R1 N001 0 1k"
+   ]
+  }
+ ],
+ "simulation": [
+  {
+   "template": "rc_lowpass",
+   "ltspice": {
+    "status": "ok",
+    "metrics": {
+     "fc": 1000.01918526,
+     "atten10_db": -20.0432137378,
+     "atten10_db_deg": 0.0
+    },
+    "failure": null,
+    "seconds": 0.76
+   },
+   "ltspice_meets_limits": true
+  },
+  {
+   "template": "sallen_key_lowpass",
+   "ltspice": {
+    "status": "ok",
+    "metrics": {
+     "f3db": 9997.72334258,
+     "peak_db": 0.000739005851516,
+     "peak_db_deg": 0.0,
+     "atten10_db": -40.2567998153,
+     "atten10_db_deg": 0.0,
+     "g_half_db": -0.243506081904,
+     "g_half_db_deg": 0.0
+    },
+    "failure": null,
+    "seconds": 0.8
+   },
+   "ltspice_meets_limits": true
+  },
+  {
+   "template": "noninverting_amp",
+   "ltspice": {
+    "status": "ok",
+    "metrics": {
+     "gain_db": 19.9961904655,
+     "gain_db_deg": 0.0,
+     "bw": 1059931.38866
+    },
+    "failure": null,
+    "seconds": 0.83
+   },
+   "ltspice_meets_limits": true
+  },
+  {
+   "template": "ldo",
+   "ltspice": {
+    "status": "ok",
+    "metrics": {
+     "vout": 3.30058383942,
+     "vout_low": 3.30032491684,
+     "vout_high": 3.30072855949
+    },
+    "failure": null,
+    "seconds": 0.81
+   },
+   "ltspice_meets_limits": true
+  },
+  {
+   "template": "buck",
+   "ltspice": {
+    "status": "ok",
+    "metrics": {
+     "vout": 5.02044016913,
+     "vmax": 5.04054069519,
+     "vmin": 4.99894714355,
+     "iin": -0.444302308684,
+     "ripple_mv": 41.5935516357,
+     "eff": 0.945483101603
+    },
+    "failure": null,
+    "seconds": 3.49
+   },
+   "ltspice_meets_limits": true
+  }
+ ]
+}
