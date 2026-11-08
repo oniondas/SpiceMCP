@@ -18,6 +18,8 @@ What follows from the transistors, not from a number typed in:
   * finite gain (about 85 dB into 10 kΩ) and gain-bandwidth GBW = gm1 / (2·π·Cc),
   * output swing that stops short of the rails, and a load that pulls the gain down,
   * slew rate = tail current / Cc, supply current, and input offset from mismatch,
+  * a second pole from the output stage and its load, so phase margin falls as the
+    load capacitance rises, as it does in a real op-amp,
   * the input pair is PMOS, so the inputs work down to the negative rail (an LDO's
     1.2 V reference on a single 5 V supply is inside the range).
 
@@ -37,6 +39,10 @@ W8, L8 = 10e-6, 2e-6             # bias diode
 W1, L1 = 40e-6, 1e-6             # input pair
 W6, L6 = 400e-6, 1e-6            # second-stage NMOS
 M7_RATIO = 50                    # second-stage current = 50 x IB
+# Gate-oxide and overlap capacitance (20 nm oxide, 0.3 fF/µm overlap). Without them a
+# level-1 MOSFET has no capacitance at all, the op-amp has a single pole and every
+# feedback loop around it reads 90° phase margin whatever it drives.
+CAPS = " TOX=20n CGSO=3e-10 CGDO=3e-10"
 
 
 def _vsg(i: float, w: float, l: float) -> float:
@@ -74,7 +80,38 @@ M6 out x2 vss vss {name}_N W=400u L=1u
 M7 out pb vdd vdd {name}_P W=500u L=2u
 Cc x2 cz {d['cc']:.4g}
 Rz cz out {d['rz']:.4g}
-.model {name}_N NMOS(KP={KPN:g} VTO={VT:g} LAMBDA=0.02)
-.model {name}_P PMOS(KP={KPP:g} VTO=-{VT:g} LAMBDA=0.02)
+.model {name}_N NMOS(KP={KPN:g} VTO={VT:g} LAMBDA=0.02{CAPS})
+.model {name}_P PMOS(KP={KPP:g} VTO=-{VT:g} LAMBDA=0.02{CAPS})
+.ends {name}
+"""
+
+
+def comparator_subckt(supply: float = 12.0, name: str = "SPMCP_CMP",
+                      gbw: float = 100e6) -> str:
+    """The same two stages, compensated fast, then a tapered buffer (a small inverter
+    driving a large one) that can drive a power MOSFET gate with amps, not the op-amp's
+    1 mA. Output high when in+ is above in-, rail to rail. Same 5 pins, so it draws as
+    the op-amp symbol."""
+    d = design(gbw, supply)
+    return f""".subckt {name} inp inn vdd vss out
+* comparator with gate-drive output, pins in+ in- V+ V- out
+* the op-amp's two stages, then a 0.1 A inverter driving a 5 A inverter
+M8 pb pb vdd vdd {name}_P W=10u L=2u
+Rb pb vss {d['rb']:.4g}
+M5 tail pb vdd vdd {name}_P W=20u L=2u
+M1 x1 inn tail vdd {name}_P W=40u L=1u
+M2 x2 inp tail vdd {name}_P W=40u L=1u
+M3 x1 x1 vss vss {name}_N W=10u L=2u
+M4 x2 x1 vss vss {name}_N W=10u L=2u
+M6 o1 x2 vss vss {name}_N W=400u L=1u
+M7 o1 pb vdd vdd {name}_P W=500u L=2u
+Cc x2 cz {d['cc']:.4g}
+Rz cz o1 {d['rz']:.4g}
+M9 o2 o1 vdd vdd {name}_P W=40u L=1u
+M10 o2 o1 vss vss {name}_N W=16u L=1u
+M11 out o2 vdd vdd {name}_P W=2000u L=1u
+M12 out o2 vss vss {name}_N W=800u L=1u
+.model {name}_N NMOS(KP={KPN:g} VTO={VT:g} LAMBDA=0.02{CAPS})
+.model {name}_P PMOS(KP={KPP:g} VTO=-{VT:g} LAMBDA=0.02{CAPS})
 .ends {name}
 """

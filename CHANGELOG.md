@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.13.0
+
+- The buck template is closed loop: an integrating error amplifier, a comparator against
+  a ramp and a push-pull gate drive (all transistor level) set the duty cycle. On 40
+  random boards (parts in tolerance, input ±5%) 100% now meet 5 V ±2%, against 22% open
+  loop. Its output capacitor is sized for the worst-case inductor and capacitor.
+- Stability checks run with every simulation. A netlist can hold several decks; each is
+  simulated and the measurements merged (`sim.decks`). The Sallen-Key, the amplifier and
+  the LDO measure phase margin (`pm_deg`) and crossover (`ugf`) with the loop broken at
+  the amplifier input, and must keep 45°. The LDO also measures a 10%-to-100% load step.
+- The LDO has an output capacitor (`cout`, 1 µF) and a hand-sized resistor in series
+  with it: with a bare ceramic capacitor the loop has 2° of phase margin and rings; with
+  the resistor it has 72°.
+- The op-amp's MOSFETs have gate and overlap capacitance, so its phase margin falls with
+  the capacitance it drives (`cload`, 100 pF by default).
+- ngspice: a complex `FIND V(x)` in AC is reported as dB and degrees, as LTspice does.
+- Schematics: a capacitor behind a series resistor hangs below its node.
+
 ## 0.12.0
 
 - Checked in real LTspice 26 on Windows 11 (`tools/ltspice_check.py`). LTspice netlists all

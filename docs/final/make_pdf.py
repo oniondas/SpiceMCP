@@ -103,6 +103,7 @@ def section(kicker, title, lead):
 def scoreboard(path):
     s4 = json.load(open(REP / "step4/results.json"))["templates"]
     s5 = json.load(open(REP / "step5/results.json"))
+    s8 = json.load(open(REP / "step8/results.json"))
     tiles = [
         ("Optimizer finds a working\nSallen-Key filter", "0 of 10", "10 of 10", "runs"),
         ("Ready-made circuits that\nmeet spec before tuning", "0", "5", "templates"),
@@ -116,10 +117,14 @@ def scoreboard(path):
          f"{s5['sallen_key_lowpass']['yield_nearest']:.0f}%",
          f"{s5['sallen_key_lowpass']['yield_chosen']:.0f}%", "of boards"),
         ("Op-amps and switches built\nfrom real transistors", "0 of 4", "4 of 4", "circuits"),
+        ("Ready-made circuits checked\nin LTspice on Windows", "0 of 5", "5 of 5", "circuits"),
+        ("Buck boards that hold\n5 V ±2% (input ±5%)",
+         f"{s8['buck']['open_loop']['yield_pct']:.0f}%",
+         f"{s8['buck']['closed_loop']['yield_pct']:.0f}%", "of boards"),
     ]
-    fig, ax = plt.subplots(1, len(tiles), figsize=(12.6, 2.5))
+    fig, ax = plt.subplots(2, len(tiles) // 2, figsize=(12.6, 5.0))
     fig.patch.set_facecolor("white")
-    for a, (lab, b, f, unit) in zip(ax, tiles):
+    for a, (lab, b, f, unit) in zip(ax.ravel(), tiles):
         a.axis("off")
         a.add_patch(FancyBboxPatch((0.02, 0.02), 0.96, 0.96, boxstyle="round,pad=0,rounding_size=0.06",
                                    fc=BG, ec=GRID, transform=a.transAxes))
@@ -131,7 +136,8 @@ def scoreboard(path):
                transform=a.transAxes)
         a.text(0.5, 0.13, f, ha="center", fontsize=19, color=AFTER, weight="bold",
                transform=a.transAxes)
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.98, bottom=0.02, wspace=0.08)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.98, bottom=0.02, wspace=0.08,
+                        hspace=0.1)
     fig.savefig(path, dpi=200)
     plt.close(fig)
 
@@ -139,7 +145,7 @@ def scoreboard(path):
 def flow(path):
     steps = [("1  Spec", "fc = 10 kHz ±3%,\ngain 20 dB, 3.3 V out ...", False),
              ("2  Known circuit,\nsized by equations", "5 ready-made circuits:\nfilters, amp, LDO, buck", True),
-             ("3  Automatic tuning\nin the simulator", "finds values that meet\nevery limit", True),
+             ("3  Automatic tuning\nin the simulator", "meets every limit,\nphase margin included", True),
              ("4  Standard parts\n+ yield check", "E12/E96 values, tolerance,\nhow many boards pass", True),
              ("5  Schematic\n+ design report", "drawn automatically,\nchecked against netlist", True)]
     fig, ax = plt.subplots(figsize=(10, 2.2))
@@ -173,7 +179,7 @@ def schematics(path):
     spec = importlib.util.spec_from_file_location("s4", REP / "step4/make_report.py")
     s4 = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(s4)
-    from spicemcp import ir, layout, topologies as T
+    from spicemcp import ir, layout, sim, topologies as T
     import matplotlib.image as mpimg
     show = [("sallen_key_lowpass", "Sallen-Key low-pass filter"),
             ("noninverting_amp", "Non-inverting amplifier")]
@@ -181,7 +187,7 @@ def schematics(path):
                            gridspec_kw={"hspace": 0.32})
     for i, (n, lab) in enumerate(show):
         d = T.get(n).design(s4.SPECS[n])
-        net, _ = ir.render(d.netlist, d.start)
+        net = sim.decks(ir.render(d.netlist, d.start)[0])[0]      # the circuit deck
         for j, sh in enumerate((s4.naive(net), layout.draw(net).sheet)):
             bad = len(layout.verify(sh, net))
             sh.directives, sh.notes = [], []
@@ -204,7 +210,7 @@ def footer(c, doc):
     c.saveState()
     c.setFont("Sans", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(18 * mm, 10 * mm, "SpiceMCP 0.12 · engineering report")
+    c.drawString(18 * mm, 10 * mm, "SpiceMCP 0.13 · engineering report")
     c.drawRightString(A4[0] - 18 * mm, 10 * mm, f"page {doc.page}")
     c.restoreState()
 
@@ -221,10 +227,10 @@ def build():
     # ---- cover
     st += [Spacer(1, 18 * mm), P("SpiceMCP", "title"),
            P("From a circuit-simulation prototype to an engineering design tool", "sub"),
-           Spacer(1, 4), P("What changed in versions 0.6 to 0.12, shown with simulations, "
+           Spacer(1, 4), P("What changed in versions 0.6 to 0.13, shown with simulations, "
                           "and what it means for someone designing circuits.", "body"),
            Spacer(1, 10), img(TMP / "scoreboard.png"),
-           P("Six headline results. Orange: before this work. Blue: now. Every number is from a "
+           P("Eight headline results. Orange: before this work. Blue: now. Every number is from a "
              "simulation and is explained on the page for that step.", "cap"),
            Spacer(1, 10), P("The design flow, end to end", "h2"), img(TMP / "flow.png"),
            P("Blue boxes are new or substantially improved. You give a spec; SpiceMCP picks a "
@@ -242,7 +248,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 1
-    st += section("STEP 1 OF 7", "Easier to drive: fewer, clearer controls",
+    st += section("STEP 1 OF 8", "Easier to drive: fewer, clearer controls",
                   "SpiceMCP is operated through an AI assistant, which picks from a list of "
                   "commands. The old list was long and loosely described, so the assistant "
                   "guessed. Guessing is where wrong circuits come from.")
@@ -264,7 +270,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 2
-    st += section("STEP 2 OF 7", "Finds working part values reliably",
+    st += section("STEP 2 OF 8", "Finds working part values reliably",
                   "Part values span decades (100 Ω to 1 MΩ, 1 pF to 1 µF), and several specs "
                   "pull on the same parts. The old search stepped in straight lines and adjusted "
                   "one spec at a time, so it often got stuck.")
@@ -285,7 +291,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 3
-    st += section("STEP 3 OF 7", "Start from a known circuit, sized by textbook equations",
+    st += section("STEP 3 OF 8", "Start from a known circuit, sized by textbook equations",
                   "Engineers rarely start from a blank page. Now you can name a circuit and a "
                   "spec, and get a netlist sized by the standard design equations, already "
                   "checked in simulation.")
@@ -321,7 +327,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 4
-    st += section("STEP 4 OF 7", "Schematics drawn automatically, and proven correct",
+    st += section("STEP 4 OF 8", "Schematics drawn automatically, and proven correct",
                   "A netlist is a list of connections, not a picture. Before, without someone "
                   "placing every part by hand, parts landed in a row and straight wires joined "
                   "them. In the simulator, a wire that crosses a pin connects to it, so those "
@@ -363,7 +369,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 5
-    st += section("STEP 5 OF 7", "From ideal values to a parts list you can order",
+    st += section("STEP 5 OF 8", "From ideal values to a parts list you can order",
                   "Tuning produces values like C1 = 1.5915 nF. Nobody sells that. Rounding "
                   "every part to the nearest standard value moves all of them at once, and on "
                   "a real board every part is also off by its tolerance. A design that sits on "
@@ -416,7 +422,7 @@ def build():
     # ---- step 6
     s6 = json.load(open(REP / "step6/results.json"))
     st.append(PageBreak())
-    st += section("STEP 6 OF 7", "Real op-amps and switches, not ideal stand-ins",
+    st += section("STEP 6 OF 8", "Real op-amps and switches, not ideal stand-ins",
                   "The amplifier circuits used to model the op-amp as a dependent voltage "
                   "source: one number for its gain, no supply, no limits. The buck used an "
                   "ideal switch. Quick for a first look, but it hides what a real part does.")
@@ -458,7 +464,7 @@ def build():
     # ---- step 7
     s7 = json.load(open(REP / "step7/results.json"))
     st.append(PageBreak())
-    st += section("STEP 7 OF 7", "Proven in LTspice on Windows, and checked on every change",
+    st += section("STEP 7 OF 8", "Proven in LTspice on Windows, and checked on every change",
                   "Until now every result came from ngspice on Linux. The tool is meant for "
                   "LTspice on Windows, so it had to be shown working there, on a real install.")
     st += [img(REP / "step7/ltspice_vs_ngspice.png", max_h=110 * mm),
@@ -483,6 +489,60 @@ def build():
         "controls are frozen, so scripts written against it keep working.",
     ])
 
+    # ---- step 8
+    s8 = json.load(open(REP / "step8/results.json"))
+    b8, l8 = s8["buck"], s8["ldo"]
+    st.append(PageBreak())
+    st += section("STEP 8 OF 8", "A buck that regulates, and every feedback loop checked "
+                  "for stability",
+                  "The buck ran at a fixed duty cycle, so its output followed the input. And "
+                  "a circuit with feedback can meet every spec on paper and still oscillate "
+                  "on the bench.")
+    st += [img(REP / "step8/buck_closed_loop.png", max_h=78 * mm),
+           P(f"Left: the same {b8['boards']} random boards (parts in tolerance, input "
+             "12 V ±5%). Right: the input jumps by 1.2 V at 0.6 ms.", "cap"),
+           P("The buck now has a controller", "h2")]
+    st += bullets([
+        "An error amplifier, a comparator against a ramp and a gate driver, all built from "
+        "transistors, set the duty cycle. The output no longer follows the input.",
+        f"<b>Yield {b8['open_loop']['yield_pct']:.0f}% → {b8['closed_loop']['yield_pct']:.0f}%."
+        f"</b> Open loop, the boards spread from {b8['open_loop']['vout_min']:.2f} to "
+        f"{b8['open_loop']['vout_max']:.2f} V. Closed loop, from "
+        f"{b8['closed_loop']['vout_min']:.2f} to {b8['closed_loop']['vout_max']:.2f} V, "
+        "set by the 1% divider resistors.",
+        "When the input jumps, the output peaks at "
+        f"{b8['input_step_closed']['peak_v']:.1f} V and is back in spec after "
+        f"{b8['input_step_closed']['back_in_spec_after_ms'] * 1000:.0f} µs. The loop is "
+        "deliberately slow and simple; a faster compensator would cut that peak.",
+        "Efficiency now counts the real gate drive and controller current: about 89%.",
+    ])
+    st.append(PageBreak())
+    st += [P("Stability, checked every time a circuit is simulated", "h2"),
+           P("Each feedback circuit carries a second simulation with its loop cut open at "
+             "the amplifier input. It measures the <b>phase margin</b>: how far the loop is "
+             "from oscillating. 45° is the usual minimum; below it a circuit rings, near "
+             "0° it oscillates. The optimiser and the yield run see it like any other "
+             "spec.", "body"),
+           img(REP / "step8/ldo_stability.png", max_h=62 * mm),
+           P("LDO with the 1 µF output capacitor every regulator needs. Orange: the "
+             "capacitor alone. Blue: with the small series resistor the design now sizes.",
+             "cap")]
+    st += bullets([
+        f"<b>LDO.</b> With a ceramic capacitor alone the phase margin is "
+        f"{l8['no_zero']['pm_deg']:.0f}°: a load step rings for the whole pulse, and a board "
+        f"would oscillate. A {l8['rz_ohm']:.2f} Ω resistor in series with the capacitor "
+        f"(or a capacitor with that ESR) gives {l8['with_zero']['pm_deg']:.0f}°, and a "
+        f"{l8['with_zero']['step_mv']:.0f} mV dip on a 10× load step that settles in "
+        "about 1.5 µs. The resistor is now in the parts list.",
+        "<b>Op-amp circuits.</b> The op-amp's transistors now have their capacitances, so "
+        "its phase margin falls as the capacitance it drives rises, as on a real part. A "
+        "follower drops below 45° at about 200 pF; at a gain of 10 it holds to about 2 nF. "
+        f"The filter and the amplifier, at 100 pF, have "
+        f"{s8['sallen_key_lowpass']['pm_deg']:.0f}° and "
+        f"{s8['noninverting_amp']['pm_deg']:.0f}°.",
+    ])
+    st += [img(REP / "step8/opamp_phase_margin.png", max_h=62 * mm)]
+
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]
     st += bullets([
@@ -490,11 +550,11 @@ def build():
         "within 2%, so they do not depend on one tool.",
         "The automatic schematic handles flat circuits and 5-pin op-amps. Other sub-blocks "
         "(subcircuits) are refused with a clear message rather than drawn wrongly.",
-        "The transistor-level op-amp uses simple MOSFET models, so its phase margin is "
-        "optimistic. For a stability sign-off, use the vendor model of the part you will buy.",
+        "The transistor-level op-amp uses simple MOSFET models. Its phase margin is now "
+        "measured, but for a stability sign-off use the vendor model of the part you will buy.",
         "Yield covers part tolerance and supply. Temperature and silicon process corners need "
         "real device models; the design report can run them where models are supplied.",
-        "Test suite: about 330 automated checks, run on Windows and Linux for every change.",
+        "Test suite: about 340 automated checks, run on Windows and Linux for every change.",
     ])
     st += [Spacer(1, 6), P("Five terms, in plain words", "h2"),
            table([["term", "meaning"],
@@ -513,7 +573,7 @@ def build():
     doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
                             topMargin=16 * mm, bottomMargin=18 * mm,
                             title="SpiceMCP engineering report",
-                            author="Shounak Das", subject="SpiceMCP 0.6 to 0.12")
+                            author="Shounak Das", subject="SpiceMCP 0.6 to 0.13")
     doc.build(st, onFirstPage=footer, onLaterPages=footer)
     print(OUT)
 

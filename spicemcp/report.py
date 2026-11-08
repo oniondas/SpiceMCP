@@ -311,7 +311,7 @@ def _s1(run, summary, objs, cons, scan) -> list[str]:
 
 def _s2(cand, params, out_dir: Path, root: Path, tol: dict,
         schematic: str | None) -> list[str]:
-    netlist = cand["netlist"]
+    netlist = sim.decks(cand["netlist"])[0]      # the circuit, not its check decks
     cir = root / "candidates" / f"{cand['candidate_id']}.cir"
     L = ["## 2. Schematic & Component Bill of Materials", "",
          "### 2.1 Schematic & Design Files", ""]
@@ -759,6 +759,7 @@ def generate(con, run_id: str, *, out: str | None = None, schematic: str | None 
                                 "could be re-derived from a fresh run."}]
 
     dc = pvtr = mc = None
+    netlist = sim.decks(netlist)[0]          # audits and corners run on the circuit deck
     if dc_audit and lt:
         dc = robustness.audit_dc_operating_points(netlist, work, sim_config=cfg,
                                                   margin_v=margin_v)
