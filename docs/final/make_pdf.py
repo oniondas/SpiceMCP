@@ -29,7 +29,7 @@ from reportlab.platypus import (Image, PageBreak, Paragraph,  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
-NSTEPS = 10                                # one section per roadmap step
+NSTEPS = 11                                # one section per roadmap step
 VERSION = re.search(r'^version\s*=\s*"([^"]+)"',
                     (HERE.parents[1] / "pyproject.toml").read_text(), re.M).group(1)
 
@@ -658,6 +658,70 @@ def build():
              "the conversation. With caching that costs little (light bars); clients that "
              "tolerate long calls can raise the time limit.", "cap")]
 
+    # ---- step 11 (phase 2)
+    s11 = json.load(open(REP / "step11/results.json"))
+    y11, n11 = s11["yield"], json.load(open(REP / "step11/noise.json"))
+    st.append(PageBreak())
+    st += section(f"STEP 11 OF {NSTEPS}", "Real parts, real temperatures, real stress",
+                  "A board is built from part numbers, not ideal symbols, and it must work "
+                  "cold, hot and on a drifting supply. Until now SpiceMCP checked designs "
+                  "at room temperature on an exact supply, and never asked how hard each "
+                  "part was worked.")
+    st += [img(REP / "step11/yield_corners.png", max_h=64 * mm),
+           P("The same 30 random boards per circuit, before and after the new checks. Each "
+             "board now passes only if it passes at -40, 25 and 85 °C with its supply "
+             "anywhere within ±5%.", "cap"),
+           P("What changed", "h2")]
+    ldo = y11["ldo"]
+    st += bullets([
+        "<b>Yield over temperature and supply.</b> Every board is simulated cold, at room "
+        "temperature and hot, with its supply drawn inside ±5%. Ready-made circuits get this "
+        "by default; the answer says what the yield covers.",
+        f"<b>It found a real fault.</b> The voltage regulator went from {ldo['before'][0]}/30 "
+        f"to {ldo['after'][0]}/30: at 85 °C its pass transistor is weaker and the output sags "
+        "below its limit at minimum input. The regulator is now sized and checked hot, and "
+        f"passes {ldo['fixed'][0]}/30 over every corner.",
+        "<b>Worst-case summary.</b> When boards fail, the answer names the limit, the "
+        "temperature and the part whose tolerance drives it (\"gain at -40 °C, R2 high\"), "
+        "and what to change.",
+        "<b>The rating to buy for every part.</b> Each resistor's power, each capacitor's "
+        "voltage, the inductor's current, the diode's and transistor's voltage and current "
+        "are measured at the top of the supply, then derated the usual way.",
+        "<b>Real parts by part number.</b> A new command finds a part in the simulator's own "
+        "libraries (thousands of vendor models ship with LTspice). The filter and amplifier "
+        "take a real op-amp, the buck a real switch and diode, and the part is checked "
+        "against its datasheet ratings.",
+        "<b>Noise.</b> The amplifier and filter report their output noise; a noise limit "
+        f"can be set. Asked for 120 µV, the optimiser took the amplifier from "
+        f"{n11['amp']['vn_uv']:.0f} to {n11['amp_low_r']['after_optimisation']['best']:.0f} µV "
+        "by lowering its resistors about three times.",
+    ])
+    st.append(PageBreak())
+    st += [P("What each part of the buck must be rated for", "h2"),
+           table([["part", "measured (steady state, supply +5%)", "buy at least"]] +
+                 [[r[1], r[2], r[3]] for r in s11["stress"] if r[0].startswith("Buck")],
+                 [18 * mm, 110 * mm, 46 * mm])]
+    rc = s11.get("rating_check") or {}
+    if rc:
+        st += [Spacer(1, 6), P("A real diode, checked against its datasheet", "h2"),
+               table([["choice", "result"]] +
+                     [[p, t] for v in rc.values() if v for p, t in v.items()
+                      if p.startswith("D1")], [30 * mm, 144 * mm]), Spacer(1, 4)]
+    st += bullets([
+        "A 1 A Schottky looks right for a 1 A buck, but the diode carries the load current "
+        "for the whole off-time; with the usual 1.5× margin it needs more than its rating. "
+        "The 3 A part passes. This is the check a reviewer does by hand.",
+        "The switch's current is rated by its RMS value (a datasheet's continuous Id is a "
+        "heating limit); the short spikes at each switching edge are listed separately "
+        "as the pulsed rating Idm, which real MOSFETs carry several times over.",
+        f"Tokens re-sent every turn: {s11['tokens_every_turn']['before']:,} → "
+        f"{s11['tokens_every_turn']['after']:,} for one more command and the new inputs.",
+        "Limits, honestly: temperature only changes transistors and diodes (the simulator's "
+        "resistors and capacitors have no temperature coefficient unless the model gives "
+        "one); the built-in op-amp is a simple model, so for a sign-off use the vendor model "
+        "of the part you will buy. Encrypted vendor models run only in LTspice.",
+    ])
+
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]
     st += bullets([
@@ -667,9 +731,9 @@ def build():
         "(subcircuits) are refused with a clear message rather than drawn wrongly.",
         "The transistor-level op-amp uses simple MOSFET models. Its phase margin is now "
         "measured, but for a stability sign-off use the vendor model of the part you will buy.",
-        "Yield covers part tolerance and supply. Temperature and silicon process corners need "
-        "real device models; the design report can run them where models are supplied.",
-        "Test suite: about 340 automated checks, run on Windows and Linux for every change.",
+        "Yield covers part tolerance, supply and temperature. Silicon process corners need "
+        "the vendor's corner models; use real parts (find_part) where they exist.",
+        "Test suite: about 380 automated checks, run on Windows and Linux for every change.",
     ])
     st += [Spacer(1, 6), P("Five terms, in plain words", "h2"),
            table([["term", "meaning"],

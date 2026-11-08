@@ -1,0 +1,222 @@
+{
+ "yield": {
+  "rc": {
+   "before": [
+    14,
+    30
+   ],
+   "after": [
+    14,
+    30
+   ],
+   "after_covers": "part tolerance, 27 °C only",
+   "worst_case": {
+    "fails_most": "fc",
+    "part_driving_failures": {
+     "part": "C1",
+     "direction": "high",
+     "strength": 0.46
+    },
+    "tightest": {
+     "metric": "fc",
+     "limit": ">=980",
+     "worst": 947.5649,
+     "worst_margin_pct": -3.31,
+     "at_temp_c": null
+    }
+   }
+  },
+  "sk": {
+   "before": [
+    19,
+    30
+   ],
+   "after": [
+    16,
+    30
+   ],
+   "after_covers": "part tolerance, supply ±5%, -40/25/85 °C",
+   "worst_case": {
+    "fails_most": "f3db",
+    "most_failures_at_c": -40.0,
+    "part_driving_failures": {
+     "part": "C1",
+     "direction": "low",
+     "strength": -0.21
+    },
+    "tightest": {
+     "metric": "g_half_db",
+     "limit": ">=-0.5",
+     "worst": -0.5321217,
+     "worst_margin_pct": -6.424,
+     "at_temp_c": -40.0
+    }
+   }
+  },
+  "amp": {
+   "before": [
+    23,
+    30
+   ],
+   "after": [
+    18,
+    30
+   ],
+   "after_covers": "part tolerance, supply ±5%, -40/25/85 °C",
+   "worst_case": {
+    "fails_most": "gain_db",
+    "most_failures_at_c": -40.0,
+    "part_driving_failures": {
+     "part": "R2",
+     "direction": "high",
+     "strength": 0.81
+    },
+    "tightest": {
+     "metric": "gain_db",
+     "limit": "<=20.1",
+     "worst": 20.18854,
+     "worst_margin_pct": -0.44,
+     "at_temp_c": 85.0
+    }
+   }
+  },
+  "ldo": {
+   "before": [
+    30,
+    30
+   ],
+   "after": [
+    0,
+    30
+   ],
+   "after_covers": "part tolerance, supply ±5%, -40/25/85 °C",
+   "worst_case": {
+    "fails_most": "vout_low",
+    "most_failures_at_c": 85.0,
+    "tightest": {
+     "metric": "vout_low",
+     "limit": ">=3.234",
+     "worst": 3.195779,
+     "worst_margin_pct": -1.182,
+     "at_temp_c": 85.0
+    }
+   },
+   "fixed": [
+    30,
+    30
+   ]
+  },
+  "buck": {
+   "before": [
+    30,
+    30
+   ],
+   "after": [
+    30,
+    30
+   ],
+   "after_covers": "part tolerance, supply ±5%, -40/25/85 °C",
+   "worst_case": null
+  }
+ },
+ "stress": [
+  [
+   "Buck 12 V to 3.3 V",
+   "CI",
+   "peak 0.289  V",
+   "4 V"
+  ],
+  [
+   "Buck 12 V to 3.3 V",
+   "R1",
+   "dissipates 0.25 m W",
+   "0.063 W"
+  ],
+  [
+   "Buck 12 V to 3.3 V",
+   "R2",
+   "dissipates 0.14 m W",
+   "0.063 W"
+  ],
+  [
+   "Buck 12 V to 3.3 V",
+   "M1",
+   "Vds 13.1  V, Vgs 12.6  V, RMS 0.785  A, peak 6.19  A, dissipates 38 m W",
+   "20 V, Id 1.2 A, Idm 6.2 A, Vgs 20 V"
+  ],
+  [
+   "Buck 12 V to 3.3 V",
+   "D1",
+   "reverse 12.6  V, average 0.708  A, peak 1.86  A",
+   "20 V, 1.1 A"
+  ],
+  [
+   "Buck 12 V to 3.3 V",
+   "L1",
+   "peak 1.14  A, RMS 1  A",
+   "Isat 1.5 A, Irms 1 A"
+  ],
+  [
+   "Buck 12 V to 3.3 V",
+   "C1",
+   "peak 3.3  V",
+   "6.3 V"
+  ],
+  [
+   "LDO 5 V to 3.3 V",
+   "M1",
+   "Vds 1.97  V, Vgs 2.01  V, peak 1e+02 m A, dissipates 83 m W",
+   "12 V, 0.15 A"
+  ],
+  [
+   "LDO 5 V to 3.3 V",
+   "R1",
+   "dissipates 0.025 m W",
+   "0.063 W"
+  ],
+  [
+   "LDO 5 V to 3.3 V",
+   "R2",
+   "dissipates 0.014 m W",
+   "0.063 W"
+  ],
+  [
+   "LDO 5 V to 3.3 V",
+   "Rz",
+   "dissipates 0.011 m W",
+   "0.063 W"
+  ],
+  [
+   "LDO 5 V to 3.3 V",
+   "Co",
+   "peak 3.31  V",
+   "6.3 V"
+  ]
+ ],
+ "rating_check": {
+  "buck_1n5819": {
+   "M1 Si4427BDY": "ok: Vds needs 16.4 V, rated 30 V; conduction loss 0.0063 W at Ron 0.02 Ω",
+   "D1 1N5819": "too small: average current needs 1.07 A, rated 1 A"
+  },
+  "buck_mbrs340": {
+   "M1 Si4427BDY": "ok: Vds needs 16.2 V, rated 30 V; conduction loss 0.0064 W at Ron 0.02 Ω",
+   "D1 MBRS340": "ok: reverse voltage needs 15.7 V, rated 40 V; average current needs 1.07 A, rated 3 A"
+  }
+ },
+ "real_opamp": {
+  "sk_toa10": {
+   "f3db": 9999.867,
+   "peak_db": -7.865095e-05,
+   "atten10_db": -40.01887,
+   "g_half_db": -0.261322,
+   "pm_deg": 73.57198,
+   "vn_uv": 2.645044,
+   "param_c1": 2.2507907903927646e-09
+  }
+ },
+ "noise_uv": {},
+ "tokens_every_turn": {
+  "before": 2776,
+  "after": 3004
+ }
+}

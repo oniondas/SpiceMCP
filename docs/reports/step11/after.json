@@ -1,0 +1,987 @@
+{
+ "rc": {
+  "template": "rc_lowpass",
+  "spec": {
+   "fc": 1000
+  },
+  "parts": null,
+  "start_metrics": {
+   "fc": 1000.019,
+   "param_c1": 1.5915494309189534e-08
+  },
+  "seconds": 0.8,
+  "answer": {
+   "run_id": "rc",
+   "buildable_candidate": "cand_0018",
+   "parts": {
+    "C1": {
+     "value": 1.5e-08,
+     "label": "15n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -5.75
+    },
+    "R1": {
+     "value": 10700.0,
+     "label": "10.7k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 7.0
+    }
+   },
+   "metrics": {
+    "fc": 991.6688
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.191,
+   "nearest_values_meet_limits": false,
+   "yield": {
+    "runs": 30,
+    "passed": 14,
+    "yield_pct": 46.7,
+    "yield_at_least_pct": 30.8,
+    "seed": 11,
+    "statement": "14/30 pass: yield is at least 31% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, 27 \u00b0C only",
+    "samples_path": "/tmp/tmpwajcuubk/.ltspice-mcp/simulations/rc/yield/samples.json",
+    "worst_case": {
+     "fails_most": "fc",
+     "part_driving_failures": {
+      "part": "C1",
+      "direction": "high",
+      "strength": 0.46
+     },
+     "tightest": {
+      "metric": "fc",
+      "limit": ">=980",
+      "worst": 947.5649,
+      "worst_margin_pct": -3.31,
+      "at_temp_c": null
+     }
+    }
+   },
+   "stress": "not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "more": "query_run(run_id='rc', what='details')",
+   "next_step": "Standard values meet the limits but yield is low, mostly from fc with C1 high: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit."
+  },
+  "stress": {
+   "checked": false,
+   "why": "no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)"
+  },
+  "spread": {
+   "fc": {
+    "min": 947.565,
+    "max": 1047.55,
+    "limit": "<=1020"
+   }
+  }
+ },
+ "sk": {
+  "template": "sallen_key_lowpass",
+  "spec": {
+   "fc": 10000
+  },
+  "parts": null,
+  "start_metrics": {
+   "f3db": 9997.794,
+   "peak_db": 0.0007431806,
+   "atten10_db": -40.25223,
+   "g_half_db": -0.2432995,
+   "pm_deg": 85.95744,
+   "param_c1": 2.2507907903927646e-09
+  },
+  "seconds": 6.9,
+  "answer": {
+   "run_id": "sk",
+   "buildable_candidate": "cand_0042",
+   "parts": {
+    "C1": {
+     "value": 2.2e-09,
+     "label": "2.2n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -2.26
+    },
+    "C2": {
+     "value": 1.2e-09,
+     "label": "1.2n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 6.63
+    },
+    "R1": {
+     "value": 10500.0,
+     "label": "10.5k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 5.0
+    },
+    "R2": {
+     "value": 8450.0,
+     "label": "8.45k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -15.5
+    }
+   },
+   "metrics": {
+    "f3db": 9878.671,
+    "peak_db": -6.000278e-05,
+    "atten10_db": -39.59766,
+    "g_half_db": -0.3993405,
+    "pm_deg": 85.97091
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.532,
+   "nearest_values_meet_limits": false,
+   "yield": {
+    "runs": 30,
+    "passed": 16,
+    "yield_pct": 53.3,
+    "yield_at_least_pct": 37.0,
+    "seed": 11,
+    "statement": "16/30 pass: yield is at least 37% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmp3s4420tx/.ltspice-mcp/simulations/sk/yield/samples.json",
+    "worst_case": {
+     "fails_most": "f3db",
+     "most_failures_at_c": -40.0,
+     "part_driving_failures": {
+      "part": "C1",
+      "direction": "low",
+      "strength": -0.21
+     },
+     "tightest": {
+      "metric": "g_half_db",
+      "limit": ">=-0.5",
+      "worst": -0.5321217,
+      "worst_margin_pct": -6.424,
+      "at_temp_c": -40.0
+     }
+    }
+   },
+   "stress": "not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "more": "query_run(run_id='sk', what='details')",
+   "next_step": "Standard values meet the limits but yield is low, mostly from f3db at -40 C with C1 low: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit."
+  },
+  "stress": {
+   "checked": false,
+   "why": "no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "at": "supply +5%"
+  },
+  "spread": {
+   "peak_db": {
+    "min": -0.000111697,
+    "max": -1.88153e-06,
+    "limit": "<=0.1"
+   },
+   "pm_deg": {
+    "min": 85.7652,
+    "max": 85.8423,
+    "limit": ">=45"
+   },
+   "f3db": {
+    "min": 9455.12,
+    "max": 10414.7,
+    "limit": "<=10300"
+   },
+   "g_half_db": {
+    "min": -0.532122,
+    "max": -0.278256,
+    "limit": ">=-0.5"
+   },
+   "atten10_db": {
+    "min": -40.297,
+    "max": -38.8626,
+    "limit": "<=-39"
+   }
+  }
+ },
+ "amp": {
+  "template": "noninverting_amp",
+  "spec": {
+   "gain": 10,
+   "bw": 100000.0
+  },
+  "parts": null,
+  "start_metrics": {
+   "gain_db": 19.99619,
+   "bw": 1119545.0,
+   "pm_deg": 85.34539
+  },
+  "seconds": 2.0,
+  "answer": {
+   "run_id": "amp",
+   "buildable_candidate": "cand_0027",
+   "parts": {
+    "R1": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 0.0
+    },
+    "R2": {
+     "value": 90900.0,
+     "label": "90.9k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 1.0
+    }
+   },
+   "metrics": {
+    "gain_db": 20.07398,
+    "bw": 1128372.0,
+    "pm_deg": 85.38713
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.129,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 30,
+    "passed": 18,
+    "yield_pct": 60.0,
+    "yield_at_least_pct": 43.4,
+    "seed": 11,
+    "statement": "18/30 pass: yield is at least 43% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmph2xbyjdb/.ltspice-mcp/simulations/amp/yield/samples.json",
+    "worst_case": {
+     "fails_most": "gain_db",
+     "most_failures_at_c": -40.0,
+     "part_driving_failures": {
+      "part": "R2",
+      "direction": "high",
+      "strength": 0.81
+     },
+     "tightest": {
+      "metric": "gain_db",
+      "limit": "<=20.1",
+      "worst": 20.18854,
+      "worst_margin_pct": -0.44,
+      "at_temp_c": 85.0
+     }
+    }
+   },
+   "stress": "not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "more": "query_run(run_id='amp', what='details')",
+   "next_step": "Standard values meet the limits but yield is low, mostly from gain_db at -40 C with R2 high: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit."
+  },
+  "stress": {
+   "checked": false,
+   "why": "no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "at": "supply +5%"
+  },
+  "spread": {
+   "gain_db": {
+    "min": 19.9234,
+    "max": 20.1885,
+    "limit": "<=20.1"
+   },
+   "bw": {
+    "min": 953315.0,
+    "max": 1014360.0,
+    "limit": ">=100000"
+   },
+   "pm_deg": {
+    "min": 85.2977,
+    "max": 85.4385,
+    "limit": ">=45"
+   }
+  }
+ },
+ "ldo": {
+  "template": "ldo",
+  "spec": {
+   "vin": 5,
+   "vout": 3.3,
+   "iload": 0.1
+  },
+  "parts": null,
+  "start_metrics": {
+   "vout": 3.301959,
+   "vout_low": 3.300325,
+   "pm_deg": 72.18096,
+   "step_mv": 38.514,
+   "kick_mv": 33.605,
+   "param_w": 0.003636363636363638
+  },
+  "seconds": 7.6,
+  "answer": {
+   "run_id": "ldo",
+   "buildable_candidate": "cand_0038",
+   "parts": {
+    "R1": {
+     "value": 174000.0,
+     "label": "174k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.57
+    },
+    "RZ": {
+     "value": 0.825,
+     "label": "825m",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.58
+    }
+   },
+   "other_values": {
+    "W": 0.002250121424749604
+   },
+   "metrics": {
+    "vout": 3.289942,
+    "vout_low": 3.277968,
+    "pm_deg": 68.34874,
+    "step_mv": 47.581,
+    "kick_mv": 39.985
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.702,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 30,
+    "passed": 0,
+    "yield_pct": 0.0,
+    "yield_at_least_pct": 0.0,
+    "seed": 11,
+    "statement": "0/30 pass: yield is at least 0% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmpmy1sbt7u/.ltspice-mcp/simulations/ldo/yield/samples.json",
+    "worst_case": {
+     "fails_most": "vout_low",
+     "most_failures_at_c": 85.0,
+     "tightest": {
+      "metric": "vout_low",
+      "limit": ">=3.234",
+      "worst": 3.195779,
+      "worst_margin_pct": -1.182,
+      "at_temp_c": 85.0
+     }
+    }
+   },
+   "buy_at_least": {
+    "M1": "12 V, 0.15 A",
+    "R1": "0.063 W",
+    "R2": "0.063 W",
+    "Rz": "0.063 W",
+    "Co": "6.3 V"
+   },
+   "more": "query_run(run_id='ldo', what='details')",
+   "next_step": "Standard values meet the limits but yield is low, mostly from vout_low at 85 C: re-optimise with a tighter limit for margin, or relax the limit."
+  },
+  "stress": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "M1": {
+     "vds_v": 1.97339,
+     "vgs_v": 2.00774,
+     "peak_a": 0.099978,
+     "dissipates_w": 0.08278,
+     "buy": "12 V, 0.15 A"
+    },
+    "R1": {
+     "dissipates_w": 2.5e-05,
+     "buy": "0.063 W"
+    },
+    "R2": {
+     "dissipates_w": 1.4e-05,
+     "buy": "0.063 W"
+    },
+    "Rz": {
+     "dissipates_w": 1.1e-05,
+     "buy": "0.063 W"
+    },
+    "Co": {
+     "peak_v": 3.3123,
+     "buy": "6.3 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "spread": {
+   "vout": {
+    "min": 3.27207,
+    "max": 3.31079,
+    "limit": "<=3.333"
+   },
+   "vout_low": {
+    "min": 3.19578,
+    "max": 3.1958,
+    "limit": ">=3.234"
+   },
+   "pm_deg": {
+    "min": 62.6321,
+    "max": 64.4273,
+    "limit": ">=45"
+   },
+   "step_mv": {
+    "min": 58.633,
+    "max": 61.727,
+    "limit": "<=99"
+   },
+   "kick_mv": {
+    "min": 46.818,
+    "max": 48.825,
+    "limit": "<=99"
+   }
+  }
+ },
+ "buck": {
+  "template": "buck",
+  "spec": {
+   "vin": 12,
+   "vout": 3.3,
+   "iout": 1
+  },
+  "parts": null,
+  "start_metrics": {
+   "vout": 3.299444,
+   "ripple_mv": 31.021,
+   "pm_deg": 85.0975,
+   "param_l": 1.7306451612903222e-05,
+   "param_c": 2.4671052631578943e-06
+  },
+  "seconds": 614.7,
+  "answer": {
+   "run_id": "buck",
+   "buildable_candidate": "cand_0022",
+   "parts": {
+    "C": {
+     "value": 2.2e-06,
+     "label": "2.2u",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -10.83
+    },
+    "CI": {
+     "value": 2.7e-08,
+     "label": "27n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 20.52
+    },
+    "L": {
+     "value": 1.8e-05,
+     "label": "18u",
+     "series": "E12",
+     "tolerance_pct": 20.0,
+     "change_pct": 4.01
+    },
+    "R1": {
+     "value": 17400.0,
+     "label": "17.4k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.57
+    }
+   },
+   "metrics": {
+    "vout": 3.287439,
+    "ripple_mv": 33.016,
+    "pm_deg": 85.77244
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.652,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 30,
+    "passed": 30,
+    "yield_pct": 100.0,
+    "yield_at_least_pct": 90.5,
+    "seed": 11,
+    "statement": "30/30 pass: yield is at least 90% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmp_4os2jin/.ltspice-mcp/simulations/buck/yield/samples.json"
+   },
+   "buy_at_least": {
+    "CI": "4 V",
+    "R1": "0.063 W",
+    "R2": "0.063 W",
+    "M1": "20 V, Id 1.2 A, Idm 6.2 A, Vgs 20 V",
+    "D1": "20 V, 1.1 A",
+    "L1": "Isat 1.5 A, Irms 1 A",
+    "C1": "6.3 V"
+   },
+   "more": "query_run(run_id='buck', what='details')",
+   "next_step": "Buildable design found. Call generate_design_report(run_id='buck')."
+  },
+  "stress": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "CI": {
+     "peak_v": 0.289081,
+     "buy": "4 V"
+    },
+    "R1": {
+     "dissipates_w": 0.00025,
+     "buy": "0.063 W"
+    },
+    "R2": {
+     "dissipates_w": 0.000144,
+     "buy": "0.063 W"
+    },
+    "M1": {
+     "vds_v": 13.0854,
+     "vgs_v": 12.6068,
+     "rms_a": 0.784685,
+     "peak_a": 6.19044,
+     "dissipates_w": 0.038296,
+     "buy": "20 V, Id 1.2 A, Idm 6.2 A, Vgs 20 V"
+    },
+    "D1": {
+     "reverse_v": 12.5833,
+     "avg_a": 0.708219,
+     "peak_a": 1.86319,
+     "buy": "20 V, 1.1 A"
+    },
+    "L1": {
+     "peak_a": 1.14404,
+     "buy": "Isat 1.5 A, Irms 1 A",
+     "rms_a": 0.999792
+    },
+    "C1": {
+     "peak_v": 3.30186,
+     "buy": "6.3 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "spread": {
+   "vout": {
+    "min": 3.26725,
+    "max": 3.30687,
+    "limit": "<=3.366"
+   },
+   "ripple_mv": {
+    "min": 31.444,
+    "max": 49.179,
+    "limit": "<=50"
+   },
+   "pm_deg": {
+    "min": 84.9648,
+    "max": 86.6698,
+    "limit": ">=45"
+   }
+  }
+ },
+ "sk_toa10": {
+  "template": "sallen_key_lowpass",
+  "spec": {
+   "fc": 10000
+  },
+  "parts": {
+   "opamp": "TOA10"
+  },
+  "start_metrics": {
+   "f3db": 9999.867,
+   "peak_db": -7.865095e-05,
+   "atten10_db": -40.01887,
+   "g_half_db": -0.261322,
+   "pm_deg": 73.57198,
+   "vn_uv": 2.645044,
+   "param_c1": 2.2507907903927646e-09
+  },
+  "seconds": 3.1,
+  "answer": {
+   "run_id": "sk_toa10",
+   "buildable_candidate": "cand_0038",
+   "parts": {
+    "C1": {
+     "value": 2.2e-09,
+     "label": "2.2n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": -2.26
+    },
+    "C2": {
+     "value": 1.2e-09,
+     "label": "1.2n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 6.63
+    },
+    "R1": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": 0.0
+    },
+    "R2": {
+     "value": 9090.0,
+     "label": "9.09k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -9.1
+    }
+   },
+   "metrics": {
+    "f3db": 9806.341,
+    "peak_db": -0.0001627347,
+    "atten10_db": -39.55824,
+    "g_half_db": -0.4133677,
+    "pm_deg": 73.58729,
+    "vn_uv": 2.532617
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.096,
+   "nearest_values_meet_limits": false,
+   "yield": {
+    "runs": 8,
+    "passed": 4,
+    "yield_pct": 50.0,
+    "yield_at_least_pct": 19.3,
+    "seed": 11,
+    "statement": "4/8 pass: yield is at least 19% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmp8mbai2qk/.ltspice-mcp/simulations/sk_toa10/yield/samples.json",
+    "worst_case": {
+     "fails_most": "f3db",
+     "most_failures_at_c": -40.0,
+     "part_driving_failures": {
+      "part": "C2",
+      "direction": "high",
+      "strength": 0.62
+     },
+     "tightest": {
+      "metric": "f3db",
+      "limit": ">=9700",
+      "worst": 9383.452,
+      "worst_margin_pct": -3.263,
+      "at_temp_c": -40.0
+     }
+    }
+   },
+   "stress": "not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "more": "query_run(run_id='sk_toa10', what='details')",
+   "next_step": "Standard values meet the limits but yield is low, mostly from f3db at -40 C with C2 high: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit."
+  },
+  "stress": {
+   "checked": false,
+   "why": "no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)",
+   "at": "supply +5%"
+  },
+  "spread": {
+   "peak_db": {
+    "min": -0.000202994,
+    "max": -0.000108992,
+    "limit": "<=0.1"
+   },
+   "pm_deg": {
+    "min": 73.5838,
+    "max": 73.5905,
+    "limit": ">=45"
+   },
+   "f3db": {
+    "min": 9383.45,
+    "max": 10337.0,
+    "limit": "<=10300"
+   },
+   "g_half_db": {
+    "min": -0.504359,
+    "max": -0.290903,
+    "limit": ">=-0.5"
+   },
+   "atten10_db": {
+    "min": -40.3226,
+    "max": -39.0267,
+    "limit": "<=-39"
+   }
+  }
+ },
+ "buck_1n5819": {
+  "template": "buck",
+  "spec": {
+   "vin": 12,
+   "vout": 3.3,
+   "iout": 1
+  },
+  "parts": {
+   "switch": "Si4427BDY",
+   "diode": "1N5819"
+  },
+  "start_metrics": {
+   "vout": 3.299452,
+   "ripple_mv": 31.809,
+   "pm_deg": 85.0975,
+   "param_l": 1.7306451612903222e-05,
+   "param_c": 2.4671052631578943e-06
+  },
+  "seconds": 288.6,
+  "answer": {
+   "run_id": "buck_1n5819",
+   "buildable_candidate": "cand_0022",
+   "parts": {
+    "C": {
+     "value": 2.7e-06,
+     "label": "2.7u",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 9.44
+    },
+    "CI": {
+     "value": 2.7e-08,
+     "label": "27n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 20.52
+    },
+    "L": {
+     "value": 1.8e-05,
+     "label": "18u",
+     "series": "E12",
+     "tolerance_pct": 20.0,
+     "change_pct": 4.01
+    },
+    "R1": {
+     "value": 17400.0,
+     "label": "17.4k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.57
+    }
+   },
+   "metrics": {
+    "vout": 3.287711,
+    "ripple_mv": 30.287,
+    "pm_deg": 85.759
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.661,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 8,
+    "passed": 8,
+    "yield_pct": 100.0,
+    "yield_at_least_pct": 68.8,
+    "seed": 11,
+    "statement": "8/8 pass: yield is at least 69% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmpv8chkhcm/.ltspice-mcp/simulations/buck_1n5819/yield/samples.json"
+   },
+   "buy_at_least": {
+    "CI": "4 V",
+    "R1": "0.063 W",
+    "R2": "0.063 W",
+    "M1": "20 V, Id 0.84 A, Idm 7.2 A, Vgs 20 V",
+    "D1": "20 V, 1.1 A",
+    "L1": "Isat 1.5 A, Irms 1 A",
+    "C1": "6.3 V"
+   },
+   "more": "query_run(run_id='buck_1n5819', what='details')",
+   "rating_check": {
+    "M1 Si4427BDY": "ok: Vds needs 16.4 V, rated 30 V; conduction loss 0.0063 W at Ron 0.02 \u03a9",
+    "D1 1N5819": "too small: average current needs 1.07 A, rated 1 A"
+   },
+   "next_step": "Buildable design found. Call generate_design_report(run_id='buck_1n5819')."
+  },
+  "stress": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "CI": {
+     "peak_v": 0.295971,
+     "buy": "4 V"
+    },
+    "R1": {
+     "dissipates_w": 0.00025,
+     "buy": "0.063 W"
+    },
+    "R2": {
+     "dissipates_w": 0.000144,
+     "buy": "0.063 W"
+    },
+    "M1": {
+     "vds_v": 13.0843,
+     "vgs_v": 12.6001,
+     "rms_a": 0.562309,
+     "peak_a": 7.191,
+     "dissipates_w": 0.030194,
+     "buy": "20 V, Id 0.84 A, Idm 7.2 A, Vgs 20 V"
+    },
+    "D1": {
+     "reverse_v": 12.5912,
+     "avg_a": 0.710578,
+     "peak_a": 1.79104,
+     "buy": "20 V, 1.1 A"
+    },
+    "L1": {
+     "peak_a": 1.14373,
+     "buy": "Isat 1.5 A, Irms 1 A",
+     "rms_a": 0.999729
+    },
+    "C1": {
+     "peak_v": 3.29947,
+     "buy": "6.3 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "spread": {
+   "vout": {
+    "min": 3.27231,
+    "max": 3.30477,
+    "limit": "<=3.366"
+   },
+   "ripple_mv": {
+    "min": 28.163,
+    "max": 41.278,
+    "limit": "<=50"
+   },
+   "pm_deg": {
+    "min": 84.9442,
+    "max": 86.5304,
+    "limit": ">=45"
+   }
+  }
+ },
+ "buck_mbrs340": {
+  "template": "buck",
+  "spec": {
+   "vin": 12,
+   "vout": 3.3,
+   "iout": 1
+  },
+  "parts": {
+   "switch": "Si4427BDY",
+   "diode": "MBRS340"
+  },
+  "start_metrics": {
+   "vout": 3.299427,
+   "ripple_mv": 30.184,
+   "pm_deg": 85.0975,
+   "param_l": 1.7306451612903222e-05,
+   "param_c": 2.4671052631578943e-06
+  },
+  "seconds": 267.5,
+  "answer": {
+   "run_id": "buck_mbrs340",
+   "buildable_candidate": "cand_0036",
+   "parts": {
+    "C": {
+     "value": 2.7e-06,
+     "label": "2.7u",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 9.44
+    },
+    "CI": {
+     "value": 2.7e-08,
+     "label": "27n",
+     "series": "E12",
+     "tolerance_pct": 5.0,
+     "change_pct": 20.52
+    },
+    "L": {
+     "value": 1.5e-05,
+     "label": "15u",
+     "series": "E12",
+     "tolerance_pct": 20.0,
+     "change_pct": -13.33
+    },
+    "R1": {
+     "value": 17400.0,
+     "label": "17.4k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.57
+    }
+   },
+   "metrics": {
+    "vout": 3.287279,
+    "ripple_mv": 32.41,
+    "pm_deg": 86.4606
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 1.647,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 8,
+    "passed": 8,
+    "yield_pct": 100.0,
+    "yield_at_least_pct": 68.8,
+    "seed": 11,
+    "statement": "8/8 pass: yield is at least 69% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmpe0u5yxd4/.ltspice-mcp/simulations/buck_mbrs340/yield/samples.json"
+   },
+   "buy_at_least": {
+    "CI": "4 V",
+    "R1": "0.063 W",
+    "R2": "0.063 W",
+    "M1": "20 V, Id 0.85 A, Idm 9.2 A, Vgs 20 V",
+    "D1": "20 V, 1.1 A",
+    "L1": "Isat 1.5 A, Irms 1 A",
+    "C1": "6.3 V"
+   },
+   "more": "query_run(run_id='buck_mbrs340', what='details')",
+   "rating_check": {
+    "M1 Si4427BDY": "ok: Vds needs 16.2 V, rated 30 V; conduction loss 0.0064 W at Ron 0.02 \u03a9",
+    "D1 MBRS340": "ok: reverse voltage needs 15.7 V, rated 40 V; average current needs 1.07 A, rated 3 A"
+   },
+   "next_step": "Buildable design found. Call generate_design_report(run_id='buck_mbrs340')."
+  },
+  "stress": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "CI": {
+     "peak_v": 0.304102,
+     "buy": "4 V"
+    },
+    "R1": {
+     "dissipates_w": 0.00025,
+     "buy": "0.063 W"
+    },
+    "R2": {
+     "dissipates_w": 0.000144,
+     "buy": "0.063 W"
+    },
+    "M1": {
+     "vds_v": 12.9866,
+     "vgs_v": 12.6001,
+     "rms_a": 0.567387,
+     "peak_a": 9.18691,
+     "dissipates_w": 0.03558,
+     "buy": "20 V, Id 0.85 A, Idm 9.2 A, Vgs 20 V"
+    },
+    "D1": {
+     "reverse_v": 12.5909,
+     "avg_a": 0.714186,
+     "peak_a": 1.51985,
+     "buy": "20 V, 1.1 A"
+    },
+    "L1": {
+     "peak_a": 1.17095,
+     "buy": "Isat 1.5 A, Irms 1 A",
+     "rms_a": 1.0012
+    },
+    "C1": {
+     "peak_v": 3.3027,
+     "buy": "6.3 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "spread": {
+   "vout": {
+    "min": 3.27255,
+    "max": 3.30474,
+    "limit": "<=3.366"
+   },
+   "ripple_mv": {
+    "min": 32.951,
+    "max": 45.916,
+    "limit": "<=50"
+   },
+   "pm_deg": {
+    "min": 85.7812,
+    "max": 87.1003,
+    "limit": ">=45"
+   }
+  }
+ }
+}

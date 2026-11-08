@@ -394,6 +394,8 @@ def to_ngspice(netlist: str) -> str:
         if not m:
             if line.strip().lower() == ".end":
                 continue
+            if line.lstrip().lower().startswith(".model"):
+                line = _LT_ONLY.sub("", line)
             body.append(line)
             continue
         kind, name, rest = m.group(1).lower(), m.group(2), m.group(3).strip()
@@ -402,6 +404,13 @@ def to_ngspice(netlist: str) -> str:
             ctrl += [f"let {name} = {expr}", f"print {name}"]
             continue
         low = rest.lower()
+        if kind == "noise":
+            # ngspice has no .meas for noise; its noise2 plot holds the integral.
+            if re.match(r"^integ\s+v\(\s*onoise\s*\)\s*$", low):
+                ctrl += ["setplot noise2", f"let {name} = onoise_total", f"print {name}"]
+            elif re.match(r"^integ\s+v\(\s*inoise\s*\)\s*$", low):
+                ctrl += ["setplot noise2", f"let {name} = inoise_total", f"print {name}"]
+            continue
         cx = _CPLX_FIND.match(rest) if kind == "ac" else None
         if cx:
             # LTspice prints a complex FIND as (dB, degrees); ngspice needs one per line.
@@ -420,9 +429,43 @@ def to_ngspice(netlist: str) -> str:
                 head = _DB_V.sub(lambda g: f"vdb({g.group(1)})", head)
                 tail = _MAG_V.sub(lambda g: f"vm({g.group(1)})", tail)
                 rest = head + sep + tail
+        else:
+            agg = _AGG.match(rest)
+            if agg and not _PLAIN_VEC.match(agg.group(2).strip()):
+                # ngspice measures a vector, not an expression: name it with `let`.
+                expr = _ng_expr(agg.group(2))
+                ctrl.append(f"let x_{name} = {expr}")
+                rest = f"{agg.group(1)} x_{name}{agg.group(3) or ''}"
         rest = re.sub(r"\b(at|from|to|td)\s+(?!=)", r"\1=", rest, flags=re.I)
         ctrl.append(f"meas {kind} {name} {rest}")
+    if any("@" in c for c in ctrl):
+        body.insert(1, ".options savecurrents")
     return "\n".join(body + [".control", *ctrl, ".endc", ".end", ""])
+
+
+# Datasheet ratings LTspice keeps on a .model card for its own use; ngspice rejects them.
+_LT_ONLY = re.compile(r"\s(?:mfg|type|vds|ron|qg|iave|vpk|ipk|vceo|icrating)\s*=\s*"
+                      r"(?:\"[^\"]*\"|[^\s()]+)", re.I)
+_AGG = re.compile(r"^(max|min|avg|rms|pp|integ)\s+(.+?)((?:\s+(?:from|to)\b.*)?)$", re.I)
+_PLAIN_VEC = re.compile(r"^v\(\s*[^(),\s]+\s*\)$", re.I)
+_CURRENT = {"d": "@{}[id]", "r": "@{}[i]", "c": "@{}[i]", "l": "i({})", "v": "i({})",
+            "m": "@{}[id]", "q": "@{}[ic]", "j": "@{}[id]"}
+
+
+def _ng_expr(expr: str) -> str:
+    """An LTspice waveform expression in ngspice's vector names: V(a,b) is a
+    difference, a device current is `@dev[id]` (needs .options savecurrents)."""
+    def volt(m):
+        a, b = (x.strip() for x in m.group(1).split(","))
+        return f"(v({a})-v({b}))"
+    expr = re.sub(r"\bv\(\s*([^(),]+,[^(),]+)\)", volt, expr, flags=re.I)
+
+    def cur(m):
+        dev = m.group(2).strip().lower()
+        if m.group(1).lower() == "ic":
+            return f"@{dev}[ic]"
+        return _CURRENT.get(dev[:1], "i({})").format(dev)
+    return re.sub(r"\b(id|ic|i)\(\s*([^()\s]+)\s*\)", cur, expr, flags=re.I)
 
 
 def parse_ngspice(log_text: str) -> tuple[dict[str, float], list[str]]:

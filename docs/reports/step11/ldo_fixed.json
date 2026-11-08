@@ -1,0 +1,129 @@
+{
+ "ldo": {
+  "template": "ldo",
+  "spec": {
+   "vin": 5,
+   "vout": 3.3,
+   "iload": 0.1
+  },
+  "parts": null,
+  "start_metrics": {
+   "vout": 3.301963,
+   "vout_low": 3.300432,
+   "pm_deg": 72.08695,
+   "step_mv": 34.384,
+   "kick_mv": 30.274,
+   "param_w": 0.00473976945509964
+  },
+  "seconds": 10.2,
+  "answer": {
+   "run_id": "ldo",
+   "buildable_candidate": "cand_0038",
+   "parts": {
+    "R1": {
+     "value": 174000.0,
+     "label": "174k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -0.57
+    },
+    "RZ": {
+     "value": 0.768,
+     "label": "768m",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "change_pct": -1.11
+    }
+   },
+   "other_values": {
+    "W": 0.002932890619805699
+   },
+   "metrics": {
+    "vout": 3.289948,
+    "vout_low": 3.284263,
+    "pm_deg": 68.11158,
+    "step_mv": 42.517,
+    "kick_mv": 36.181
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.702,
+   "nearest_values_meet_limits": true,
+   "yield": {
+    "runs": 30,
+    "passed": 30,
+    "yield_pct": 100.0,
+    "yield_at_least_pct": 90.5,
+    "seed": 11,
+    "statement": "30/30 pass: yield is at least 90% (95% confidence). More yield_runs narrow this.",
+    "covers": "part tolerance, supply \u00b15%, -40/25/85 \u00b0C",
+    "samples_path": "/tmp/tmpokyrf_ue/.ltspice-mcp/simulations/ldo/yield/samples.json"
+   },
+   "buy_at_least": {
+    "M1": "12 V, 0.15 A",
+    "R1": "0.063 W",
+    "R2": "0.063 W",
+    "Rz": "0.063 W",
+    "Co": "6.3 V"
+   },
+   "more": "query_run(run_id='ldo', what='details')",
+   "next_step": "Buildable design found. Call generate_design_report(run_id='ldo')."
+  },
+  "stress": {
+   "checked": true,
+   "from": "1 of 1 transient (second half: steady state) decks",
+   "parts": {
+    "M1": {
+     "vds_v": 1.97248,
+     "vgs_v": 1.84546,
+     "peak_a": 0.099978,
+     "dissipates_w": 0.082783,
+     "buy": "12 V, 0.15 A"
+    },
+    "R1": {
+     "dissipates_w": 2.5e-05,
+     "buy": "0.063 W"
+    },
+    "R2": {
+     "dissipates_w": 1.4e-05,
+     "buy": "0.063 W"
+    },
+    "Rz": {
+     "dissipates_w": 9e-06,
+     "buy": "0.063 W"
+    },
+    "Co": {
+     "peak_v": 3.31058,
+     "buy": "6.3 V"
+    }
+   },
+   "at": "supply +5%"
+  },
+  "spread": {
+   "vout": {
+    "min": 3.27208,
+    "max": 3.3108,
+    "limit": "<=3.333"
+   },
+   "vout_low": {
+    "min": 3.2703,
+    "max": 3.28567,
+    "limit": ">=3.234"
+   },
+   "pm_deg": {
+    "min": 62.5033,
+    "max": 64.1656,
+    "limit": ">=45"
+   },
+   "step_mv": {
+    "min": 52.471,
+    "max": 55.474,
+    "limit": "<=99"
+   },
+   "kick_mv": {
+    "min": 42.593,
+    "max": 44.468,
+    "limit": "<=99"
+   }
+  }
+ }
+}

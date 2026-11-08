@@ -1,0 +1,5 @@
+* Test MOSFET library in the LTspice standard.mos form
+.model Si7336ADP VDMOS(Rg=1.5 Vto=2.5 Rd=2.5m Rs=1.5m Rb=3m Kp=180 Cgdmax=1.5n Cgdmin=.1n Cgs=3n Cjo=.8n Is=10p ksubthres=.1 mfg=Vishay Vds=30 Ron=4m Qg=36n)
+.model Si4427BDY VDMOS(pchan Vto=-2 Rd=12m Rs=4m Rb=10m Kp=25 Cgdmax=1n Cgdmin=.1n Cgs=1.8n Cjo=.5n Is=5p
++ mfg=Vishay Vds=-30 Ron=20m Qg=30n)
+.model FDS4685 VDMOS(pchan Vto=-1.8 Rd=17m Rs=5m Rb=12m Kp=30 Cgdmax=1.2n Cgdmin=.1n Cgs=2n Cjo=.6n Is=5p mfg=Fairchild Vds=-40 Ron=27m Qg=20n)

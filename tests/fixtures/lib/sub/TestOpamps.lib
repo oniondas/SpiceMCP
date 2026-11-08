@@ -1,0 +1,18 @@
+* Behavioural op-amps for tests: 5 pins in+ in- V+ V- out, single pole, output clamped
+* to the rails. Written in plain SPICE so LTspice and ngspice both run them.
+.subckt TOA1 inp inn vp vn out
+Rin inp inn 10Meg
+G1 0 a inp inn 1m
+Ra a 0 100Meg
+Ca a 0 15.9n
+E1 b 0 a 0 1
+Ro b out 50
+.ends TOA1
+.subckt TOA10 inp inn vp vn out params: gbw=10Meg
+Rin inp inn 10Meg
+G1 0 a inp inn 1m
+Ra a 0 100Meg
+Ca a 0 15.9p
+E1 b 0 a 0 1
+Ro b out 50
+.ends TOA10

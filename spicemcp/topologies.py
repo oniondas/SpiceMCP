@@ -59,6 +59,7 @@ class Template:
     summary: str
     spec: list[SpecField]
     build: Callable[[dict], Design]
+    parts: tuple[str, ...] = ()               # slots a real part can fill (find_part)
 
     def resolve(self, spec: dict | None) -> dict:
         spec = {k.lower(): float(v) for k, v in (spec or {}).items()}
@@ -75,6 +76,8 @@ class Template:
                 out[f.name] = f.default
             else:
                 raise TemplateError(f"{self.name}: spec needs {f.name} ({f.unit}): {f.help}")
+            if f.default == 0 and out[f.name] >= 0:
+                continue                          # 0 = off (an optional limit)
             if out[f.name] <= 0 and f.name not in ("q",):
                 raise TemplateError(f"{self.name}: {f.name} must be positive")
         return out
@@ -88,7 +91,8 @@ class Template:
         return {"name": self.name, "summary": self.summary,
                 "spec": {f.name: (f"{f.unit} {f.help}".strip() + (
                     f" ={f.default:g}" if f.default is not None else " *"))
-                         for f in self.spec}}
+                         for f in self.spec},
+                **({"parts": "/".join(self.parts)} if self.parts else {})}
 
 
 def _rng(v: float, lo: float = 0.1, hi: float = 10.0) -> tuple[float, float]:
@@ -122,6 +126,16 @@ def _loop_deck(title: str, circuit: str, ret: str, lo: float, hi: float) -> str:
             f"Vinj inj 0 AC 1\n.ac dec 50 {lo:g} {hi:g}\n"
             f".meas AC ugf WHEN mag(V({ret}))=1 FALL=1\n"
             f".meas AC pm FIND V({ret}) WHEN mag(V({ret}))=1 FALL=1\n.end\n")
+
+
+def _noise_deck(title: str, circuit: str, out: str, lo: float, hi: float) -> str:
+    """A deck for output noise: every resistor's thermal noise and every transistor's
+    noise, summed at `out` and integrated from `lo` to `hi`. `vn_uv` is the total in
+    µV rms. Ideal sources and capacitors are noiseless, as in a real board."""
+    return (f"* {title}: output noise, {lo:g} Hz to {hi:g} Hz\n{circuit}"
+            f".noise V({out}) V1 dec 20 {lo:g} {hi:g}\n"
+            f".meas NOISE vn INTEG V(onoise)\n"
+            f".meas NOISE vn_uv PARAM vn*1e6\n.end\n")
 
 
 # --- 1. RC low-pass ------------------------------------------------------------------
@@ -198,7 +212,16 @@ X1 b fbk vcc vee out {opamp.NAME}
 CL out 0 {cl:g}
 Lbrk out fbk 1k
 Cinj fbk inj 1k
-{opamp.subckt(gbw, 10.0)}""", "out", fc / 10, gbw * 100)
+{opamp.subckt(gbw, 10.0)}""", "out", fc / 10, gbw * 100) + _noise_deck("Sallen-Key noise", f"""V1 in 0 AC 1
+Vcc vcc 0 5
+Vee vee 0 -5
+R1 in a {{R1}}
+R2 a b {{R2}}
+C1 a out {{C1}}
+C2 b 0 {{C2}}
+X1 b out vcc vee out {opamp.NAME}
+CL out 0 {cl:g}
+{opamp.subckt(gbw, 10.0)}""", "out", fc / 100, fc * 10)
     params = [{"name": "R1", "min": 1e3, "max": 100e3}, {"name": "R2", "min": 1e3, "max": 100e3},
               {"name": "C1", "min": c1 / 10, "max": c1 * 10},
               {"name": "C2", "min": c2 / 10, "max": c2 * 10}]
@@ -213,6 +236,8 @@ Cinj fbk inj 1k
         limits += [{"metric": "f3db", "min": fc * 0.97, "max": fc * 1.03},
                    {"metric": "g_half_db", "min": -0.5},
                    {"metric": "atten10_db", "max": -39.0}]
+    if s["noise_uv"]:
+        limits.append({"metric": "vn_uv", "max": s["noise_uv"]})
     return Design(
         net, params,
         goals=[{"metric": "param_c1", "direction": "min", "ref": c1}],
@@ -226,7 +251,10 @@ Cinj fbk inj 1k
                  "(100× fc), wired as a unity-gain follower.",
                  f"Stability: a follower is the op-amp's hardest case. With "
                  f"{_eng(cl, 'F')} on the output, phase margin must stay above "
-                 f"{PM_MIN:g}° (second deck, loop broken at the op-amp input)."],
+                 f"{PM_MIN:g}° (second deck, loop broken at the op-amp input).",
+                 f"Noise: third deck integrates output noise from {fc / 100:g} Hz to "
+                 f"{fc * 10:g} Hz (vn_uv, µV rms). Lower R lowers it (thermal noise ∝ √R)."]
+                + ([f"Noise limit: vn_uv ≤ {s['noise_uv']:g} µV rms."] if s["noise_uv"] else []),
         circuit_type="filter",
         tech={"f_pass": fc})
 
@@ -268,14 +296,25 @@ RL out 0 10k
 CL out 0 {cl:g}
 Lbrk fbd inn 1k
 Cinj inn inj 1k
-{opamp.subckt(gbw, 10.0)}""", "fbd", 100, gbw * 100)
+{opamp.subckt(gbw, 10.0)}""", "fbd", 100, gbw * 100) + _noise_deck("Amplifier noise", f"""V1 in 0 AC 1
+Vcc vcc 0 5
+Vee vee 0 -5
+X1 in inn vcc vee out {opamp.NAME}
+R2 out inn {{R2}}
+R1 inn 0 {{R1}}
+RL out 0 10k
+CL out 0 {cl:g}
+{opamp.subckt(gbw, 10.0)}""", "out", 10, 10 * bw)
+    limits = [{"metric": "gain_db", "min": g_db - 0.1, "max": g_db + 0.1},
+              {"metric": "bw", "min": bw},
+              {"metric": "pm_deg", "min": PM_MIN}]
+    if s["noise_uv"]:
+        limits.append({"metric": "vn_uv", "max": s["noise_uv"]})
     return Design(
         net, [{"name": "R1", "min": 1e3, "max": 100e3},
               {"name": "R2", "min": max(r2 / 10, 10.0), "max": max(r2 * 10, 1e4)}],
         goals=[{"metric": "bw", "direction": "max", "ref": bw}],
-        limits=[{"metric": "gain_db", "min": g_db - 0.1, "max": g_db + 0.1},
-                {"metric": "bw", "min": bw},
-                {"metric": "pm_deg", "min": PM_MIN}],
+        limits=limits,
         start={"R1": r1, "R2": max(r2, 10.0)},
         working=[f"Gain = 1 + R2/R1. Pick R1 = {_eng(r1, 'Ω')}.",
                  f"R2 = R1·(G − 1) = {_eng(r2, 'Ω')}.",
@@ -287,7 +326,11 @@ Cinj inn inj 1k
                  f"{oa['slew_v_per_us']:.2g} V/µs.",
                  f"Stability: {_eng(cl, 'F')} load. Phase margin falls as the load "
                  f"capacitance rises and as the gain falls; it must stay above {PM_MIN:g}°. "
-                 "If it does not, lower gbw or isolate the load with a series resistor."],
+                 "If it does not, lower gbw or isolate the load with a series resistor.",
+                 f"Noise: third deck integrates output noise from 10 Hz to {_eng(10 * bw, 'Hz')} "
+                 "(vn_uv, µV rms): the op-amp's input noise times the gain, plus R1 ∥ R2. "
+                 "Lower R1 and R2 lower it."]
+                + ([f"Noise limit: vn_uv ≤ {s['noise_uv']:g} µV rms."] if s["noise_uv"] else []),
         circuit_type="opamp",
         tech={"gbw": gbw})
 
@@ -306,7 +349,10 @@ def _ldo(s: dict) -> Design:
     r1 = r2 * (vout / vref - 1)
     kp, vt, length = 50e-6, 0.7, 1e-6
     vsg = vout + vdo                # gate pulled to 0 V at the dropout point
-    w = 1.5 * iload * length / (kp * ((vsg - vt) * vdo - vdo * vdo / 2))
+    # Dropout is worst hot: mobility, so KP, falls as T^-1.5 (to 77% at 85 C). Size the
+    # pass device there, and check dropout there (the line-regulation deck runs at 85 C).
+    kp_hot = kp * (300.15 / 358.15) ** 1.5
+    w = 1.5 * iload * length / (kp_hot * ((vsg - vt) * vdo - vdo * vdo / 2))
     vlow = vout + vdo
     gbw = 10e6                      # error amplifier
     beta = vref / vout
@@ -328,12 +374,23 @@ M1 out g in in PMOD W={{W}} L={length:g}
     net = f"""* PMOS LDO regulator (SpiceMCP template ldo)
 * vout target {vout:g} V from {vin:g} V at {iload:g} A, dropout spec {vdo:g} V
 * error amplifier: transistor-level op-amp powered from the input; resistive load
+* this deck: the operating point at the actual input (Vref "swept" over one point)
 {core}X1 fb ref in 0 g {opamp.NAME}
 R1 out fb {{R1}}
 R2 fb 0 {r2:g}
 RL out 0 {rl:.6g}
-{cap}{model}{oa}.dc Vin 0 {vin * 1.2:g} 0.01
-.meas DC vout FIND V(out) AT {vin:g}
+{cap}{model}{oa}.dc Vref {vref:g} {vref + 0.001:g} 0.001
+.meas DC vout FIND V(out) AT {vref + 0.0005:g}
+.end
+* LDO line regulation: the input swept, so dropout and overvoltage are checked at
+* absolute input voltages (a supply tolerance applies to the deck above, not here),
+* at 85 C, where the pass device is weakest
+{core}X1 fb ref in 0 g {opamp.NAME}
+R1 out fb {{R1}}
+R2 fb 0 {r2:g}
+RL out 0 {rl:.6g}
+{cap}{model}{oa}.temp 85
+.dc Vin 0 {vin * 1.2:g} 0.01
 .meas DC vout_low FIND V(out) AT {vlow:g}
 .meas DC vout_high FIND V(out) AT {vin * 1.15:g}
 .end
@@ -373,7 +430,8 @@ RL out 0 {rl_light:.6g}
                  f"At dropout ({_eng(vlow, 'V')} in) the gate is at 0 V, so Vsg = {vsg:.3g} V "
                  f"and the PMOS is in triode with Vsd = {vdo:g} V.",
                  f"I = KP·(W/L)·((Vsg−|Vt|)·Vsd − Vsd²/2) → W = {_eng(w, 'm')} "
-                 f"(1.5× margin on {_eng(iload, 'A')}).",
+                 f"(1.5× margin on {_eng(iload, 'A')}), with KP at 85 °C: mobility falls as "
+                 "T^-1.5, to 77% of its room value. Dropout is checked at 85 °C.",
                  "Goal: the smallest pass device that still meets dropout.",
                  "Error amplifier: two-stage CMOS op-amp (MOSFETs) running from the input, "
                  f"GBW {_eng(gbw, 'Hz')}, so it loses headroom as the input falls.",
@@ -445,7 +503,21 @@ RL out 0 {rl:g}
 .meas TRAN ripple_mv PARAM (vmax-vmin)*1000
 .meas TRAN eff PARAM vout*vout/{rl:g}/(-{vin:g}*iin)
 .end
-"""
+""" + _loop_deck("Buck stability (averaged switch)", f"""Vin in 0 {vin:g}
+Vref ref 0 {vref:g}
+X2 ref fb in 0 vc {opamp.NAME}
+CI vc fb {{CI}}
+* loop broken between the output and the divider: the integrator (R1, CI) stays whole
+R1 outx fb {{R1}}
+R2 fb 0 {r2:g}
+Lbrk out outx 1k
+Cinj outx inj 1k
+* the switch, diode and comparator averaged over a cycle: duty = (Vc - {v_lo:g}) / {v_pp:g}
+Bsw sw 0 V=V(in)*min(max((V(vc)-{v_lo:g})/{v_pp:g},0),1)-{vd:g}*(1-min(max((V(vc)-{v_lo:g})/{v_pp:g},0),1))
+L1 sw out {{L}}
+C1 out 0 {{C}}
+RL out 0 {rl:g}
+{opamp.subckt(2e6, vin)}""", "out", fc / 100, fsw / 2)
     return Design(
         net, [{"name": "L", "min": lval / 10, "max": lval * 10},
               {"name": "C", "min": cval / 10, "max": cval * 10},
@@ -454,7 +526,8 @@ RL out 0 {rl:g}
         goals=[{"metric": "param_l", "direction": "min", "ref": lval, "weight": 1.0},
                {"metric": "param_c", "direction": "min", "ref": cval, "weight": 1.0}],
         limits=[{"metric": "vout", "min": vout * 0.98, "max": vout * 1.02},
-                {"metric": "ripple_mv", "max": ripple}],
+                {"metric": "ripple_mv", "max": ripple},
+                {"metric": "pm_deg", "min": PM_MIN}],
         start={"L": lval, "C": cval, "R1": r1, "CI": ci},
         working=[f"Duty D = (Vout + Vd) / (Vin + Vd) = {d:.3f} (Vd = {vd} V diode); the "
                  "controller finds it, this only sizes L.",
@@ -472,6 +545,12 @@ RL out 0 {rl:g}
                  f"{_eng(fc, 'Hz')}: CI = Vin / (Vramp·R1·2π·fc) = {_eng(ci, 'F')}. Phase "
                  f"margin ≈ 90°; gain margin at the LC peak ≈ {gm_db:.0f} dB.",
                  f"Simulate {_eng(tstop, 's')} and measure the last {_eng(win, 's')}.",
+                 "Stability is simulated, not only hand-calculated: a second deck replaces "
+                 "the switch, diode and comparator by their cycle average (duty = (Vc − "
+                 f"{v_lo:g}) / {v_pp:g}) and breaks the loop at the error amplifier input; "
+                 "phase margin must be 45° or more. The break sits between the output "
+                 "and the divider, so the integrator around the error amplifier stays "
+                 "whole.",
                  "Switch: P-channel power MOSFET (50 mΩ, 1 nF gate), driven straight "
                  "from the comparator's push-pull output stage (0 V = on, Vin = off)."],
         circuit_type="dcdc",
@@ -486,13 +565,17 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
              "Unity-gain active low-pass, 40 dB/decade. Q 0.707 = Butterworth.",
              [SpecField("fc", "Hz", "cutoff frequency"),
               SpecField("q", "", "quality factor", 1 / math.sqrt(2)),
-              SpecField("cload", "F", "capacitance on the output", 100e-12)], _sallen_key),
+              SpecField("cload", "F", "capacitance on the output", 100e-12),
+              SpecField("noise_uv", "uV", "max output noise rms, 0 = report only", 0)],
+             _sallen_key, ("opamp",)),
     Template("noninverting_amp", "Non-inverting op-amp amplifier", "opamp",
              "Gain 1 + R2/R1 around a transistor-level CMOS op-amp.",
              [SpecField("gain", "V/V", "closed-loop gain (>= 1)"),
               SpecField("bw", "Hz", "minimum -3 dB bandwidth"),
               SpecField("gbw", "Hz", "op-amp gain-bandwidth product", 10e6),
-              SpecField("cload", "F", "capacitance on the output", 100e-12)], _noninv_amp),
+              SpecField("cload", "F", "capacitance on the output", 100e-12),
+              SpecField("noise_uv", "uV", "max output noise rms, 0 = report only", 0)],
+             _noninv_amp, ("opamp",)),
     Template("ldo", "PMOS LDO voltage regulator", "ldo",
              "Linear regulator: PMOS pass device, 1.2 V reference, resistor divider, "
              "output capacitor; checked for phase margin and load step.",
@@ -509,7 +592,8 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
              [SpecField("vin", "V", "input voltage"), SpecField("vout", "V", "output voltage"),
               SpecField("iout", "A", "load current"),
               SpecField("fsw", "Hz", "switching frequency", 500e3),
-              SpecField("ripple_mv", "mV", "max output ripple, peak to peak", 50)], _buck),
+              SpecField("ripple_mv", "mV", "max output ripple, peak to peak", 50)], _buck,
+             ("switch", "diode")),
 ]}
 
 

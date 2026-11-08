@@ -1,0 +1,1 @@
+{"tools": 13, "instructions": 211, "tool_list": 2565, "per_tool": {"check_setup": 47, "simulate": 137, "check_feasibility": 532, "list_templates": 64, "start_from_template": 116, "start_optimization": 482, "run_optimization": 97, "evaluate_candidate": 112, "query_run": 233, "rollback_to_candidate": 91, "finish_design": 310, "generate_design_report": 204, "render_schematic": 138}}

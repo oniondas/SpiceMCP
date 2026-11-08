@@ -35,6 +35,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from . import (buildable, db, engine, feasibility, layout, opamp, plots, progress, render,
                report, sim, topologies)
+from . import parts as partlib
+from . import stress
 
 INSTRUCTIONS = """\
 SpiceMCP designs circuits with LTspice. Typical flow:
@@ -42,12 +44,17 @@ SpiceMCP designs circuits with LTspice. Typical flow:
    list_templates), or start_optimization (your netlist with {PARAM} placeholders
    and .meas lines; it checks the spec is possible first)
 2. run_optimization   (the server searches; you do not loop per simulation)
-3. finish_design      (standard part values + yield under tolerance)
+3. finish_design      (standard values; yield over tolerance, supply, temperature;
+   part stress and the rating to buy)
 4. generate_design_report
+Real parts: find_part, then start_from_template(parts={"opamp": NAME}).
 Built-in blocks need no .subckt: X1 in+ in- V+ V- out SPMCP_OA (op-amp) or SPMCP_CMP
 (comparator). Long calls return within a minute; if an answer says "still running",
 call the same tool again. query_run reads saved state at any time. Follow next_step.
 Never rebuild a past circuit from memory: use query_run(what="netlist")."""
+
+# Metrics always shown when a circuit measures them, limit or not (output noise).
+REPORTED = {"vn_uv"}
 
 # Inputs that work when passed but are left out of the published tool list: a model
 # never needs them, and every byte of the list is re-sent on every turn.
@@ -413,6 +420,7 @@ EXAMPLES = {
     "generate_design_report": {"run_id": "rc_001", "pvt": True, "monte_carlo": 100},
     "render_schematic": {"path": "amp.cir", "output_path": "amp.png"},
     "list_templates": {},
+    "find_part": {"query": "1N5819", "kind": "diode"},
     "start_from_template": {"run_id": "lpf_001", "template": "sallen_key_lowpass",
                             "spec": {"fc": 10000}},
 }
@@ -440,7 +448,12 @@ def _fix_for(msg: str) -> str:
         return "Relax the limits listed under feasibility.violations, then retry."
     if "is stopped" in m or "nothing to do" in m:
         return "The run is stopped. Start a new run with a new run_id."
-    if "unknown template" in m or "spec needs" in m or "unknown spec keys" in m:
+    if "not found in the spice libraries" in m:
+        return ("Call find_part with part of the name. If LTspice is not installed here, "
+                "set SPICEMCP_LIB_DIRS to the folder holding your .lib/.sub/.model files.")
+    if "slot" in m and ("needs a" in m or "has no" in m):
+        return "Pick a part of the kind named in the error (find_part kind=...)."
+    if "unknown template" in m or "spec needs" or "unknown spec keys" in m:
         return "Call list_templates for the template names and their spec keys."
     if "mode must be" in m or "circuit_type must be" in m:
         return "Use one of the allowed values named in the error."
@@ -481,6 +494,13 @@ def _after_run(rid: str, s: dict) -> str:
 
 def _details_path(rid: str) -> Path:
     return db.state_root(PROJECT) / "simulations" / rid / "details.json"
+
+
+def _load_details(rid: str) -> dict:
+    try:
+        return json.loads(_details_path(rid).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 def _save_details(rid: str, **parts) -> None:
@@ -591,13 +611,44 @@ def list_templates() -> dict:
 
 
 @mcp.tool()
+def find_part(query: str, kind: Literal["any", "opamp", "nmos", "pmos", "diode", "npn",
+                                        "pnp"] = "any") -> dict:
+    """Find a real part by part number or maker in the SPICE libraries on this computer
+    (LTspice's, plus SPICEMCP_LIB_DIRS). Use the name in start_from_template parts."""
+    def go():
+        dirs = partlib.lib_dirs()
+        if not dirs:
+            raise partlib.PartError(
+                "part not found in the SPICE libraries: no library folder found")
+        hits = partlib.find(query, kind)
+        return {"matches": [p.short() for p in hits],
+                "searched": [str(d) for d in dirs],
+                "next_step": ("Pass a name as start_from_template(..., parts={'opamp': "
+                              "NAME}); each template lists its part slots under parts."
+                              if hits else "No match: try fewer characters or kind='any'.")}
+    return _call("find_part", go)
+
+
+@mcp.tool()
 def start_from_template(run_id: str, template: str, spec: dict[str, float],
-                        sim_options: SimOptions | None = None) -> dict:
+                        sim_options: SimOptions | None = None,
+                        parts: dict[Literal["opamp", "switch", "diode"], str] | None = None
+                        ) -> dict:
     """Build a run from a ready-made circuit, size it by hand equations and simulate
-    that start point. spec keys come from list_templates, in SI units."""
+    that start point. spec keys from list_templates (SI); parts: names from find_part."""
     def go():
         t = topologies.get(template)
         d = t.design(spec)
+        chosen = {}
+        for slot, name in (parts or {}).items():
+            if slot not in t.parts:
+                raise partlib.PartError(
+                    f"{template} has no {slot} slot; it takes {list(t.parts) or 'no parts'}")
+            part = partlib.get(name)
+            d.netlist = partlib.apply(d.netlist, slot, part)
+            chosen[slot] = part.short()
+            d.working.append(f"{slot}: {part.name} ({part.short().get('rated', part.role)}) "
+                             f"from {part.file}, wired {partlib.SLOTS[slot][2]}.")
         space = {p.pop("name"): p for p in (dict(x) for x in d.params)}
         out = engine.start_run(con(), run_id, d.netlist, space, d.goals,
                                _constraints([Limit(**x) for x in d.limits]),
@@ -614,15 +665,17 @@ def start_from_template(run_id: str, template: str, spec: dict[str, float],
             out["schematic_asc"] = str(sch.resolve())
         except (layout.LayoutError, OSError, ValueError):
             pass
-        _save_details(run_id, template=template, spec=spec,
+        _save_details(run_id, template=template, spec=spec, parts=chosen,
+                      part_ratings={s: partlib.get(n).ratings for s, n in (parts or {}).items()},
                       hand_calculation=d.working, feasibility=out.get("feasibility"))
-        watched = {c["metric"] for c in out["constraints"]} | \
+        watched = REPORTED | {c["metric"] for c in out["constraints"]} | \
             {o["metric"] for o in out["objectives"]}
         m = first.get("metrics") or {}
         out = {"run_id": run_id, "template": template,
                "limits": _limits_text(out["constraints"]),
                "goal": [f"{o['direction']} {o['metric']}" for o in out["objectives"]],
                "feasibility": _short_feasibility(out.get("feasibility")),
+               **({"parts": chosen} if chosen else {}),
                "start_point": d.start,
                "start_result": {"candidate_id": first.get("candidate_id"),
                                 "status": first.get("status", "ok"),
@@ -831,45 +884,96 @@ def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "
                   inductors: Series = "E12",
                   tolerance_pct: dict[Literal["R", "C", "L"], float] | None = None,
                   yield_runs: Annotated[int, Field(ge=0, le=500)] = 30,
-                  supply: str = "", supply_tol_pct: float = 0.0,
+                  supply: str = "", supply_tol_pct: float | None = None,
+                  temps_c: list[float] | None = None,
                   seed: int | None = None) -> dict:
-    """End a run: snap the best design to standard part values, check yield under
-    part tolerance, return the parts list. Default tolerance R 1%, C 5%, L 20%."""
+    """Snap the best design to standard values, check yield over parts (R 1% C 5% L 20%),
+    supply and temperature (templates: 5%, -40/25/85 C); return the parts list."""
     def go():
+        sup, tol, temps = _corners(run_id, supply, supply_tol_pct, temps_c)
         out = buildable.finish(
             con(), run_id, {"R": resistors, "C": capacitors, "L": inductors},
             {k: v / 100 for k, v in (tolerance_pct or {}).items()}, yield_runs,
-            supply or None, supply_tol_pct / 100, seed)
+            sup, tol, seed, temps)
         y = out.get("yield")
         if y:
             f = db.state_root(PROJECT) / "simulations" / run_id / "yield" / "samples.json"
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(db.jdumps(y.pop("samples")), encoding="utf-8")
             y["samples_path"] = str(f)
+        det = _load_details(run_id)
+        chosen = {s: (det["parts"][s]["name"], r)
+                  for s, r in (det.get("part_ratings") or {}).items()}
+        rating_check = stress.against_ratings(out.get("stress") or {}, chosen)
+        if rating_check:
+            out["rating_check"] = rating_check
         _save_details(run_id, finish=out)
         out = _short_finish(out)
+        if rating_check:
+            out["rating_check"] = rating_check
         ok = out["meets_all_limits"]
         pct = (y or {}).get("yield_pct")
+        wc = (out.get("yield") or {}).get("worst_case", {})
         out["next_step"] = (
             f"Buildable design found. Call generate_design_report(run_id='{run_id}')."
             if ok and (pct is None or pct >= 90) else
-            "Standard values meet the limits but yield is low: tighten tolerance_pct "
-            "(e.g. 1% capacitors) or relax a limit." if ok else
+            f"Standard values meet the limits but yield is low, mostly from "
+            f"{wc.get('fails_most', 'a limit')}" + (
+                f" at {wc['most_failures_at_c']:g} C" if "most_failures_at_c" in wc else "") +
+            (f" with {wc['part_driving_failures']['part']} "
+             f"{wc['part_driving_failures']['direction']}: tighten its tolerance_pct, "
+             if "part_driving_failures" in wc else ": ") +
+            "re-optimise with a tighter limit for margin, or relax the limit."
+            if ok else
             "No standard-value combination meets every limit. Use a finer series "
             "(E96, E24) or relax the limit that fails.")
         return out
     return _call("finish_design", go)
 
 
+def _corners(run_id: str, supply: str, tol_pct: float | None,
+             temps: list[float] | None) -> tuple:
+    """Fill in the corners a template run is checked at when the caller left them out:
+    its own supply +-5%, and -40/25/85 C when it has transistors or diodes. A custom
+    netlist is checked only at what the caller asks for."""
+    run = engine.get_run(con(), run_id)
+    template = (run["notes"] or "").startswith("template")
+    net = run["netlist_template"]
+    if not supply and template and tol_pct is None:
+        supply = buildable.default_supply(net) or ""
+    if tol_pct is None:
+        tol_pct = 5.0 if supply else 0.0
+    if temps is None and template and buildable.has_semiconductors(net):
+        temps = [-40.0, 25.0, 85.0]
+    return supply or None, tol_pct / 100, temps
+
+
+def _short_stress(st: dict | None) -> dict:
+    """Only the ratings to buy; the measured stress goes to details."""
+    if not st:
+        return {}
+    if not st.get("checked"):
+        return {"stress": "not checked: " + st.get("why", "")}
+    return {"buy_at_least": {n: p["buy"] for n, p in st["parts"].items()}}
+
+
 def _short_finish(out: dict) -> dict:
     """The parts list, pass/fail and yield. Alternatives, the optimiser's own metrics
     and the per-metric spread go to query_run(what='details')."""
     run = engine.get_run(con(), out["run_id"])
-    watched = {c["metric"] for c in db.jloads(run, "constraints", [])}
+    watched = REPORTED | {c["metric"] for c in db.jloads(run, "constraints", [])}
     y = out.get("yield")
     short_y = None if not y else {
         k: y[k] for k in ("runs", "passed", "yield_pct", "yield_at_least_pct", "seed",
-                          "statement", "samples_path") if k in y}
+                          "statement", "covers", "samples_path") if k in y}
+    if y and y.get("worst_case", {}).get("boards_failing"):
+        w = y["worst_case"]
+        short_y["worst_case"] = {k: v for k, v in w.items()
+                                 if k in ("fails_most", "most_failures_at_c",
+                                          "part_driving_failures")}
+        if w.get("tightest_limit"):
+            short_y["worst_case"]["tightest"] = {
+                "metric": w["tightest_limit"], **w["limits"][w["tightest_limit"]]}
     return {
         "run_id": out["run_id"],
         "buildable_candidate": out["buildable_candidate"],
@@ -882,6 +986,7 @@ def _short_finish(out: dict) -> dict:
         "worst_margin_pct": out["worst_margin_pct"],
         "nearest_values_meet_limits": out["nearest_values_meet_limits"],
         "yield": short_y,
+        **_short_stress(out.get("stress")),
         "more": f"query_run(run_id='{out['run_id']}', what='details')",
     }
 
