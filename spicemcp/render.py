@@ -25,8 +25,8 @@ The SVG emitter is stdlib-only: an MCP server has to keep importing on a machine
 no matplotlib, and vector output is the one that matters for documentation. matplotlib
 is needed only for PNG.
 
-ponytail: deliberately restrained. No auto-layout, no rats-nest routing, no colour per
-component. Colour appears only where it carries information (an input, an output, a
+ponytail: deliberately restrained. Placement and routing belong to `layout.py`; this
+file only draws. No colour per component. Colour appears only where it carries information (an input, an output, a
 warning); everything else is one ink. A schematic that looks generated is a schematic
 nobody trusts.
 """
@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import re
 from pathlib import Path
 
 from . import asc
@@ -142,6 +143,38 @@ def _just(tok: str) -> tuple[str, str]:
     if t.startswith("v") and t[1:] in JUST:
         t = t[1:]
     return JUST.get(t, ("left", "center"))
+
+
+_NUM = re.compile(r"(?<![\w.{])([-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?)(?![\w.])")
+_SUFFIX = ((1e12, "T"), (1e9, "G"), (1e6, "Meg"), (1e3, "k"), (1, ""), (1e-3, "m"),
+           (1e-6, "u"), (1e-9, "n"), (1e-12, "p"), (1e-15, "f"))
+
+
+def eng(v: float) -> str:
+    """3 significant figures with a SPICE suffix: 1.5915e-08 -> 15.9n, 1e6 -> 1Meg."""
+    if v == 0:
+        return "0"
+    a = abs(v)
+    for k, suf in _SUFFIX:
+        if a >= k * 0.9995:
+            break
+    t = f"{v / k:.3g}"
+    return t + suf
+
+
+def pretty_value(text: str) -> str:
+    """A part value as a person writes it. Display only: the `.asc` keeps the exact
+    number, because a rounded value is a different circuit.
+
+    Only numbers written with a decimal point or an exponent are rewritten (`2000` in a
+    gain stays `2000`), and behavioural expressions (`V=...`) are left exactly as typed.
+    """
+    if re.match(r"\s*[VIRQ]\s*=", text, re.I):
+        return text
+    parts = re.split(r"(\{[^}]*\})", text)               # leave {expressions} alone
+    return "".join(p if p.startswith("{") else _NUM.sub(
+        lambda m: eng(float(m.group(1))) if re.search(r"[.eE]", m.group(1))
+        else m.group(1), p) for p in parts)
 
 
 def _net_role(label: str) -> str:
@@ -253,7 +286,8 @@ def _part_prims(p: asc.Placed) -> list[Prim]:
     for lab in p.labels():
         ha, va = _just(lab["just"])
         role = {"InstName": "designator", "Value": "value"}.get(lab["attr"], "spiceline")
-        out.append(_text(role, lab["at"], lab["text"],
+        text = lab["text"] if role == "designator" else pretty_value(lab["text"])
+        out.append(_text(role, lab["at"], text,
                          TEXT_UNITS * FONT_MULT.get(lab["size"], 1.0), ha, va))
     return out
 

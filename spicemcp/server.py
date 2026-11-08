@@ -16,12 +16,13 @@ Long explanations live in the README, not in the tool list.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from . import db, engine, feasibility, plots, render, report, sim, topologies
+from . import db, engine, feasibility, layout, plots, render, report, sim, topologies
 
 INSTRUCTIONS = """\
 SpiceMCP designs circuits with LTspice. Typical flow:
@@ -172,7 +173,7 @@ EXAMPLES = {
     "rollback_to_candidate": {"run_id": "rc_001", "candidate_id": "cand_0003"},
     "stop_optimization": {"run_id": "rc_001"},
     "generate_design_report": {"run_id": "rc_001", "pvt": True, "monte_carlo": 100},
-    "render_schematic": {"asc_path": "amp.asc", "output_path": "amp.png"},
+    "render_schematic": {"path": "amp.cir", "output_path": "amp.png"},
     "list_templates": {},
     "start_from_template": {"run_id": "lpf_001", "template": "sallen_key_lowpass",
                             "spec": {"fc": 10000}},
@@ -333,6 +334,12 @@ def start_from_template(run_id: str, template: str, spec: dict[str, float],
         if "error" in out:
             return out
         first = engine.evaluate(con(), run_id, d.start, None, None, False, "template")
+        try:                                   # a drawing is a convenience, never a gate
+            sch = layout.draw(d.netlist, d.start).write(
+                db.state_root(PROJECT) / "schematics" / f"{run_id}.asc")
+            out["schematic_asc"] = str(sch.resolve())
+        except (layout.LayoutError, OSError, ValueError):
+            pass
         out.update({"template": template, "hand_calculation": d.working,
                     "start_point": d.start,
                     "start_result": {k: first.get(k) for k in
@@ -535,14 +542,25 @@ def generate_design_report(run_id: str, plots: bool = True, dc_audit: bool = Fal
 
 
 @mcp.tool()
-def render_schematic(asc_path: str, output_path: str = "schematic.png",
+def render_schematic(path: str, output_path: str = "schematic.png",
                      style: Literal["tech_minimal", "classic", "sketch"] = "tech_minimal"
                      ) -> dict:
-    """Draw an LTspice .asc file as a PNG or SVG (chosen by output_path extension).
-    Styles: tech_minimal (default), classic (print), sketch (notebook)."""
+    """Draw a schematic as PNG or SVG. path: an LTspice .asc, or a SPICE netlist
+    (.cir/.net/.sp), which is auto-placed, routed and checked first."""
     try:
-        out = render.render(asc_path, output_path, style, 300)
-    except (render.RenderError, OSError, ValueError) as e:
+        src, drawn = Path(path), None
+        if src.suffix.lower() != ".asc":
+            if not src.is_file():
+                raise OSError(f"no such file: {src}")
+            d = layout.draw(src.read_text(encoding="utf-8", errors="replace"))
+            src = d.write(Path(output_path).with_suffix(".asc"))
+            drawn = src
+        out = render.render(str(src), output_path, style, 300)
+        out["readability"] = layout.lint(src)
+        if drawn:
+            out["asc_path"] = str(drawn.resolve())
+            out["matches_netlist"] = True       # draw() refuses a drawing that doesn't
+    except (render.RenderError, layout.LayoutError, OSError, ValueError) as e:
         return {"success": False, "output_path": None,
                 **_fail("render_schematic", f"{type(e).__name__}: {e}")}
     out["next_step"] = "Show the image at output_path to the user."

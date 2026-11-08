@@ -5,9 +5,7 @@ coordinates. Placing `SYMBOL`/`WIRE` numbers by hand is where a schematic silent
 comes out mis-wired -- it opens, it simulates, and it is not the circuit you meant.
 Pin offsets are read from the real `.asy` file, so LTspice's own parts work without a
 table here: `res`, `cap`, `OpAmps/opamp`, `nmos`, `npn`, anything in `lib/sym`.
-  skipped: auto-placement from a netlist. Parts still get a rough (x, y); only the
-  pins and the routing are computed. Add a placer when a topology shows up that
-  nobody wants to position by hand.
+Placement from a netlist lives in `layout.py`, which drives this module.
 
 Pair every generated schematic with `check()`, which netlists it through LTspice and
 hands back the element lines to compare against the netlist you meant to draw. That
@@ -47,6 +45,12 @@ SYM_CANDIDATES = [
     r"{home}\Documents\LTspiceXVII\lib\sym",
     r"C:\Program Files\LTC\LTspiceXVII\lib\sym",
 ]
+
+# A minimal symbol set shipped with the package (R, C, L, D, V, I, B, E, G, S, MOSFETs),
+# drawn to LTspice's own pin positions. Used only when LTspice's library is not found,
+# so a schematic can be drawn and checked on a machine with no LTspice; a real library
+# always wins.
+BUNDLED_SYMS = Path(__file__).with_name("symbols")
 
 _PIN = re.compile(r"^PIN\s+(-?\d+)\s+(-?\d+)", re.M)
 
@@ -125,8 +129,7 @@ def _find_asy(name: str, search: str | None = None) -> Path:
     d = find_sym_dir()
     if d is not None:
         dirs.append(d)
-    if not dirs:
-        raise FileNotFoundError("LTspice symbol dir not found; set LTSPICE_SYM")
+    dirs.append(BUNDLED_SYMS)
     for base in dirs:
         p = base.joinpath(*rel).with_suffix(".asy")
         if p.is_file():
@@ -254,6 +257,7 @@ class Part:
             raise ValueError(f"bad orientation {rot!r}; one of {sorted(ORIENT)}")
         self.sym, self.inst, self.at, self.rot, self.attrs = sym, inst, at, rot, attrs
         self.meta = symbol(sym)
+        self.windows: dict[int, tuple] = {}      # attribute index -> (x, y, just, size)
 
     def __getitem__(self, pin: str) -> tuple[int, int]:
         try:
@@ -266,8 +270,10 @@ class Part:
 
     def lines(self) -> list[str]:
         out = [f"SYMBOL {self.sym.replace('/', chr(92) * 2)} "
-               f"{self.at[0]} {self.at[1]} {self.rot}",
-               f"SYMATTR InstName {self.inst}"]
+               f"{self.at[0]} {self.at[1]} {self.rot}"]
+        out += [f"WINDOW {i} {x} {y} {j} {z}"
+                for i, (x, y, j, z) in sorted(self.windows.items())]
+        out.append(f"SYMATTR InstName {self.inst}")
         out += [f"SYMATTR {k} {v}" for k, v in self.attrs.items()]
         return out
 

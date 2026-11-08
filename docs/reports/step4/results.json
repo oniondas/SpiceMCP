@@ -1,0 +1,242 @@
+{
+ "templates": {
+  "rc_lowpass": {
+   "before": {
+    "score": 30,
+    "crossings": 0,
+    "through_parts": 1,
+    "overlaps": 0,
+    "ambiguous": 2,
+    "dangling": 0,
+    "bends": 1,
+    "wire_length": 432,
+    "net_labels": 0,
+    "parts": 3,
+    "wrong_connections": 4
+   },
+   "after": {
+    "score": 100,
+    "crossings": 0,
+    "through_parts": 0,
+    "overlaps": 0,
+    "ambiguous": 0,
+    "dangling": 0,
+    "bends": 1,
+    "wire_length": 480,
+    "net_labels": 1,
+    "parts": 3,
+    "wrong_connections": 0
+   }
+  },
+  "sallen_key_lowpass": {
+   "before": {
+    "score": 0,
+    "crossings": 1,
+    "through_parts": 6,
+    "overlaps": 0,
+    "ambiguous": 4,
+    "dangling": 0,
+    "bends": 5,
+    "wire_length": 1600,
+    "net_labels": 0,
+    "parts": 6,
+    "wrong_connections": 8
+   },
+   "after": {
+    "score": 88,
+    "crossings": 1,
+    "through_parts": 0,
+    "overlaps": 0,
+    "ambiguous": 0,
+    "dangling": 0,
+    "bends": 4,
+    "wire_length": 1616,
+    "net_labels": 1,
+    "parts": 6,
+    "wrong_connections": 0
+   }
+  },
+  "noninverting_amp": {
+   "before": {
+    "score": 0,
+    "crossings": 1,
+    "through_parts": 5,
+    "overlaps": 0,
+    "ambiguous": 5,
+    "dangling": 0,
+    "bends": 4,
+    "wire_length": 2144,
+    "net_labels": 0,
+    "parts": 8,
+    "wrong_connections": 9
+   },
+   "after": {
+    "score": 97,
+    "crossings": 0,
+    "through_parts": 0,
+    "overlaps": 0,
+    "ambiguous": 0,
+    "dangling": 0,
+    "bends": 11,
+    "wire_length": 2752,
+    "net_labels": 1,
+    "parts": 8,
+    "wrong_connections": 0
+   }
+  },
+  "ldo": {
+   "before": {
+    "score": 0,
+    "crossings": 0,
+    "through_parts": 2,
+    "overlaps": 0,
+    "ambiguous": 3,
+    "dangling": 0,
+    "bends": 3,
+    "wire_length": 1536,
+    "net_labels": 0,
+    "parts": 7,
+    "wrong_connections": 9
+   },
+   "after": {
+    "score": 88,
+    "crossings": 1,
+    "through_parts": 0,
+    "overlaps": 0,
+    "ambiguous": 0,
+    "dangling": 0,
+    "bends": 3,
+    "wire_length": 1904,
+    "net_labels": 4,
+    "parts": 7,
+    "wrong_connections": 0
+   }
+  },
+  "buck": {
+   "before": {
+    "score": 0,
+    "crossings": 0,
+    "through_parts": 2,
+    "overlaps": 0,
+    "ambiguous": 3,
+    "dangling": 0,
+    "bends": 5,
+    "wire_length": 1296,
+    "net_labels": 0,
+    "parts": 7,
+    "wrong_connections": 7
+   },
+   "after": {
+    "score": 100,
+    "crossings": 0,
+    "through_parts": 0,
+    "overlaps": 0,
+    "ambiguous": 0,
+    "dangling": 0,
+    "bends": 4,
+    "wire_length": 1328,
+    "net_labels": 1,
+    "parts": 7,
+    "wrong_connections": 0
+   }
+  }
+ },
+ "unseen": {
+  "ladder5": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 2,
+   "wire_length": 1568,
+   "net_labels": 0,
+   "parts": 11
+  },
+  "bridge": {
+   "score": 99,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 7,
+   "wire_length": 1440,
+   "net_labels": 0,
+   "parts": 6
+  },
+  "inverting": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 5,
+   "wire_length": 1280,
+   "net_labels": 0,
+   "parts": 5
+  },
+  "pi_filter": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 2,
+   "wire_length": 1024,
+   "net_labels": 0,
+   "parts": 7
+  },
+  "cs_amp": {
+   "score": 99,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 8,
+   "wire_length": 1328,
+   "net_labels": 0,
+   "parts": 7
+  },
+  "two_stage": {
+   "score": 96,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 11,
+   "wire_length": 2640,
+   "net_labels": 0,
+   "parts": 7
+  },
+  "boost": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 6,
+   "wire_length": 1536,
+   "net_labels": 0,
+   "parts": 7
+  },
+  "lc_tank": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 2,
+   "wire_length": 720,
+   "net_labels": 0,
+   "parts": 4
+  }
+ }
+}

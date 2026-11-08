@@ -99,6 +99,7 @@ def test_start_from_template_simulates_the_start_and_says_what_next(monkeypatch)
                                      server.SimOptions(backend="ngspice"))
     assert out["start_result"]["feasible"], out
     assert out["hand_calculation"] and "run_optimization" in out["next_step"]
+    assert Path(out["schematic_asc"]).is_file()
     assert engine.select_next(server.con(), "lpf")["method"] != "global_sample"
     bad = server.start_from_template("x", "nope", {})
     assert "list_templates" in bad["fix"]
