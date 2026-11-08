@@ -15,9 +15,11 @@ Two backends:
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -468,6 +470,26 @@ def _run_ngspice(netlist: str, workdir: Path, stem: str, sim_config: dict) -> Si
     return SimResult(status="ok", metrics=metrics, warnings=warnings, log_path=str(log))
 
 
+def workers() -> int:
+    """How many simulations run at once: SPICEMCP_WORKERS, else one per CPU core up to
+    8. Each simulation is its own simulator process, so threads only wait on them."""
+    try:
+        n = int(os.environ.get("SPICEMCP_WORKERS", "0"))
+    except ValueError:
+        n = 0
+    return max(1, n or min(os.cpu_count() or 1, 8))
+
+
+def parallel_map(fn: Callable, items, n: int | None = None) -> list:
+    """`[fn(x) for x in items]`, run on up to `workers()` threads, results in order."""
+    items = list(items)
+    n = min(n or workers(), len(items))
+    if n <= 1:
+        return [fn(x) for x in items]
+    with ThreadPoolExecutor(max_workers=n) as ex:
+        return list(ex.map(fn, items))
+
+
 def decks(netlist: str) -> list[str]:
     """Split a netlist into its decks. Each `.end` closes one deck.
 
@@ -496,14 +518,18 @@ def simulate(netlist: str, params: dict, sim_config: dict, workdir: Path,
         return SimResult(status="failed", failure_type=STRUCTURAL_ERROR,
                          failure_message=f"unknown backend {backend!r}")
     run = _run_ltspice if backend == "ltspice" else _run_ngspice
-    parts = decks(netlist)
+    from .opamp import include_blocks          # opamp is pure text; no import cycle
+    parts = [include_blocks(d) for d in decks(netlist)]
     if len(parts) == 1:
-        return run(netlist, workdir, stem, sim_config)
-    # Several decks: run each, merge the measurements. The first failure stops it, and
-    # says which deck failed, since a stability deck can fail where the main one ran.
+        return run(parts[0], workdir, stem, sim_config)
+    # Several decks: independent simulations, so they run side by side. Measurements
+    # are merged in deck order; the first failure (in that order) is reported, and says
+    # which deck failed, since a stability deck can fail where the main one ran.
+    results = parallel_map(
+        lambda i: run(parts[i], workdir, stem if i == 0 else f"{stem}_d{i + 1}",
+                      sim_config), range(len(parts)))
     merged = SimResult(status="ok")
-    for i, deck in enumerate(parts):
-        r = run(deck, workdir, stem if i == 0 else f"{stem}_d{i + 1}", sim_config)
+    for i, r in enumerate(results):
         if r.status != "ok":
             r.failure_message = f"deck {i + 1} of {len(parts)}: {r.failure_message}"
             return r
@@ -675,6 +701,9 @@ def simulate_sweep(netlist: str, param_name: str, values: list[float],
     cfg["require_meas"] = False          # the stepped tables are read below, not by parse_meas
     deck, symbol, rewrote = sweep_netlist(netlist, param_name, values)
     asked = [float(v) for v in values]
+    if cfg["backend"] != "ltspice":
+        return _sweep_point_by_point(deck, symbol, rewrote, asked, Path(workdir), stem,
+                                     cfg, param_name)
 
     res = _run_ltspice(deck, Path(workdir), stem, cfg)
     out: dict = {"sweep_param": {"name": param_name, "symbol": symbol,
@@ -741,4 +770,54 @@ def simulate_sweep(netlist: str, param_name: str, values: list[float],
     out.update(status="ok", points=n,
                metrics=sorted(tables),
                complete=(n == len(asked) and not missing))
+    return out
+
+
+def _sweep_point_by_point(deck: str, symbol: str, rewrote: dict, asked: list[float],
+                          workdir: Path, stem: str, cfg: dict, param_name: str) -> dict:
+    """The same sweep for a backend without LTspice's `.step`: one simulation per
+    value, side by side, each with the stepped symbol set by `.param` (or `.temp`)."""
+    body = [ln for ln in deck.splitlines() if not _STEP_LINE.match(ln)]
+    cfg = {**cfg, "require_meas": False}
+
+    def point(i: int) -> SimResult:
+        v = ir.fmt_value(asked[i])
+        lines = list(body)
+        if symbol == "temp":
+            add = f".temp {v}"
+        else:
+            lines = [ln for ln in lines if not re.match(
+                rf"^\s*\.param\s+{re.escape(symbol)}\s*=", ln, re.I)]
+            add = f".param {symbol}={v}"
+        end = next((k for k in range(len(lines) - 1, -1, -1)
+                    if _END_LINE.match(lines[k])), len(lines))
+        lines.insert(end, add)
+        return simulate("\n".join(lines) + "\n", {}, cfg, workdir, f"{stem}_{i + 1:03d}")
+
+    res = parallel_map(point, range(len(asked)))
+    out: dict = {"sweep_param": {"name": param_name, "symbol": symbol, "values": asked},
+                 "metrics_table": [], "raw_path": None, "log_path": None,
+                 "netlist": deck, "rewrote": rewrote, "warnings": [],
+                 "method": "one simulation per value"}
+    bad = [(i, r) for i, r in enumerate(res) if r.status != "ok"]
+    if len(bad) == len(res):
+        r = bad[0][1]
+        out.update(status="failed", failure_type=r.failure_type,
+                   failure_message=r.failure_message, failure_detail=r.failure_detail,
+                   log_path=r.log_path)
+        return out
+    names = set()
+    for i, r in enumerate(res):
+        row = {"step": i + 1, "value": asked[i], "value_source": "requested",
+               "metrics": dict(r.metrics) if r.status == "ok" else {}}
+        if r.status != "ok":
+            row["warning"] = f"failed: {r.failure_message}"
+        names |= set(row["metrics"])
+        out["metrics_table"].append(row)
+        out["warnings"] += r.warnings
+    if not names:
+        out["warnings"].append("no .meas results: add .meas directives to get metrics "
+                               "per point")
+    out.update(status="ok", points=len(asked), metrics=sorted(names),
+               complete=not bad and bool(names), log_path=res[0].log_path)
     return out

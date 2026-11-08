@@ -15,29 +15,39 @@ Long explanations live in the README, not in the tool list.
 
 from __future__ import annotations
 
+import functools
 import json
 import os
+import threading
+import time
 from pathlib import Path
 from typing import Annotated, Literal
 
-from mcp.server.fastmcp import FastMCP
-from mcp.types import TextContent
+try:                                     # mcp 1.x
+    from mcp.server.fastmcp import FastMCP as _Server
+    MCP2 = False
+except ImportError:                      # mcp 2.x renamed FastMCP to MCPServer
+    from mcp.server.mcpserver import MCPServer as _Server
+    MCP2 = True
+from mcp.types import CallToolResult, TextContent
+import contextvars
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from . import buildable, db, engine, feasibility, layout, plots, render, report, sim, topologies
+from . import (buildable, db, engine, feasibility, layout, opamp, plots, progress, render,
+               report, sim, topologies)
 
 INSTRUCTIONS = """\
 SpiceMCP designs circuits with LTspice. Typical flow:
-1. check_feasibility  (is the spec possible?)
-2. start_from_template (filters, amplifier, LDO, buck: sized for you), or
-   start_optimization (your own netlist with {PARAM} placeholders and .meas lines)
-3. run_optimization   (the server searches; you do not loop per simulation)
-4. finish_design      (standard part values + yield under tolerance)
-5. generate_design_report
-query_run reads saved state (status, best, history ...) at any time.
-Use simulate for a one-off netlist or a sweep. Follow `next_step` in each answer.
-Never rebuild a past circuit from memory: use query_run(what="netlist") or
-rollback_to_candidate."""
+1. start_from_template (filters, amplifier, LDO, buck: sized for you; see
+   list_templates), or start_optimization (your netlist with {PARAM} placeholders
+   and .meas lines; it checks the spec is possible first)
+2. run_optimization   (the server searches; you do not loop per simulation)
+3. finish_design      (standard part values + yield under tolerance)
+4. generate_design_report
+Built-in blocks need no .subckt: X1 in+ in- V+ V- out SPMCP_OA (op-amp) or SPMCP_CMP
+(comparator). Long calls return within a minute; if an answer says "still running",
+call the same tool again. query_run reads saved state at any time. Follow next_step.
+Never rebuild a past circuit from memory: use query_run(what="netlist")."""
 
 # Inputs that work when passed but are left out of the published tool list: a model
 # never needs them, and every byte of the list is re-sent on every turn.
@@ -91,21 +101,51 @@ def compact(obj) -> str:
     return json.dumps(_round(obj), separators=(",", ":"), ensure_ascii=False, default=str)
 
 
-class CompactMCP(FastMCP):
-    """FastMCP with a slimmer tool list and one-line JSON answers."""
+_CTX: contextvars.ContextVar = contextvars.ContextVar("spicemcp_ctx", default=None)
+
+
+def tool_schema(tool) -> dict:
+    """A listed tool's input schema, on mcp 1.x (`inputSchema`) or 2.x (`input_schema`)."""
+    return tool.input_schema if MCP2 else tool.inputSchema
+
+
+def answer_text(res) -> str:
+    """The text of a call_tool answer, on mcp 1.x (content list) or 2.x (a result)."""
+    res = res[0] if isinstance(res, tuple) else res
+    return getattr(res, "content", res)[0].text
+
+
+class CompactMCP(_Server):
+    """The MCP server with a slimmer tool list and one-line JSON answers. Runs on the
+    mcp package 1.x (FastMCP) and 2.x (MCPServer)."""
 
     async def list_tools(self):
         tools = await super().list_tools()
         for t in tools:
-            t.inputSchema = _slim_schema(t.inputSchema)
+            if MCP2:
+                t.input_schema = _slim_schema(t.input_schema)
+            else:
+                t.inputSchema = _slim_schema(t.inputSchema)
         return tools
 
-    async def call_tool(self, name, arguments):
+    async def call_tool(self, name, arguments, context=None):
         tool = self._tool_manager.get_tool(name)
-        if tool is None:                         # FastMCP raises its own clear error
-            return await super().call_tool(name, arguments)
-        out = await tool.run(arguments, context=self.get_context())
-        return [TextContent(type="text", text=out if isinstance(out, str) else compact(out))]
+        if tool is None:                         # the base class raises a clear error
+            return await (super().call_tool(name, arguments, context) if MCP2
+                          else super().call_tool(name, arguments))
+        if context is None:
+            if MCP2:
+                from mcp.server.mcpserver import Context
+                context = Context(mcp_server=self, subscriptions=self._subscriptions)
+            else:
+                context = self.get_context()
+        token = _CTX.set(context)
+        try:
+            out = await tool.run(arguments, context=context)
+        finally:
+            _CTX.reset(token)
+        content = [TextContent(type="text", text=out if isinstance(out, str) else compact(out))]
+        return CallToolResult(content=content) if MCP2 else content
 
 
 mcp = CompactMCP("spicemcp", instructions=INSTRUCTIONS)
@@ -114,11 +154,133 @@ PROJECT = os.environ.get("SPICEMCP_PROJECT", os.getcwd())
 _con = None
 
 
+_tl = threading.local()
+
+
 def con():
+    """The main thread's connection, or this worker thread's own (SQLite connections
+    are not shared across threads; WAL lets them read and write side by side)."""
     global _con
+    if threading.current_thread() is not threading.main_thread():
+        if getattr(_tl, "con", None) is None or _tl.project != PROJECT:
+            _tl.con, _tl.project = db.connect(PROJECT), PROJECT
+        return _tl.con
     if _con is None:
         _con = db.connect(PROJECT)
     return _con
+
+
+def _close_thread_con():
+    c = getattr(_tl, "con", None)
+    if c is not None:
+        c.close()
+        _tl.con = None
+
+
+# --- long calls: progress, a time limit, and work that outlives one call ------------
+# MCP clients drop calls that run for minutes. A long tool runs on a worker thread; the
+# call sends progress while it waits, and returns within CALL_BUDGET_S. run_optimization
+# stops itself at the limit (state is saved, so the next call continues). finish_design
+# keeps running in the background; calling it again for the same run picks up the
+# result.
+
+def call_budget() -> float:
+    try:
+        return max(0.5, float(os.environ.get("SPICEMCP_CALL_BUDGET_S", "50")))
+    except ValueError:
+        return 50.0
+
+
+class Job:
+    def __init__(self, tool: str, run_id: str, key: str, fn, budget: float | None):
+        self.tool, self.run_id, self.key = tool, run_id, key
+        self.tracker = progress.Tracker(budget)
+        self.result: dict | None = None
+        self.started = time.monotonic()
+        self.thread = threading.Thread(target=self._run, args=(fn,), daemon=True,
+                                       name=f"{tool}:{run_id}")
+        self.thread.start()
+
+    def _run(self, fn):
+        progress.install(self.tracker)
+        try:
+            self.result = fn()
+        except Exception as e:                  # never lose a job's outcome silently
+            self.result = _fail(self.tool, f"{type(e).__name__}: {e}")
+        finally:
+            progress.install(None)
+            _close_thread_con()
+
+    @property
+    def finished(self) -> bool:
+        return self.result is not None
+
+
+JOBS: dict[tuple[str, str], Job] = {}
+_JOBS_LOCK = threading.Lock()
+
+
+async def _report(ctx, snap: dict) -> None:
+    if ctx is None:
+        return
+    try:
+        await ctx.report_progress(snap["done"], snap["total"], snap["message"] or None)
+    except TypeError:                            # mcp versions without a message field
+        try:
+            await ctx.report_progress(snap["done"], snap["total"])
+        except Exception:
+            pass
+    except Exception:                            # no progress token, no session: fine
+        pass
+
+
+async def _wait(job: Job, limit: float | None) -> None:
+    import anyio
+    ctx = _CTX.get()
+    last, t0 = None, time.monotonic()
+    while not job.finished and (limit is None or time.monotonic() - t0 < limit):
+        await anyio.sleep(0.2)
+        snap = job.tracker.snapshot()
+        if snap != last:
+            await _report(ctx, snap)
+            last = snap
+
+
+def long_tool(background: bool):
+    """Register `fn` as an MCP tool that runs on a worker thread with progress and a
+    time limit. The Python function itself stays plain and synchronous, for scripts."""
+    def deco(fn):
+        name = fn.__name__
+
+        @functools.wraps(fn)
+        async def tool(**kw):
+            rid = kw.get("run_id", "")
+            key = json.dumps(kw, sort_keys=True, default=str)
+            with _JOBS_LOCK:
+                job = JOBS.get((name, rid))
+                attached = job is not None and not job.finished
+                if job is None or (job.finished and job.key != key):
+                    job = JOBS[(name, rid)] = Job(
+                        name, rid, key, lambda: fn(**kw),
+                        None if background else call_budget())
+            await _wait(job, call_budget() if background else None)
+            if not job.finished:
+                snap = job.tracker.snapshot()
+                return {"run_id": rid, "status": "still running",
+                        "progress": snap["message"] or f"{snap['done']} simulations",
+                        "seconds_so_far": round(time.monotonic() - job.started),
+                        **({"note": "Already running from an earlier call; its inputs "
+                                    "apply."} if attached and job.key != key else {}),
+                        "next_step": f"Call {name}(run_id='{rid}') again to wait for "
+                                     f"the result."}
+            with _JOBS_LOCK:
+                if JOBS.get((name, rid)) is job:
+                    del JOBS[(name, rid)]
+            return job.result
+
+        mcp.tool()(tool)
+        return fn
+    return deco
 
 
 # --- input models ----------------------------------------------------------------
@@ -364,7 +526,7 @@ def check_setup() -> dict:
 @mcp.tool()
 def simulate(netlist: str, sweep_param: str = "", sweep_values: list[float] | None = None,
              timeout_s: float = 120.0) -> dict:
-    """Run one LTspice netlist now and return its .meas results. Nothing is saved.
+    """Run one netlist now and return its .meas results. Nothing is saved.
     To sweep, set sweep_param ("R1", "{GAIN}" or "temp") and sweep_values."""
     if sweep_param or sweep_values:
         if not (sweep_param and sweep_values):
@@ -372,7 +534,7 @@ def simulate(netlist: str, sweep_param: str = "", sweep_values: list[float] | No
         root = db.state_root(PROJECT) / "simulations" / "sweep"
         try:
             out = sim.simulate_sweep(netlist, sweep_param, sweep_values, root, "sweep",
-                                     {"timeout_s": timeout_s})
+                                     {"timeout_s": timeout_s, "backend": default_backend()})
         except sim.SweepError as e:
             return _fail("simulate", str(e))
         out["next_step"] = ("Read metrics_table: one row per sweep value."
@@ -380,7 +542,7 @@ def simulate(netlist: str, sweep_param: str = "", sweep_values: list[float] | No
                             else "Fix the netlist using failure_message, then retry.")
         return out
     root = db.state_root(PROJECT)
-    res = sim.simulate(netlist, {}, {"backend": "ltspice", "timeout_s": timeout_s},
+    res = sim.simulate(netlist, {}, {"backend": default_backend(), "timeout_s": timeout_s},
                        root / "simulations" / "adhoc", "adhoc")
     out = {"status": res.status, "metrics": res.metrics, "warnings": res.warnings,
            "failure_type": res.failure_type, "failure_message": res.failure_message,
@@ -510,13 +672,18 @@ def start_optimization(run_id: str, netlist: str, params: list[Param], goals: li
     return _call("start_optimization", go)
 
 
-@mcp.tool()
+@long_tool(background=False)
 def run_optimization(run_id: str, iterations: Annotated[int, Field(ge=1, le=500)] = 20) -> dict:
     """Let the server search for `iterations` simulations and return one summary.
     Preferred way to optimize: do not loop evaluate_candidate yourself."""
     def go():
         out = engine.optimize(con(), run_id, iterations)
         out["next_step"] = _after_run(run_id, out)
+        if out.get("stopped_early"):
+            out["next_step"] = (f"Time limit hit after {out['iterations_run']} "
+                                f"simulations; progress is saved. Call run_optimization("
+                                f"run_id='{run_id}') again to continue, or "
+                                + out["next_step"][0].lower() + out["next_step"][1:])
         return out
     return _call("run_optimization", go)
 
@@ -659,7 +826,7 @@ def rollback_to_candidate(run_id: str, candidate_id: str) -> dict:
 Series = Literal["E6", "E12", "E24", "E48", "E96", "none"]
 
 
-@mcp.tool()
+@long_tool(background=True)
 def finish_design(run_id: str, resistors: Series = "E96", capacitors: Series = "E12",
                   inductors: Series = "E12",
                   tolerance_pct: dict[Literal["R", "C", "L"], float] | None = None,
@@ -745,7 +912,8 @@ def render_schematic(path: str, output_path: str = "schematic.png",
         if src.suffix.lower() != ".asc":
             if not src.is_file():
                 raise OSError(f"no such file: {src}")
-            d = layout.draw(src.read_text(encoding="utf-8", errors="replace"))
+            d = layout.draw(opamp.include_blocks(
+                src.read_text(encoding="utf-8", errors="replace")))
             src = d.write(Path(output_path).with_suffix(".asc"))
             drawn = src
         out = render.render(str(src), output_path, style, 300)

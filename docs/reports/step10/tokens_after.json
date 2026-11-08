@@ -1,0 +1,404 @@
+{
+ "overhead": {
+  "instructions": 211,
+  "tools": 2565,
+  "tools_minified": 2102,
+  "per_tool": [
+   [
+    "check_feasibility",
+    532
+   ],
+   [
+    "start_optimization",
+    482
+   ],
+   [
+    "finish_design",
+    310
+   ],
+   [
+    "query_run",
+    233
+   ],
+   [
+    "generate_design_report",
+    204
+   ],
+   [
+    "render_schematic",
+    138
+   ],
+   [
+    "simulate",
+    137
+   ],
+   [
+    "start_from_template",
+    116
+   ],
+   [
+    "evaluate_candidate",
+    112
+   ],
+   [
+    "run_optimization",
+    97
+   ],
+   [
+    "rollback_to_candidate",
+    91
+   ],
+   [
+    "list_templates",
+    64
+   ],
+   [
+    "check_setup",
+    47
+   ]
+  ],
+  "total": 2776
+ },
+ "rows": [
+  {
+   "no": 1,
+   "name": "RC low-pass",
+   "calls": 6,
+   "req": 195,
+   "resp": 1497,
+   "resp_min": 1497,
+   "transcript": 1692,
+   "final_ctx": 4508,
+   "billed_in": 26291,
+   "billed_in_cached": 6686,
+   "out": 195,
+   "biggest": "list_templates 429",
+   "secs": 2,
+   "err": null
+  },
+  {
+   "no": 2,
+   "name": "Sallen-Key low-pass",
+   "calls": 6,
+   "req": 218,
+   "resp": 1909,
+   "resp_min": 1909,
+   "transcript": 2127,
+   "final_ctx": 4943,
+   "billed_in": 27950,
+   "billed_in_cached": 7244,
+   "out": 218,
+   "biggest": "run_optimization 439",
+   "secs": 7,
+   "err": null
+  },
+  {
+   "no": 3,
+   "name": "Non-inverting amp",
+   "calls": 6,
+   "req": 211,
+   "resp": 1583,
+   "resp_min": 1583,
+   "transcript": 1794,
+   "final_ctx": 4610,
+   "billed_in": 26680,
+   "billed_in_cached": 6817,
+   "out": 211,
+   "biggest": "list_templates 429",
+   "secs": 3,
+   "err": null
+  },
+  {
+   "no": 4,
+   "name": "LDO",
+   "calls": 6,
+   "req": 196,
+   "resp": 1717,
+   "resp_min": 1717,
+   "transcript": 1913,
+   "final_ctx": 4729,
+   "billed_in": 27248,
+   "billed_in_cached": 6981,
+   "out": 196,
+   "biggest": "run_optimization 438",
+   "secs": 6,
+   "err": null
+  },
+  {
+   "no": 5,
+   "name": "Buck (closed loop)",
+   "calls": 14,
+   "req": 349,
+   "resp": 2713,
+   "resp_min": 2713,
+   "transcript": 3062,
+   "final_ctx": 5878,
+   "billed_in": 69410,
+   "billed_in_cached": 12231,
+   "out": 349,
+   "biggest": "list_templates 429",
+   "secs": 482,
+   "err": null
+  },
+  {
+   "no": 6,
+   "name": "Instrumentation amp",
+   "calls": 6,
+   "req": 1207,
+   "resp": 1866,
+   "resp_min": 1866,
+   "transcript": 3073,
+   "final_ctx": 5889,
+   "billed_in": 32807,
+   "billed_in_cached": 8581,
+   "out": 1207,
+   "biggest": "query_run 487",
+   "secs": 5,
+   "err": null
+  },
+  {
+   "no": 7,
+   "name": "Inverting amp",
+   "calls": 2,
+   "req": 564,
+   "resp": 200,
+   "resp_min": 200,
+   "transcript": 764,
+   "final_ctx": 3580,
+   "billed_in": 9727,
+   "billed_in_cached": 4195,
+   "out": 564,
+   "biggest": "render_schematic 199",
+   "secs": 2,
+   "err": null
+  },
+  {
+   "no": 8,
+   "name": "Common-source MOSFET amp",
+   "calls": 2,
+   "req": 160,
+   "resp": 201,
+   "resp_min": 201,
+   "transcript": 361,
+   "final_ctx": 3177,
+   "billed_in": 8918,
+   "billed_in_cached": 3751,
+   "out": 160,
+   "biggest": "render_schematic 200",
+   "secs": 1,
+   "err": null
+  },
+  {
+   "no": 9,
+   "name": "Wheatstone bridge",
+   "calls": 2,
+   "req": 132,
+   "resp": 197,
+   "resp_min": 197,
+   "transcript": 329,
+   "final_ctx": 3145,
+   "billed_in": 8862,
+   "billed_in_cached": 3717,
+   "out": 132,
+   "biggest": "render_schematic 196",
+   "secs": 1,
+   "err": null
+  },
+  {
+   "no": 10,
+   "name": "Boost converter",
+   "calls": 2,
+   "req": 179,
+   "resp": 201,
+   "resp_min": 201,
+   "transcript": 380,
+   "final_ctx": 3196,
+   "billed_in": 8956,
+   "billed_in_cached": 3772,
+   "out": 179,
+   "biggest": "render_schematic 200",
+   "secs": 2,
+   "err": null
+  },
+  {
+   "no": 11,
+   "name": "Two-stage amp w/ feedback",
+   "calls": 2,
+   "req": 591,
+   "resp": 202,
+   "resp_min": 202,
+   "transcript": 793,
+   "final_ctx": 3609,
+   "billed_in": 9781,
+   "billed_in_cached": 4226,
+   "out": 591,
+   "biggest": "render_schematic 201",
+   "secs": 2,
+   "err": null
+  },
+  {
+   "no": 12,
+   "name": "Pi filter",
+   "calls": 2,
+   "req": 142,
+   "resp": 203,
+   "resp_min": 203,
+   "transcript": 345,
+   "final_ctx": 3161,
+   "billed_in": 8882,
+   "billed_in_cached": 3733,
+   "out": 142,
+   "biggest": "render_schematic 202",
+   "secs": 1,
+   "err": null
+  },
+  {
+   "no": 13,
+   "name": "5-stage RC ladder",
+   "calls": 2,
+   "req": 194,
+   "resp": 204,
+   "resp_min": 204,
+   "transcript": 398,
+   "final_ctx": 3214,
+   "billed_in": 8987,
+   "billed_in_cached": 3791,
+   "out": 194,
+   "biggest": "render_schematic 203",
+   "secs": 1,
+   "err": null
+  },
+  {
+   "no": 14,
+   "name": "LC tank",
+   "calls": 2,
+   "req": 124,
+   "resp": 202,
+   "resp_min": 202,
+   "transcript": 326,
+   "final_ctx": 3142,
+   "billed_in": 8845,
+   "billed_in_cached": 3712,
+   "out": 124,
+   "biggest": "render_schematic 201",
+   "secs": 1,
+   "err": null
+  },
+  {
+   "no": 15,
+   "name": "Two-stage CMOS op-amp",
+   "calls": 1,
+   "req": 140,
+   "resp": 101,
+   "resp_min": 101,
+   "transcript": 241,
+   "final_ctx": 3057,
+   "billed_in": 5873,
+   "billed_in_cached": 3339,
+   "out": 140,
+   "biggest": "simulate 101",
+   "secs": 1,
+   "err": null
+  },
+  {
+   "no": 16,
+   "name": "Comparator + gate drive",
+   "calls": 1,
+   "req": 167,
+   "resp": 113,
+   "resp_min": 113,
+   "transcript": 280,
+   "final_ctx": 3096,
+   "billed_in": 5912,
+   "billed_in_cached": 3378,
+   "out": 167,
+   "biggest": "simulate 113",
+   "secs": 1,
+   "err": null
+  },
+  {
+   "no": 17,
+   "name": "Chua's circuit",
+   "calls": 3,
+   "req": 412,
+   "resp": 713,
+   "resp_min": 713,
+   "transcript": 1125,
+   "final_ctx": 3941,
+   "billed_in": 13986,
+   "billed_in_cached": 4946,
+   "out": 412,
+   "biggest": "simulate 515",
+   "secs": 1,
+   "err": null
+  }
+ ],
+ "per_tool_resp": {
+  "list_templates": {
+   "calls": 5,
+   "resp": 2145,
+   "avg": 429,
+   "req": 60
+  },
+  "start_from_template": {
+   "calls": 5,
+   "resp": 1221,
+   "avg": 244,
+   "req": 236
+  },
+  "run_optimization": {
+   "calls": 8,
+   "resp": 2963,
+   "avg": 370,
+   "req": 206
+  },
+  "finish_design": {
+   "calls": 12,
+   "resp": 2480,
+   "avg": 207,
+   "req": 254
+  },
+  "generate_design_report": {
+   "calls": 6,
+   "resp": 678,
+   "avg": 113,
+   "req": 170
+  },
+  "render_schematic": {
+   "calls": 14,
+   "resp": 2673,
+   "avg": 191,
+   "req": 790
+  },
+  "start_optimization": {
+   "calls": 1,
+   "resp": 168,
+   "avg": 168,
+   "req": 1020
+  },
+  "evaluate_candidate": {
+   "calls": 1,
+   "resp": 269,
+   "avg": 269,
+   "req": 81
+  },
+  "query_run": {
+   "calls": 1,
+   "resp": 487,
+   "avg": 487,
+   "req": 25
+  },
+  "(write file, other tool)": {
+   "calls": 9,
+   "resp": 9,
+   "avg": 1,
+   "req": 1828
+  },
+  "simulate": {
+   "calls": 3,
+   "resp": 729,
+   "avg": 243,
+   "req": 511
+  }
+ }
+}

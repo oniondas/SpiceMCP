@@ -253,31 +253,56 @@ def get_candidate(con, candidate_id: str):
 def evaluate(con, run_id: str, params: dict, parent_id: str | None = None,
              sim_config: dict | None = None, force: bool = False,
              origin: str = "llm") -> dict:
+    return evaluate_many(con, run_id, [params], parent_id, sim_config, force, origin)[0]
+
+
+def evaluate_many(con, run_id: str, params_list: list[dict], parent_id: str | None = None,
+                  sim_config: dict | None = None, force: bool = False,
+                  origin: str = "llm") -> list[dict]:
+    """Evaluate several designs: candidates are created and cache-checked one by one,
+    the simulations run side by side (`sim.workers()`), and the results are recorded in
+    the order given, each in its own transaction. The same design twice in one batch is
+    simulated once."""
     run = get_run(con, run_id)
     cfg = {**db.jloads(run, "sim_config"), **(sim_config or {})}
     objs, cons = db.jloads(run, "objectives", []), db.jloads(run, "constraints", [])
-
-    cand = resolve_candidate(con, run_id, params, parent_id, origin=origin)
-    cid = cand["candidate_id"]
-    design = get_candidate(con, cid)
     cfp = ir.config_fp(cfg)
-    efp = ir.experiment_fp(design["design_fp"], cfp)
+    root = db.state_root(_project(con))
 
-    cached = con.execute(
-        "SELECT * FROM experiments WHERE run_id=? AND experiment_fp=?"
-        " ORDER BY iteration DESC LIMIT 1", (run_id, efp)).fetchone()
-    if cached and not force:
-        return {"cached": True, "candidate_id": cid,
-                "previous_iteration": cached["iteration"],
-                **_experiment_summary(cached)}
+    plan, todo = [], {}                          # per input: cached answer or a cid
+    for params in params_list:
+        cand = resolve_candidate(con, run_id, params, parent_id, origin=origin)
+        cid = cand["candidate_id"]
+        design = get_candidate(con, cid)
+        efp = ir.experiment_fp(design["design_fp"], cfp)
+        cached = con.execute(
+            "SELECT * FROM experiments WHERE run_id=? AND experiment_fp=?"
+            " ORDER BY iteration DESC LIMIT 1", (run_id, efp)).fetchone()
+        if cached and not force:
+            plan.append({"cached": True, "candidate_id": cid,
+                         "previous_iteration": cached["iteration"],
+                         **_experiment_summary(cached)})
+            continue
+        if cid not in todo:
+            todo[cid] = {"params": params, "netlist": design["netlist"], "efp": efp,
+                         "created": cand["created"]}
+        plan.append(cid)
 
     # Simulation runs OUTSIDE the write transaction -- holding a SQLite write lock
     # for the duration of an LTspice run would serialise every other reader.
     started = db.now()
-    root = db.state_root(_project(con))
-    res = sim.simulate(design["netlist"], params, cfg,
-                       root / "simulations" / run_id, cid)
+    cids = list(todo)
+    sims = sim.parallel_map(
+        lambda c: sim.simulate(todo[c]["netlist"], todo[c]["params"], cfg,
+                               root / "simulations" / run_id, c), cids)
+    done = {}
+    for c, res in zip(cids, sims):
+        done[c] = _record(con, run_id, c, todo[c], res, cfg, cfp, objs, cons, started)
+    return [p if isinstance(p, dict) else dict(done[p]) for p in plan]
 
+
+def _record(con, run_id, cid, job, res, cfg, cfp, objs, cons, started) -> dict:
+    params = job["params"]
     metrics = {k.lower(): v for k, v in res.metrics.items()}
     if res.status == "ok":
         # `param_<name>` lets a goal or limit price a part directly ("smallest C1",
@@ -313,7 +338,7 @@ def evaluate(con, run_id: str, params: dict, parent_id: str | None = None,
             " constraint_results, feasible, score, failure_type, failure_message,"
             " failure_detail, warnings, log_path, started_at, finished_at)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (run_id, cid, it, db.jdumps(cfg), cfp, efp, res.status,
+            (run_id, cid, it, db.jdumps(cfg), cfp, job["efp"], res.status,
              db.jdumps(metrics), db.jdumps(cres), int(feasible), sc, ftype, fmsg,
              db.jdumps(fdetail) if fdetail else None,
              db.jdumps(res.warnings) if res.warnings else None, res.log_path,
@@ -323,7 +348,7 @@ def evaluate(con, run_id: str, params: dict, parent_id: str | None = None,
     _update_sensitivities(con, run_id)
     best = get_best(con, run_id)
     return {"cached": False, "candidate_id": cid, "iteration": it,
-            "new_candidate": cand["created"], "status": res.status,
+            "new_candidate": job["created"], "status": res.status,
             "metrics": metrics, "constraints": cres, "feasible": bool(feasible),
             "score": sc, "failure_type": ftype, "failure_message": fmsg,
             "warnings": res.warnings,
@@ -1295,24 +1320,73 @@ def optimize(con, run_id: str, iterations: int = 10,
     run = get_run(con, run_id)
     if run["status"] != "running":
         raise EngineError(f"run {run_id!r} is {run['status']}; nothing to do")
+    from . import progress
     done, skipped, stall = 0, 0, 0
     frac, prev = step_frac, _best_score(con, run_id)
+    stopped_early = False
+    progress.report(0, max(1, iterations), "searching")
     for _ in range(max(1, iterations)):
         if get_run(con, run_id)["status"] != "running":
+            break
+        if done and progress.out_of_time():     # always make progress: >= 1 iteration
+            stopped_early = True
             break
         nxt = select_next(con, run_id, frac)
         if not nxt["params"]:
             break
-        r = evaluate(con, run_id, nxt["params"], nxt["parent_id"], origin="engine")
-        done += 1
+        batch = [nxt["params"]] + _independent_moves(
+            con, run_id, nxt, min(sim.workers(), max(1, iterations) - done) - 1)
+        rs = evaluate_many(con, run_id, batch, nxt["parent_id"], origin="engine")
+        r = rs[0]
+        done += len(rs)
+        skipped += sum(bool(x.get("cached")) for x in rs[1:])
+        progress.report(done, None, f"{done} of {max(1, iterations)} simulations")
         skipped += int(bool(r.get("cached")))
         cur = _best_score(con, run_id)
         if cur > prev:
             prev, stall, frac = cur, 0, step_frac
         elif (stall := stall + 1) >= 3:
             stall, frac = 0, max(frac / 2, step_frac / 64)
-    return {"iterations_run": done, "cached_hits": skipped,
-            "step_frac_final": frac, **summary(con, run_id)}
+    out = {"iterations_run": done, "cached_hits": skipped,
+           "step_frac_final": frac, **summary(con, run_id)}
+    if stopped_early:
+        out["stopped_early"] = (f"time limit reached after {done} of {iterations} "
+                                f"iterations; call again to continue")
+    return out
+
+
+def _independent_moves(con, run_id: str, nxt: dict, n: int) -> list[dict]:
+    """More proposals that do not depend on `nxt`'s result, to simulate alongside it.
+
+    Only two stages qualify: the global Latin-hypercube samples (fixed in advance) and
+    the one-at-a-time screening of parameters never varied (each from the same base).
+    Every later stage reads the previous result, so it stays one at a time."""
+    if n <= 0 or nxt.get("method") not in ("global_sample", "probe_unvaried"):
+        return []
+    run = get_run(con, run_id)
+    space = db.jloads(run, "param_space")
+    if nxt["method"] == "global_sample":
+        k = n_global_samples(space)
+        have = con.execute("SELECT COUNT(*) FROM designs WHERE run_id=?",
+                           (run_id,)).fetchone()[0]
+        return [lhs_point(space, run["seed"], i, k) for i in range(have, min(k, have + n))]
+    if not nxt.get("parent_id"):
+        return []
+    base = db.jloads(get_candidate(con, nxt["parent_id"]), "params")
+    tried = explored(con, run_id)
+    moved = {k for k in nxt["params"] if nxt["params"][k] != base.get(k)}
+    rng = random.Random(run["seed"] * 7 + len(tried))
+    out = []
+    for name, spec in space.items():
+        if len(out) >= n:
+            break
+        if name in moved or name not in base or \
+                len(tried.get(name, {}).get("evaluated", [])) > 1:
+            continue
+        alt = _other_value(spec, base[name], rng)
+        if alt != base[name]:
+            out.append({**base, name: alt})
+    return out
 
 
 def summary(con, run_id: str) -> dict:

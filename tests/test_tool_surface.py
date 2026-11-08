@@ -25,9 +25,7 @@ def _tools():
 
 def _call(name: str, **args) -> dict:
     """Call a tool exactly as an MCP client would and decode its JSON answer."""
-    res = asyncio.run(server.mcp.call_tool(name, args))
-    content = res[0] if isinstance(res, tuple) else res
-    return json.loads(content[0].text)
+    return json.loads(server.answer_text(asyncio.run(server.mcp.call_tool(name, args))))
 
 
 @sim.register_analytic("surface_rc")
@@ -71,11 +69,11 @@ def test_structured_inputs_have_a_schema_not_a_bare_object():
             for i, v in enumerate(node):
                 walk(v, f"{path}[{i}]")
     for t in _tools():
-        walk(t.inputSchema, t.name)
+        walk(server.tool_schema(t), t.name)
 
 
 def test_every_example_is_a_valid_call_for_its_tool():
-    tools = {t.name: t.inputSchema for t in _tools()}
+    tools = {t.name: server.tool_schema(t) for t in _tools()}
     assert set(server.EXAMPLES) == set(tools)
     for name, ex in server.EXAMPLES.items():
         props = tools[name].get("properties", {})
@@ -145,7 +143,10 @@ def test_every_error_names_the_fix_and_shows_a_correct_call(project, name, args,
 def test_loose_or_misspelled_inputs_are_rejected_by_the_schema(project):
     """Strict models: the old string shorthand and typo'd keys fail loudly up front
     instead of being guessed at."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    try:
+        from mcp.server.fastmcp.exceptions import ToolError
+    except ImportError:                                  # mcp 2.x
+        from mcp.server.mcpserver.exceptions import ToolError
     base = dict(run_id="r", netlist=NETLIST, goals=[{"metric": "fc"}],
                 params=[{"name": "R1", "min": 1, "max": 2}])
     for bad in ({"limits": [{"metric": "fc", "max": "<0.005"}]},
@@ -176,14 +177,13 @@ def test_the_tool_list_fits_its_token_budget():
 
 
 def test_the_tool_list_has_no_auto_titles_and_no_advanced_inputs():
-    text = json.dumps([t.inputSchema for t in _tools()])
+    text = json.dumps([server.tool_schema(t) for t in _tools()])
     assert '"title"' not in text
     for hidden in server.HIDDEN_INPUTS:
         assert f'"{hidden}"' not in text, hidden
 
 
 def test_answers_are_one_line_json_with_short_numbers(project):
-    res = asyncio.run(server.mcp.call_tool("list_templates", {}))
-    text = res[0].text
+    text = server.answer_text(asyncio.run(server.mcp.call_tool("list_templates", {})))
     assert "\n" not in text and text.startswith("{\"")
     assert server.compact({"x": 3.3329999999999997}) == '{"x":3.333}'
