@@ -371,6 +371,7 @@ def _protection(s: dict) -> Design:
     clamp = bv + ipk * rz
     net = f"""* Input protection: reverse polarity and surge clamp (SpiceMCP template protection)
 * {vin:g} V input, {vsurge:g} V surge for 1 ms, downstream absolute max {vmax:g} V
+* stress: skip (a 1 ms surge test, not continuous operation; rated in the working)
 Vin in 0 PWL(0 {vin:g} 1m {vin:g} 1.01m {vsurge:g} 2m {vsurge:g} 2.01m {vin:g} 3m {vin:g})
 D1 in a DSCH
 RS a out {{RS}}
@@ -398,6 +399,18 @@ RL out 0 {rl:g}
 .dc Vin {-vin:g} {-vin + 0.001:g} 0.001
 .meas DC vrev FIND V(out) AT {-vin + 0.0005:g}
 .end
+* Normal operation: the part ratings for continuous use are measured here
+Vin in 0 {vin:g}
+D1 in a DSCH
+RS a out {{RS}}
+DZ 0 out DTVS
+C1 out 0 10u
+RL out 0 {rl:g}
+.model DSCH D(Is=31.7u Rs=.051 N=1.373 Cjo=110p)
+.model DTVS D(Is=1n Rs={rz:g} BV={{BV}} IBV=1m Cjo=500p)
+.tran 1u 2m 0 1u
+.meas TRAN vout_nom AVG V(out) FROM 1m TO 2m
+.end
 """
     return Design(
         net, [{"name": "RS", "min": 0.02, "max": 5.0},
@@ -419,7 +432,10 @@ RL out 0 {rl:g}
                  "BV plus the surge current times the clamp's resistance RZ: "
                  f"{bv:.3g} V + {ipk:.3g} A × {rz:g} Ω = {clamp:.3g} V. That current, for "
                  "1 ms, is what the clamp must be rated for (peak pulse current).",
-                 "The stress check reports the clamp's power: buy a TVS rated for it."],
+                 f"Surge ratings (1 ms pulse, not in the continuous stress check): TVS peak "
+                 f"pulse current {ipk:.3g} A ({ipk * clamp * 1e-3:.2g} J); RS takes "
+                 f"{ipk ** 2 * rs * 1e-3:.2g} J, so use a pulse-rated (anti-surge) "
+                 f"resistor; D1 needs a surge current rating (IFSM) above {ipk:.3g} A."],
         circuit_type="general", tech={})
 
 

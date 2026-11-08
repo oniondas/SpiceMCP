@@ -110,3 +110,11 @@ def test_sallen_key_runs_on_a_library_op_amp(project):
     assert out["start_result"]["metrics"]["f3db"] == pytest.approx(1e4, rel=0.05)
     det = json.loads(server._details_path("sk").read_text())
     assert any("TOA10" in ln for ln in det["hand_calculation"])
+
+
+def test_a_surge_test_deck_is_left_out_of_the_continuous_stress_check():
+    d = T.get("protection").design({"vin": 12, "vsurge": 40, "vmax": 20, "iload": 0.5})
+    decks = sim.decks(d.netlist)
+    assert stress.instrument(decks[0]) is None              # the 1 ms surge
+    assert stress.instrument(decks[-1]) is not None         # normal operation
+    assert "pulse-rated" in d.working[-1]
