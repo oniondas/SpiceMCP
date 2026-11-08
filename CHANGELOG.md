@@ -22,6 +22,9 @@
   one line per distinct part with quantity, reference designators, value, tolerance, the
   rating to buy at least and the part number chosen with `find_part`. Sources, loads and
   test fixtures are left out; the answer gives the path as `parts_list`.
+- A deck marked `* stress: skip` (a surge or fault test) is left out of the continuous
+  part-stress check; the protection template states its surge (pulse) ratings in the
+  working instead. Leakage-level currents read "any current" rather than "1.5e-06 mA".
 - The schematic drawer places bipolar transistors (NPN and PNP symbols).
 - Circuit list and catalog: 25 circuits (docs/CIRCUITS.md and the catalog PDF).
 - Known limits: the flyback is not drawn (no transformer symbol yet); the boost and the
