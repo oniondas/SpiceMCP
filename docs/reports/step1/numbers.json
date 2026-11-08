@@ -1,0 +1,18 @@
+{
+  "before": {
+    "count": 26,
+    "size": 19112,
+    "desc_median": 137.0,
+    "desc_max": 1501,
+    "max_args": 11,
+    "shapeless": 14
+  },
+  "after": {
+    "count": 11,
+    "size": 11514,
+    "desc_median": 142,
+    "desc_max": 163,
+    "max_args": 9,
+    "shapeless": 0
+  }
+}
