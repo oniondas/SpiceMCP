@@ -8,7 +8,7 @@ on every call, so a long optimization can't drift into remembering a circuit tha
 never existed.
 
 > ### Prototype Status & Live Example
-> **SpiceMCP is pre-1.0 (0.12).** Every drawn schematic and ready-made circuit is checked in LTspice 26 on Windows (`docs/reports/step7/REPORT.md`), and the test suite runs on Linux and Windows for every change. The tool names and inputs may still change before 1.0.
+> **SpiceMCP is pre-1.0 (0.13).** Every drawn schematic and ready-made circuit is checked in LTspice 26 on Windows (`docs/reports/step7/REPORT.md`), and the test suite runs on Linux and Windows for every change. The tool names and inputs may still change before 1.0.
 >
 > Below is a demonstration of what SpiceMCP generated and analyzed autonomously for **Chua's Chaotic Circuit** showcasing automated `.asc` schematic generation, batch LTspice simulations, binary `.raw` waveform parsing, parameter sweeps, and visualization:
 >
@@ -28,7 +28,7 @@ never existed.
 > | *Orthogonal projections ($V_{C1}-V_{C2}, V_{C1}-I_L$) with orbital density* | *Piecewise-linear Negative Differential Resistance ($G_a, G_b$) DC sweep* |
 
 
-**Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 0.12, written for circuit designers.
+**Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 0.13, written for circuit designers.
 
 ## Architecture
 
@@ -221,10 +221,10 @@ run_optimization(run_id="buck_001", iterations=20)
 | template | spec |
 |---|---|
 | `rc_lowpass` | `fc` |
-| `sallen_key_lowpass` | `fc`, `q` (default 0.707, Butterworth) |
-| `noninverting_amp` | `gain`, `bw`, `gbw` (op-amp, default 10 MHz) |
-| `ldo` | `vin`, `vout`, `iload`, `dropout` (default 0.3 V) |
-| `buck` | `vin`, `vout`, `iout`, `fsw` (500 kHz), `ripple_mv` (50) |
+| `sallen_key_lowpass` | `fc`, `q` (default 0.707, Butterworth), `cload` (100 pF) |
+| `noninverting_amp` | `gain`, `bw`, `gbw` (op-amp, default 10 MHz), `cload` (100 pF) |
+| `ldo` | `vin`, `vout`, `iload`, `dropout` (0.3 V), `cout` (1 µF), `step_pct` (3 %) |
+| `buck` (closed loop, `vin` 4 to 20 V) | `vin`, `vout`, `iout`, `fsw` (500 kHz), `ripple_mv` (50) |
 
 Goals and limits can name a part directly as `param_<NAME>` (for example "smallest
 `param_c1`"). Each template's hand-sized start is simulated in the test suite.
@@ -238,6 +238,17 @@ MOSFET (`VDMOS`, with on-resistance and gate capacitance) from a gate driver. Th
 uses the usual 5-pin order (in+ in- V+ V- out), so a vendor macromodel with the same
 pins can replace it. Report: `docs/reports/step6/REPORT.md`.
 Report: `docs/reports/step3/REPORT.md`.
+
+**Stability is checked with every simulation.** A netlist may hold several decks, one
+after another, each ending in `.end`; each is run on its own and the measurements are
+merged. The op-amp circuits and the LDO carry a second deck with the feedback loop broken
+at the amplifier input (a 1 kH inductor keeps the bias, a 1 kF capacitor injects the
+test signal), which measures `pm_deg` (phase margin) and `ugf` (crossover), and they
+carry a `pm_deg >= 45` limit. The LDO also has a load-step deck (10 % to 100 % load:
+`step_mv`, `kick_mv`) and sizes the resistor in series with its output capacitor that
+makes its loop stable. The buck is closed loop: an integrating error amplifier, a
+comparator against a ramp and a push-pull gate drive set the duty cycle, so the output
+holds when the input or the parts move. Report: `docs/reports/step8/REPORT.md`.
 
 On a machine without LTspice, `sim_options={"backend": "ngspice"}` runs the same LTspice
 deck through ngspice, translating the `.meas` lines on the fly. LTspice stays the main

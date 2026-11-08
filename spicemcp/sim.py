@@ -34,8 +34,10 @@ COMPONENT_LIMIT = "component_limit"
 NUMERICAL_INSTABILITY = "numerical_instability"
 
 _LOG_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"iteration limit|timestep too small|failed to converge|gmin stepping",
-                re.I), CONVERGENCE_FAILURE),
+    # "Starting Gmin stepping" is LTspice trying a second way to the operating point,
+    # not a failure: it is followed by "succeeded" or by "Gmin stepping failed".
+    (re.compile(r"iteration limit|timestep too small|failed to converge|stepping failed|"
+                r"operating point failed", re.I), CONVERGENCE_FAILURE),
     (re.compile(r"singular matrix|matrix is singular|no dc path", re.I),
      NUMERICAL_INSTABILITY),
     (re.compile(r"unknown subcircuit|could not open|unknown device|"
@@ -367,6 +369,7 @@ def _run_ltspice(netlist: str, workdir: Path, stem: str, sim_config: dict) -> Si
 # there. `.step` is not translated: sweeps stay an LTspice feature.
 
 _MEAS_DIRECTIVE = re.compile(r"^\s*\.meas(?:ure)?\s+(\w+)\s+(\w+)\s+(.*)$", re.I)
+_CPLX_FIND = re.compile(r"^find\s+v\(([^()]*)\)\s+(.*)$", re.I)
 _MAG_V = re.compile(r"\bmag\(\s*v\(([^()]*)\)\s*\)", re.I)
 _DB_V = re.compile(r"\bdb\(\s*v\(([^()]*)\)\s*\)", re.I)
 _NG_RESULT = re.compile(rf"^\s*(\w+)\s*=\s*({_FLOAT})")
@@ -383,7 +386,7 @@ def find_ngspice(explicit: str | None = None) -> str | None:
 
 def to_ngspice(netlist: str) -> str:
     """Rewrite an LTspice deck's `.meas` lines into an ngspice `.control` block."""
-    body, ctrl = [], ["run"]
+    body, ctrl = [], ["set units=degrees", "run"]
     for line in netlist.splitlines():
         m = _MEAS_DIRECTIVE.match(line)
         if not m:
@@ -397,6 +400,14 @@ def to_ngspice(netlist: str) -> str:
             ctrl += [f"let {name} = {expr}", f"print {name}"]
             continue
         low = rest.lower()
+        cx = _CPLX_FIND.match(rest) if kind == "ac" else None
+        if cx:
+            # LTspice prints a complex FIND as (dB, degrees); ngspice needs one per line.
+            node, tail = cx.group(1), _MAG_V.sub(lambda g: f"vm({g.group(1)})", cx.group(2))
+            tail = re.sub(r"\b(at|from|to|td)\s+(?!=)", r"\1=", tail, flags=re.I)
+            ctrl += [f"meas ac {name} find vdb({node}) {tail}",
+                     f"meas ac {name}_deg find vp({node}) {tail}"]
+            continue
         if kind == "ac":
             if low.startswith("when"):
                 rest = _MAG_V.sub(lambda g: f"vm({g.group(1)})", rest)
@@ -457,17 +468,56 @@ def _run_ngspice(netlist: str, workdir: Path, stem: str, sim_config: dict) -> Si
     return SimResult(status="ok", metrics=metrics, warnings=warnings, log_path=str(log))
 
 
+def decks(netlist: str) -> list[str]:
+    """Split a netlist into its decks. Each `.end` closes one deck.
+
+    One analysis per deck is all LTspice runs, so a circuit checked two ways (its
+    response in `.dc`, its loop stability in `.ac`, its load step in `.tran`) is written
+    as several decks, one after another, each complete with its own sources and models.
+    The first deck is the circuit itself: it is the one drawn and audited.
+    """
+    out, cur = [], []
+    for ln in netlist.splitlines():
+        cur.append(ln)
+        if _END_LINE.match(ln):
+            out.append("\n".join(cur) + "\n")
+            cur = []
+    if any(ln.strip() for ln in cur):
+        out.append("\n".join(cur) + "\n")
+    return out or [netlist]
+
+
 def simulate(netlist: str, params: dict, sim_config: dict, workdir: Path,
              stem: str) -> SimResult:
     backend = sim_config.get("backend", "ltspice")
     if backend == "analytic":
         return _run_analytic(params, sim_config)
-    if backend == "ltspice":
-        return _run_ltspice(netlist, workdir, stem, sim_config)
-    if backend == "ngspice":
-        return _run_ngspice(netlist, workdir, stem, sim_config)
-    return SimResult(status="failed", failure_type=STRUCTURAL_ERROR,
-                     failure_message=f"unknown backend {backend!r}")
+    if backend not in ("ltspice", "ngspice"):
+        return SimResult(status="failed", failure_type=STRUCTURAL_ERROR,
+                         failure_message=f"unknown backend {backend!r}")
+    run = _run_ltspice if backend == "ltspice" else _run_ngspice
+    parts = decks(netlist)
+    if len(parts) == 1:
+        return run(netlist, workdir, stem, sim_config)
+    # Several decks: run each, merge the measurements. The first failure stops it, and
+    # says which deck failed, since a stability deck can fail where the main one ran.
+    merged = SimResult(status="ok")
+    for i, deck in enumerate(parts):
+        r = run(deck, workdir, stem if i == 0 else f"{stem}_d{i + 1}", sim_config)
+        if r.status != "ok":
+            r.failure_message = f"deck {i + 1} of {len(parts)}: {r.failure_message}"
+            return r
+        clash = sorted(set(r.metrics) & set(merged.metrics))
+        if clash:
+            return SimResult(status="failed", failure_type=STRUCTURAL_ERROR,
+                             failure_message=f"measurement names {clash} appear in more "
+                                             f"than one deck; give each a unique name",
+                             log_path=r.log_path)
+        merged.metrics.update(r.metrics)
+        merged.warnings += r.warnings
+        if i == 0:
+            merged.log_path, merged.raw_path = r.log_path, r.raw_path
+    return merged
 
 
 # --- parametric / corner sweep --------------------------------------------------

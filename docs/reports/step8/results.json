@@ -1,0 +1,85 @@
+{
+ "opamp_pm_vs_load": {
+  "load_pf": [
+   10.0,
+   33.0,
+   100.0,
+   330.0,
+   1000.0000000000001,
+   3300.0
+  ],
+  "gain 1 (follower)": [
+   83.3964,
+   74.95158,
+   57.34265,
+   35.2577,
+   21.00161,
+   12.14534
+  ],
+  "gain 10": [
+   89.1453,
+   88.16673,
+   85.34539,
+   76.33101,
+   58.31031,
+   37.16269
+  ]
+ },
+ "ldo": {
+  "rz_ohm": 0.829793853464393,
+  "no_zero": {
+   "pm_deg": 1.86145,
+   "ugf": 333983.3,
+   "step_mv": 50.892,
+   "kick_mv": 23.712,
+   "vout": 3.300584
+  },
+  "with_zero": {
+   "pm_deg": 72.18096,
+   "ugf": 594894.7,
+   "step_mv": 38.514,
+   "kick_mv": 33.605,
+   "vout": 3.300584
+  }
+ },
+ "buck": {
+  "boards": 40,
+  "tolerance_pct": {
+   "L": 20,
+   "C": 5,
+   "R": 1,
+   "CI": 5,
+   "Vin": 5
+  },
+  "open_loop": {
+   "yield_pct": 22.5,
+   "vout_min": 4.765839,
+   "vout_max": 5.280228
+  },
+  "closed_loop": {
+   "yield_pct": 100.0,
+   "vout_min": 4.961428,
+   "vout_max": 5.034616,
+   "ripple_max_mv": 43.173,
+   "failed_to_simulate": 0
+  },
+  "input_step_open": {
+   "peak_v": 5.47097676,
+   "settled_v": 5.283280244963663,
+   "back_in_spec_after_ms": null
+  },
+  "input_step_closed": {
+   "peak_v": 5.7188015,
+   "settled_v": 4.999330879320762,
+   "back_in_spec_after_ms": 0.12360502400000006
+  }
+ },
+ "sallen_key_lowpass": {
+  "pm_deg": 85.95744,
+  "ugf": 1030179.0
+ },
+ "noninverting_amp": {
+  "pm_deg": 85.34539,
+  "ugf": 1022475.0
+ }
+}

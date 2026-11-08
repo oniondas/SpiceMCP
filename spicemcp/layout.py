@@ -96,6 +96,8 @@ def parse(netlist: str) -> tuple[list[El], list[str], list[str]]:
     lines: list[str] = []
     for raw in netlist.splitlines():
         s = raw.strip()
+        if s.lower() == ".end":             # later decks (stability checks) are not drawn
+            break
         if s.startswith("+") and lines:
             lines[-1] += " " + s[1:].strip()
         elif s:
@@ -335,6 +337,28 @@ def _stacks(els: list[El], col: dict[str, int]) -> list[tuple[str, str]]:
     return out
 
 
+def _tails(els: list[El], col: dict[str, int], dirs=()) -> list[tuple[str, str]]:
+    """A capacitor to ground behind a series resistor (an output capacitor and its ESR,
+    a snubber) hangs straight below the node it comes from, as it is drawn by hand.
+    Only for an internal node: one nothing measures, so a filter's output stays in the
+    signal path. Returns (upper, lower) pairs."""
+    seen = " ".join(dirs).lower()
+    out = []
+    for n in list(col):
+        here = [e for e in els if n in e.nodes]
+        series = [e for e in here if e.role == "series" and e.kind == "R"]
+        caps = [e for e in here if e.role == "shunt" and e.kind == "C"]
+        if len(series) != 1 or len(caps) != 1 or len(here) != 2 or \
+                re.search(rf"\bv\(\s*{re.escape(n.lower())}\s*[,)]", seen):
+            continue
+        m = next(x for x in series[0].main if x != n)
+        if _gnd(m) or m not in col:
+            continue
+        col[n] = col[m]
+        out.append((m, n))
+    return out
+
+
 def _rows(els: list[El], col: dict[str, int], stacks=()) -> dict[str, int]:
     """Within a column, the node on the shortest, most forward path takes row 0."""
     sources = {e.main[0] for e in els if e.kind in "VI" and e.role == "shunt"}
@@ -512,7 +536,11 @@ class _Placer:
             want.update({ni: (0.0, -1.0), gi: (0.0, 1.0)})
             rot = _orient(meta, want)
             px, py = asc.ORIENT[rot](*meta["pins"][order[ni]])
-            tx = self.X(node) + (0 if e.kind in "VI" else 80) + 96 * k
+            tail = k == 0 and sum(node in o.nodes for o in self.els) == 2 and any(
+                o.role == "series" and node in o.nodes and
+                self.col.get(next(x for x in o.main if x != node)) == self.col[node]
+                for o in self.els)
+            tx = self.X(node) + (0 if e.kind in "VI" or tail else 80) + 96 * k
             if e.kind in "VI":
                 tx = self.X(node) - 64 - 96 * k
             ty = self.Y(node) + 64
@@ -806,7 +834,12 @@ def draw(netlist: str, values: dict | None = None, label_nets=None) -> Drawing:
     if not els:
         raise LayoutError("no elements in the netlist")
     col = _columns(els)
-    row = _rows(els, col, _stacks(els, col))
+    tails = _tails(els, col, dirs)
+    row = _rows(els, col, _stacks(els, col) + tails)
+    for _, n in tails:                  # keep wires from the left clear of the tail
+        for x in col:
+            if col[x] < col[n] and row[x] >= row[n]:
+                row[x] += 1
     _tuck_rails(els, col, row)
     if label_nets is None:
         # what the user is looking at (.meas) and what a behavioural source reads: a
