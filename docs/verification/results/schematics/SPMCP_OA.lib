@@ -1,0 +1,17 @@
+.subckt SPMCP_OA inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply
+M8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u
+Rb pb vss 4.476e+05
+M5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u
+M6 out x2 vss vss SPMCP_OA_N W=400u L=1u
+M7 out pb vdd vdd SPMCP_OA_P W=500u L=2u
+Cc x2 cz 2.013e-11
+Rz cz out 111.8
+.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_OA

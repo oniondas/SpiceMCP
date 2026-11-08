@@ -1,0 +1,100 @@
+{
+ "analytic": {
+  "rc": {
+   "seeds": "100-119",
+   "found_within_20": 20,
+   "found_within_60": 20,
+   "first_feasible": [
+    6,
+    6,
+    6,
+    6,
+    6,
+    8,
+    6,
+    6,
+    7,
+    6,
+    6,
+    6,
+    11,
+    8,
+    8,
+    6,
+    7,
+    7,
+    9,
+    9
+   ]
+  },
+  "sallen_key": {
+   "seeds": "100-119",
+   "found_within_20": 8,
+   "found_within_60": 19,
+   "first_feasible": [
+    32,
+    34,
+    13,
+    17,
+    12,
+    15,
+    27,
+    32,
+    36,
+    23,
+    37,
+    28,
+    null,
+    17,
+    27,
+    18,
+    18,
+    20,
+    21,
+    22
+   ]
+  }
+ },
+ "real_sallen_key": [
+  {
+   "seed": 0,
+   "first_feasible": 58
+  },
+  {
+   "seed": 1,
+   "first_feasible": 21
+  },
+  {
+   "seed": 2,
+   "first_feasible": 22
+  },
+  {
+   "seed": 3,
+   "first_feasible": 14
+  },
+  {
+   "seed": 4,
+   "first_feasible": 13
+  },
+  {
+   "seed": 5,
+   "first_feasible": 41
+  },
+  {
+   "seed": 6,
+   "first_feasible": null
+  },
+  {
+   "seed": 7,
+   "first_feasible": 19
+  },
+  {
+   "seed": 8,
+   "first_feasible": 15
+  },
+  {
+   "seed": 9,
+   "first_feasible": 15
+  }
+ ]
+}

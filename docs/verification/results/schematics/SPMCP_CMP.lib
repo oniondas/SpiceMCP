@@ -1,0 +1,21 @@
+.subckt SPMCP_CMP inp inn vdd vss out
+* comparator with gate-drive output, pins in+ in- V+ V- out
+* the op-amp's two stages, then a 0.1 A inverter driving a 5 A inverter
+M8 pb pb vdd vdd SPMCP_CMP_P W=10u L=2u
+Rb pb vss 5.476e+05
+M5 tail pb vdd vdd SPMCP_CMP_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_CMP_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_CMP_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_CMP_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_CMP_N W=10u L=2u
+M6 o1 x2 vss vss SPMCP_CMP_N W=400u L=1u
+M7 o1 pb vdd vdd SPMCP_CMP_P W=500u L=2u
+Cc x2 cz 4.026e-13
+Rz cz o1 111.8
+M9 o2 o1 vdd vdd SPMCP_CMP_P W=40u L=1u
+M10 o2 o1 vss vss SPMCP_CMP_N W=16u L=1u
+M11 out o2 vdd vdd SPMCP_CMP_P W=2000u L=1u
+M12 out o2 vss vss SPMCP_CMP_N W=800u L=1u
+.model SPMCP_CMP_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_CMP_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_CMP

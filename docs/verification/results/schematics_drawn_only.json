@@ -1,0 +1,212 @@
+[
+ {
+  "circuit": "rc_lowpass",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 1,
+   "wire_length": 480,
+   "net_labels": 1,
+   "parts": 3
+  }
+ },
+ {
+  "circuit": "sallen_key_lowpass",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 6,
+   "wire_length": 1808,
+   "net_labels": 5,
+   "parts": 9
+  }
+ },
+ {
+  "circuit": "noninverting_amp",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 5,
+   "wire_length": 1376,
+   "net_labels": 6,
+   "parts": 8
+  }
+ },
+ {
+  "circuit": "ldo",
+  "lint": {
+   "score": 76,
+   "crossings": 2,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 8,
+   "wire_length": 3488,
+   "net_labels": 3,
+   "parts": 9
+  }
+ },
+ {
+  "circuit": "buck",
+  "lint": {
+   "score": 69,
+   "crossings": 2,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 20,
+   "wire_length": 5648,
+   "net_labels": 4,
+   "parts": 13
+  }
+ },
+ {
+  "circuit": "instrumentation_amp",
+  "lint": {
+   "score": 27,
+   "crossings": 5,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 29,
+   "wire_length": 8480,
+   "net_labels": 9,
+   "parts": 16
+  }
+ },
+ {
+  "circuit": "unseen_ladder5",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 3,
+   "wire_length": 1488,
+   "net_labels": 0,
+   "parts": 11
+  }
+ },
+ {
+  "circuit": "unseen_bridge",
+  "lint": {
+   "score": 99,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 7,
+   "wire_length": 1440,
+   "net_labels": 0,
+   "parts": 6
+  }
+ },
+ {
+  "circuit": "unseen_inverting",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 6,
+   "wire_length": 1136,
+   "net_labels": 4,
+   "parts": 7
+  }
+ },
+ {
+  "circuit": "unseen_pi_filter",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 2,
+   "wire_length": 1024,
+   "net_labels": 0,
+   "parts": 7
+  }
+ },
+ {
+  "circuit": "unseen_cs_amp",
+  "lint": {
+   "score": 99,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 8,
+   "wire_length": 1328,
+   "net_labels": 0,
+   "parts": 7
+  }
+ },
+ {
+  "circuit": "unseen_two_stage",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 9,
+   "wire_length": 2656,
+   "net_labels": 6,
+   "parts": 9
+  }
+ },
+ {
+  "circuit": "unseen_boost",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 5,
+   "wire_length": 1440,
+   "net_labels": 0,
+   "parts": 7
+  }
+ },
+ {
+  "circuit": "unseen_lc_tank",
+  "lint": {
+   "score": 100,
+   "crossings": 0,
+   "through_parts": 0,
+   "overlaps": 0,
+   "ambiguous": 0,
+   "dangling": 0,
+   "bends": 2,
+   "wire_length": 720,
+   "net_labels": 0,
+   "parts": 4
+  }
+ }
+]

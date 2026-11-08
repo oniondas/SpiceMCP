@@ -1,0 +1,86 @@
+[
+ {
+  "circuit": "rc_lowpass",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "sallen_key_lowpass",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "noninverting_amp",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "ldo",
+  "same_circuit": true,
+  "readability": 76,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "buck",
+  "same_circuit": true,
+  "readability": 69,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "instrumentation_amp",
+  "same_circuit": true,
+  "readability": 27,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_ladder5",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_bridge",
+  "same_circuit": true,
+  "readability": 99,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_inverting",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_pi_filter",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_cs_amp",
+  "same_circuit": true,
+  "readability": 99,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_two_stage",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_boost",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ },
+ {
+  "circuit": "unseen_lc_tank",
+  "same_circuit": true,
+  "readability": 100,
+  "note": "LTspice netlist compared by hand after the first script version misread X\u00a7 names and pin comments"
+ }
+]

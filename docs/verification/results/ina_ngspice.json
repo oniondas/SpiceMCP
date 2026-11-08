@@ -1,0 +1,1521 @@
+[
+ {
+  "tool": "list_templates",
+  "args": {},
+  "answer": {
+   "templates": [
+    {
+     "name": "rc_lowpass",
+     "title": "RC low-pass filter",
+     "circuit_type": "filter",
+     "summary": "First-order passive low-pass. 20 dB/decade roll-off.",
+     "spec": {
+      "fc": "Hz, -3 dB cutoff frequency (required)"
+     }
+    },
+    {
+     "name": "sallen_key_lowpass",
+     "title": "Sallen-Key low-pass filter (2nd order)",
+     "circuit_type": "filter",
+     "summary": "Unity-gain active low-pass, 40 dB/decade. Q 0.707 = Butterworth.",
+     "spec": {
+      "fc": "Hz, cutoff frequency (required)",
+      "q": ", quality factor (default 0.707107)",
+      "cload": "F, capacitance on the output (default 1e-10)"
+     }
+    },
+    {
+     "name": "noninverting_amp",
+     "title": "Non-inverting op-amp amplifier",
+     "circuit_type": "opamp",
+     "summary": "Gain 1 + R2/R1 around a transistor-level CMOS op-amp.",
+     "spec": {
+      "gain": "V/V, closed-loop gain (>= 1) (required)",
+      "bw": "Hz, minimum -3 dB bandwidth (required)",
+      "gbw": "Hz, op-amp gain-bandwidth product (default 1e+07)",
+      "cload": "F, capacitance on the output (default 1e-10)"
+     }
+    },
+    {
+     "name": "ldo",
+     "title": "PMOS LDO voltage regulator",
+     "circuit_type": "ldo",
+     "summary": "Linear regulator: PMOS pass device, 1.2 V reference, resistor divider, output capacitor; checked for phase margin and load step.",
+     "spec": {
+      "vin": "V, nominal input voltage (required)",
+      "vout": "V, output voltage (> 1.2 V) (required)",
+      "iload": "A, load current (required)",
+      "dropout": "V, max input-output difference at full load (default 0.3)",
+      "cout": "F, output capacitor (default 1e-06)",
+      "step_pct": "%, max output change on a 10%-to-100% load step (default 3)"
+     }
+    },
+    {
+     "name": "buck",
+     "title": "Buck DC-DC converter (closed loop)",
+     "circuit_type": "dcdc",
+     "summary": "Step-down switching converter: P-MOSFET switch, diode, L, C, and a voltage-mode PWM controller that holds the output.",
+     "spec": {
+      "vin": "V, input voltage (required)",
+      "vout": "V, output voltage (required)",
+      "iout": "A, load current (required)",
+      "fsw": "Hz, switching frequency (default 500000)",
+      "ripple_mv": "mV, max output ripple, peak to peak (default 50)"
+     }
+    }
+   ],
+   "next_step": "Call start_from_template(run_id, template, spec)."
+  }
+ },
+ {
+  "tool": "start_from_template",
+  "args": {
+   "run_id": "oa_src",
+   "template": "noninverting_amp",
+   "spec": {
+    "gain": 10,
+    "bw": 100000.0
+   },
+   "sim_options": {
+    "backend": "ngspice"
+   }
+  },
+  "answer": {
+   "run_id": "oa_src",
+   "objectives": [
+    {
+     "metric": "bw",
+     "direction": "max",
+     "weight": 1.0,
+     "ref": 100000.0
+    }
+   ],
+   "constraints": [
+    {
+     "metric": "gain_db",
+     "op": ">=",
+     "value": 19.9
+    },
+    {
+     "metric": "gain_db",
+     "op": "<=",
+     "value": 20.1
+    },
+    {
+     "metric": "bw",
+     "op": ">=",
+     "value": 100000.0
+    },
+    {
+     "metric": "pm_deg",
+     "op": ">=",
+     "value": 45.0
+    }
+   ],
+   "parameters": [
+    "R1",
+    "R2"
+   ],
+   "seed": 0,
+   "feasibility": {
+    "status": "unverified",
+    "passed": true,
+    "mode": "practical",
+    "circuit_type": "opamp",
+    "summary": "nothing was ruled out, but the domain physics could not be checked: physics:opamp bounds need technology_params vdd (V) and cload (F)",
+    "violations": [
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Lbrk = 1000 H is outside the practical 1e-12..1 H window",
+      "suggestion": "rescale the impedance level around Lbrk",
+      "details": {
+       "element": "Lbrk"
+      }
+     },
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Cinj = 1000 F is outside the practical 1e-16..0.001 F window",
+      "suggestion": "rescale the impedance level around Cinj",
+      "details": {
+       "element": "Cinj"
+      }
+     }
+    ],
+    "n_errors": 0,
+    "n_warnings": 2,
+    "suggestions": [
+     "rescale the impedance level around Lbrk",
+     "rescale the impedance level around Cinj"
+    ],
+    "details": {
+     "measured_metrics": [
+      "bw",
+      "gain_db",
+      "pm",
+      "ugf"
+     ],
+     "reactive_elements": 6,
+     "max_order_from_topology": 6,
+     "active_elements": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M7",
+      "M8",
+      "X1"
+     ],
+     "units": {},
+     "technology_params_used": {},
+     "constraints_read": [
+      "gain_db>=19.9",
+      "gain_db<=20.1",
+      "bw>=100000",
+      "pm_deg>=45"
+     ]
+    },
+    "checks_run": [
+     "static:constraint_consistency",
+     "static:objective_consistency",
+     "static:param_space",
+     "template:metrics_have_meas",
+     "template:placeholders_match_param_space",
+     "template:gain_needs_active_element",
+     "practical:component_values",
+     "practical:phase_margin"
+    ],
+    "checks_skipped": [
+     "physics:opamp bounds need technology_params vdd (V) and cload (F)"
+    ]
+   },
+   "schematic_asc": "/tmp/tmpeht_wf07/.ltspice-mcp/schematics/oa_src.asc",
+   "template": "noninverting_amp",
+   "hand_calculation": [
+    "Gain = 1 + R2/R1. Pick R1 = 10 k\u03a9.",
+    "R2 = R1\u00b7(G \u2212 1) = 90 k\u03a9.",
+    "Bandwidth \u2248 GBW / G = 1e+07 / 10 = 1 MHz (spec 100 kHz).",
+    "The 10 k\u03a9 load and the R2+R1 divider also load the output.",
+    "Op-amp: two-stage CMOS (MOSFETs) on \u00b15 V. Compensation Cc = gm1 / (2\u00b7\u03c0\u00b7GBW) = 4.03 pF; slew 9.9 V/\u00b5s.",
+    "Stability: 100 pF load. Phase margin falls as the load capacitance rises and as the gain falls; it must stay above 45\u00b0. If it does not, lower gbw or isolate the load with a series resistor."
+   ],
+   "start_point": {
+    "R1": 10000.0,
+    "R2": 90000.0
+   },
+   "start_result": {
+    "candidate_id": "cand_0001",
+    "status": "ok",
+    "metrics": {
+     "gain_db": 19.99619,
+     "bw": 1119545.0,
+     "ugf": 1022475.0,
+     "pm": -0.002330555,
+     "pm_deg": 85.34539
+    },
+    "feasible": true,
+    "failure_message": null
+   },
+   "next_step": "Start point already meets every limit. Call run_optimization(run_id='oa_src', iterations=20) to improve the goal, or generate_design_report."
+  }
+ },
+ {
+  "tool": "query_run",
+  "args": {
+   "run_id": "oa_src",
+   "what": "status"
+  },
+  "answer": {
+   "run_id": "oa_src",
+   "status": "running",
+   "iterations_evaluated": 1,
+   "unique_candidates": 1,
+   "failures": 0,
+   "current_candidate": "cand_0001",
+   "best_candidate": "cand_0001",
+   "best_metrics": {
+    "bw": 1119545.0,
+    "gain_db": 19.99619,
+    "pm": -0.002330555,
+    "pm_deg": 85.34539,
+    "ugf": 1022475.0
+   },
+   "best_score": 11.19545,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "gain_db",
+     "required": ">=19.9",
+     "actual": 19.99619,
+     "passed": true
+    },
+    {
+     "constraint": "gain_db",
+     "required": "<=20.1",
+     "actual": 19.99619,
+     "passed": true
+    },
+    {
+     "constraint": "bw",
+     "required": ">=100000",
+     "actual": 1119545.0,
+     "passed": true
+    },
+    {
+     "constraint": "pm_deg",
+     "required": ">=45",
+     "actual": 85.34539,
+     "passed": true
+    }
+   ],
+   "pareto_size": 1,
+   "useful_observation": null,
+   "promising_unexplored_region": null,
+   "at_param_space_bound": null,
+   "next_step": "Design meets all limits. Call finish_design(run_id='oa_src') for standard part values and yield, then generate_design_report."
+  }
+ },
+ {
+  "tool": "query_run",
+  "args": {
+   "run_id": "oa_src",
+   "what": "best"
+  },
+  "answer": {
+   "run_id": "oa_src",
+   "current_candidate": "cand_0001",
+   "best": {
+    "candidate_id": "cand_0001",
+    "iteration": 1,
+    "status": "ok",
+    "metrics": {
+     "bw": 1119545.0,
+     "gain_db": 19.99619,
+     "pm": -0.002330555,
+     "pm_deg": 85.34539,
+     "ugf": 1022475.0
+    },
+    "constraints": [
+     {
+      "actual": 19.99619,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": ">=19.9"
+     },
+     {
+      "actual": 19.99619,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": "<=20.1"
+     },
+     {
+      "actual": 1119545.0,
+      "constraint": "bw",
+      "passed": true,
+      "required": ">=100000"
+     },
+     {
+      "actual": 85.34539,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     }
+    ],
+    "feasible": true,
+    "score": 11.19545,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "best_feasible": {
+    "candidate_id": "cand_0001",
+    "iteration": 1,
+    "status": "ok",
+    "metrics": {
+     "bw": 1119545.0,
+     "gain_db": 19.99619,
+     "pm": -0.002330555,
+     "pm_deg": 85.34539,
+     "ugf": 1022475.0
+    },
+    "constraints": [
+     {
+      "actual": 19.99619,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": ">=19.9"
+     },
+     {
+      "actual": 19.99619,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": "<=20.1"
+     },
+     {
+      "actual": 1119545.0,
+      "constraint": "bw",
+      "passed": true,
+      "required": ">=100000"
+     },
+     {
+      "actual": 85.34539,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     }
+    ],
+    "feasible": true,
+    "score": 11.19545,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "next_step": "Call generate_design_report(run_id='oa_src') when the design is good."
+  }
+ },
+ {
+  "tool": "query_run",
+  "args": {
+   "run_id": "oa_src",
+   "what": "netlist",
+   "candidate_id": "cand_0001"
+  },
+  "answer": {
+   "candidate_id": "cand_0001",
+   "params": {
+    "R1": 10000.0,
+    "R2": 90000.0
+   },
+   "netlist": "* Non-inverting amplifier (SpiceMCP template noninverting_amp)\n* gain target 10 V/V; transistor-level op-amp on +-5 V, GBW 1e+07 Hz\nV1 in 0 AC 1\nVcc vcc 0 5\nVee vee 0 -5\nX1 in inn vcc vee out SPMCP_OA\nR2 out inn 90000.0\nR1 inn 0 10000.0\nRL out 0 10k\nCL out 0 1e-10\n.subckt SPMCP_OA inp inn vdd vss out\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\nRb pb vss 4.476e+05\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\nCc x2 cz 4.026e-12\nRz cz out 111.8\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.ends SPMCP_OA\n.ac dec 100 10 1e+08\n.meas AC gain_db FIND mag(V(out)) AT 10\n.meas AC bw WHEN mag(V(out))=7.071 FALL=1\n.end\n* Amplifier stability: loop gain, feedback broken at the amplifier input\nV1 in 0 0\nVcc vcc 0 5\nVee vee 0 -5\nX1 in inn vcc vee out SPMCP_OA\nR2 out fbd 90000.0\nR1 fbd 0 10000.0\nRL out 0 10k\nCL out 0 1e-10\nLbrk fbd inn 1k\nCinj inn inj 1k\n.subckt SPMCP_OA inp inn vdd vss out\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\nRb pb vss 4.476e+05\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\nCc x2 cz 4.026e-12\nRz cz out 111.8\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.ends SPMCP_OA\nVinj inj 0 AC 1\n.ac dec 50 100 1e+09\n.meas AC ugf WHEN mag(V(fbd))=1 FALL=1\n.meas AC pm FIND V(fbd) WHEN mag(V(fbd))=1 FALL=1\n.end\n",
+   "next_step": "Use this netlist as-is; do not retype it from memory."
+  }
+ },
+ {
+  "tool": "check_feasibility",
+  "args": {
+   "goals": [
+    {
+     "metric": "bw",
+     "direction": "max"
+    }
+   ],
+   "limits": [
+    {
+     "metric": "gain_db",
+     "min": 39.9,
+     "max": 40.1
+    },
+    {
+     "metric": "bw",
+     "min": 20000.0
+    },
+    {
+     "metric": "cm_db",
+     "max": -40
+    },
+    {
+     "metric": "pm_deg",
+     "min": 45
+    }
+   ],
+   "params": [
+    {
+     "name": "R1A",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R1B",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R2A",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R2B",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R3A",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R3B",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "RG",
+     "min": 20,
+     "max": 2000.0
+    }
+   ],
+   "netlist": "* Three-op-amp instrumentation amplifier, gain 100 (40 dB), +-5 V supply\n* differential input (inp, inn) -> out; a second copy driven common-mode for CMRR\nVcc vcc 0 5\nVee vee 0 -5\nVp inp 0 AC 0.5\nVn inn 0 AC 0.5 180\nVc cm 0 AC 1\nX1 inp n1 vcc vee o1 SPMCP_OA\nX2 inn n2 vcc vee o2 SPMCP_OA\nR1a o1 n1 {R1A}\nR1b o2 n2 {R1B}\nRg n1 n2 {RG}\nR2a o1 a {R2A}\nR3a a out {R3A}\nR2b o2 b {R2B}\nR3b b 0 {R3B}\nX3 b a vcc vee out SPMCP_OA\nRL out 0 10k\nCL out 0 100p\nX1c cm n1c vcc vee o1c SPMCP_OA\nX2c cm n2c vcc vee o2c SPMCP_OA\nR1ac o1c n1c {R1A}\nR1bc o2c n2c {R1B}\nRgc n1c n2c {RG}\nR2ac o1c ac {R2A}\nR3ac ac outc {R3A}\nR2bc o2c bc {R2B}\nR3bc bc 0 {R3B}\nX3c bc ac vcc vee outc SPMCP_OA\nRLc outc 0 10k\nCLc outc 0 100p\n.subckt SPMCP_OA inp inn vdd vss out\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\nRb pb vss 4.476e+05\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\nCc x2 cz 4.026e-12\nRz cz out 111.8\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.ends SPMCP_OA\n.ac dec 50 10 10Meg\n.meas AC gain_db FIND mag(V(out)) AT 100\n.meas AC bw WHEN mag(V(out))=70.71 FALL=1\n.meas AC cm_db FIND mag(V(outc)) AT 60\n.end\n* Output stage stability: loop gain, feedback broken at X3's inverting input\nVcc vcc 0 5\nVee vee 0 -5\nVp inp 0 0\nVn inn 0 0\nX1 inp n1 vcc vee o1 SPMCP_OA\nX2 inn n2 vcc vee o2 SPMCP_OA\nR1a o1 n1 {R1A}\nR1b o2 n2 {R1B}\nRg n1 n2 {RG}\nR2a o1 a {R2A}\nR3a a out {R3A}\nR2b o2 b {R2B}\nR3b b 0 {R3B}\nX3 b fbk vcc vee out SPMCP_OA\nRL out 0 10k\nCL out 0 100p\nLbrk a fbk 1k\nCinj fbk inj 1k\n.subckt SPMCP_OA inp inn vdd vss out\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\nRb pb vss 4.476e+05\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\nCc x2 cz 4.026e-12\nRz cz out 111.8\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.ends SPMCP_OA\nVinj inj 0 AC 1\n.ac dec 50 1k 1G\n.meas AC ugf WHEN mag(V(a))=1 FALL=1\n.meas AC pm FIND V(a) WHEN mag(V(a))=1 FALL=1\n.end\n",
+   "circuit_type": "opamp"
+  },
+  "answer": {
+   "status": "unverified",
+   "passed": true,
+   "mode": "practical",
+   "circuit_type": "opamp",
+   "summary": "nothing was ruled out, but the domain physics could not be checked: physics:opamp bounds need technology_params vdd (V) and cload (F)",
+   "violations": [
+    {
+     "severity": "warning",
+     "layer": "practical",
+     "code": "component_value_extreme",
+     "message": "Lbrk = 1000 H is outside the practical 1e-12..1 H window",
+     "suggestion": "rescale the impedance level around Lbrk",
+     "details": {
+      "element": "Lbrk"
+     }
+    },
+    {
+     "severity": "warning",
+     "layer": "practical",
+     "code": "component_value_extreme",
+     "message": "Cinj = 1000 F is outside the practical 1e-16..0.001 F window",
+     "suggestion": "rescale the impedance level around Cinj",
+     "details": {
+      "element": "Cinj"
+     }
+    }
+   ],
+   "n_errors": 0,
+   "n_warnings": 2,
+   "suggestions": [
+    "rescale the impedance level around Lbrk",
+    "rescale the impedance level around Cinj"
+   ],
+   "details": {
+    "measured_metrics": [
+     "bw",
+     "cm_db",
+     "gain_db",
+     "pm",
+     "ugf"
+    ],
+    "reactive_elements": 7,
+    "max_order_from_topology": 7,
+    "active_elements": [
+     "M1",
+     "M2",
+     "M3",
+     "M4",
+     "M5",
+     "M6",
+     "M7",
+     "M8",
+     "X1",
+     "X1c",
+     "X2",
+     "X2c",
+     "X3",
+     "X3c"
+    ],
+    "units": {},
+    "technology_params_used": {},
+    "constraints_read": [
+     "gain_db>=39.9",
+     "gain_db<=40.1",
+     "bw>=20000",
+     "cm_db<=-40",
+     "pm_deg>=45"
+    ]
+   },
+   "checks_run": [
+    "static:constraint_consistency",
+    "static:objective_consistency",
+    "static:param_space",
+    "template:metrics_have_meas",
+    "template:placeholders_match_param_space",
+    "template:gain_needs_active_element",
+    "practical:component_values",
+    "practical:phase_margin"
+   ],
+   "checks_skipped": [
+    "physics:opamp bounds need technology_params vdd (V) and cload (F)"
+   ],
+   "next_step": "Call start_optimization with the same netlist, params and limits."
+  }
+ },
+ {
+  "tool": "start_optimization",
+  "args": {
+   "run_id": "ina",
+   "netlist": "* Three-op-amp instrumentation amplifier, gain 100 (40 dB), +-5 V supply\n* differential input (inp, inn) -> out; a second copy driven common-mode for CMRR\nVcc vcc 0 5\nVee vee 0 -5\nVp inp 0 AC 0.5\nVn inn 0 AC 0.5 180\nVc cm 0 AC 1\nX1 inp n1 vcc vee o1 SPMCP_OA\nX2 inn n2 vcc vee o2 SPMCP_OA\nR1a o1 n1 {R1A}\nR1b o2 n2 {R1B}\nRg n1 n2 {RG}\nR2a o1 a {R2A}\nR3a a out {R3A}\nR2b o2 b {R2B}\nR3b b 0 {R3B}\nX3 b a vcc vee out SPMCP_OA\nRL out 0 10k\nCL out 0 100p\nX1c cm n1c vcc vee o1c SPMCP_OA\nX2c cm n2c vcc vee o2c SPMCP_OA\nR1ac o1c n1c {R1A}\nR1bc o2c n2c {R1B}\nRgc n1c n2c {RG}\nR2ac o1c ac {R2A}\nR3ac ac outc {R3A}\nR2bc o2c bc {R2B}\nR3bc bc 0 {R3B}\nX3c bc ac vcc vee outc SPMCP_OA\nRLc outc 0 10k\nCLc outc 0 100p\n.subckt SPMCP_OA inp inn vdd vss out\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\nRb pb vss 4.476e+05\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\nCc x2 cz 4.026e-12\nRz cz out 111.8\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.ends SPMCP_OA\n.ac dec 50 10 10Meg\n.meas AC gain_db FIND mag(V(out)) AT 100\n.meas AC bw WHEN mag(V(out))=70.71 FALL=1\n.meas AC cm_db FIND mag(V(outc)) AT 60\n.end\n* Output stage stability: loop gain, feedback broken at X3's inverting input\nVcc vcc 0 5\nVee vee 0 -5\nVp inp 0 0\nVn inn 0 0\nX1 inp n1 vcc vee o1 SPMCP_OA\nX2 inn n2 vcc vee o2 SPMCP_OA\nR1a o1 n1 {R1A}\nR1b o2 n2 {R1B}\nRg n1 n2 {RG}\nR2a o1 a {R2A}\nR3a a out {R3A}\nR2b o2 b {R2B}\nR3b b 0 {R3B}\nX3 b fbk vcc vee out SPMCP_OA\nRL out 0 10k\nCL out 0 100p\nLbrk a fbk 1k\nCinj fbk inj 1k\n.subckt SPMCP_OA inp inn vdd vss out\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\nRb pb vss 4.476e+05\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\nCc x2 cz 4.026e-12\nRz cz out 111.8\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\n.ends SPMCP_OA\nVinj inj 0 AC 1\n.ac dec 50 1k 1G\n.meas AC ugf WHEN mag(V(a))=1 FALL=1\n.meas AC pm FIND V(a) WHEN mag(V(a))=1 FALL=1\n.end\n",
+   "params": [
+    {
+     "name": "R1A",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R1B",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R2A",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R2B",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R3A",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "R3B",
+     "min": 1000.0,
+     "max": 100000.0
+    },
+    {
+     "name": "RG",
+     "min": 20,
+     "max": 2000.0
+    }
+   ],
+   "goals": [
+    {
+     "metric": "bw",
+     "direction": "max"
+    }
+   ],
+   "limits": [
+    {
+     "metric": "gain_db",
+     "min": 39.9,
+     "max": 40.1
+    },
+    {
+     "metric": "bw",
+     "min": 20000.0
+    },
+    {
+     "metric": "cm_db",
+     "max": -40
+    },
+    {
+     "metric": "pm_deg",
+     "min": 45
+    }
+   ],
+   "circuit_type": "opamp",
+   "sim_options": {
+    "backend": "ngspice"
+   }
+  },
+  "answer": {
+   "run_id": "ina",
+   "objectives": [
+    {
+     "metric": "bw",
+     "direction": "max",
+     "weight": 1.0,
+     "ref": 20000.0
+    }
+   ],
+   "constraints": [
+    {
+     "metric": "gain_db",
+     "op": ">=",
+     "value": 39.9
+    },
+    {
+     "metric": "gain_db",
+     "op": "<=",
+     "value": 40.1
+    },
+    {
+     "metric": "bw",
+     "op": ">=",
+     "value": 20000.0
+    },
+    {
+     "metric": "cm_db",
+     "op": "<=",
+     "value": -40.0
+    },
+    {
+     "metric": "pm_deg",
+     "op": ">=",
+     "value": 45.0
+    }
+   ],
+   "parameters": [
+    "R1A",
+    "R1B",
+    "R2A",
+    "R2B",
+    "R3A",
+    "R3B",
+    "RG"
+   ],
+   "seed": 0,
+   "feasibility": {
+    "status": "unverified",
+    "passed": true,
+    "mode": "practical",
+    "circuit_type": "opamp",
+    "summary": "nothing was ruled out, but the domain physics could not be checked: physics:opamp bounds need technology_params vdd (V) and cload (F)",
+    "violations": [
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Lbrk = 1000 H is outside the practical 1e-12..1 H window",
+      "suggestion": "rescale the impedance level around Lbrk",
+      "details": {
+       "element": "Lbrk"
+      }
+     },
+     {
+      "severity": "warning",
+      "layer": "practical",
+      "code": "component_value_extreme",
+      "message": "Cinj = 1000 F is outside the practical 1e-16..0.001 F window",
+      "suggestion": "rescale the impedance level around Cinj",
+      "details": {
+       "element": "Cinj"
+      }
+     }
+    ],
+    "n_errors": 0,
+    "n_warnings": 2,
+    "suggestions": [
+     "rescale the impedance level around Lbrk",
+     "rescale the impedance level around Cinj"
+    ],
+    "details": {
+     "measured_metrics": [
+      "bw",
+      "cm_db",
+      "gain_db",
+      "pm",
+      "ugf"
+     ],
+     "reactive_elements": 7,
+     "max_order_from_topology": 7,
+     "active_elements": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M7",
+      "M8",
+      "X1",
+      "X1c",
+      "X2",
+      "X2c",
+      "X3",
+      "X3c"
+     ],
+     "units": {},
+     "technology_params_used": {},
+     "constraints_read": [
+      "gain_db>=39.9",
+      "gain_db<=40.1",
+      "bw>=20000",
+      "cm_db<=-40",
+      "pm_deg>=45"
+     ]
+    },
+    "checks_run": [
+     "static:constraint_consistency",
+     "static:objective_consistency",
+     "static:param_space",
+     "template:metrics_have_meas",
+     "template:placeholders_match_param_space",
+     "template:gain_needs_active_element",
+     "practical:component_values",
+     "practical:phase_margin"
+    ],
+    "checks_skipped": [
+     "physics:opamp bounds need technology_params vdd (V) and cload (F)"
+    ]
+   },
+   "next_step": "Call run_optimization(run_id='ina', iterations=20)."
+  }
+ },
+ {
+  "tool": "evaluate_candidate",
+  "args": {
+   "run_id": "ina",
+   "params": {
+    "R1A": 10000.0,
+    "R1B": 10000.0,
+    "RG": 200,
+    "R2A": 10000.0,
+    "R2B": 10000.0,
+    "R3A": 10000.0,
+    "R3B": 10000.0
+   }
+  },
+  "answer": {
+   "cached": false,
+   "candidate_id": "cand_0002",
+   "iteration": 1,
+   "new_candidate": true,
+   "status": "ok",
+   "metrics": {
+    "gain_db": 40.0224,
+    "bw": 102063.1,
+    "cm_db": -87.24277,
+    "ugf": 4771272.0,
+    "pm": -0.0007691116,
+    "pm_deg": 69.39398
+   },
+   "constraints": [
+    {
+     "constraint": "gain_db",
+     "required": ">=39.9",
+     "actual": 40.0224,
+     "passed": true
+    },
+    {
+     "constraint": "gain_db",
+     "required": "<=40.1",
+     "actual": 40.0224,
+     "passed": true
+    },
+    {
+     "constraint": "bw",
+     "required": ">=20000",
+     "actual": 102063.1,
+     "passed": true
+    },
+    {
+     "constraint": "cm_db",
+     "required": "<=-40",
+     "actual": -87.24277,
+     "passed": true
+    },
+    {
+     "constraint": "pm_deg",
+     "required": ">=45",
+     "actual": 69.39398,
+     "passed": true
+    }
+   ],
+   "feasible": true,
+   "score": 5.103155,
+   "failure_type": null,
+   "failure_message": null,
+   "warnings": [],
+   "best_candidate": "cand_0002",
+   "improved_best": true,
+   "next_step": "Call query_run(run_id='ina', what='status') or run_optimization."
+  }
+ },
+ {
+  "tool": "run_optimization",
+  "args": {
+   "run_id": "ina",
+   "iterations": 30
+  },
+  "answer": {
+   "iterations_run": 30,
+   "cached_hits": 0,
+   "step_frac_final": 0.00390625,
+   "run_id": "ina",
+   "status": "running",
+   "iterations_evaluated": 31,
+   "unique_candidates": 31,
+   "failures": 0,
+   "current_candidate": "cand_0032",
+   "best_candidate": "cand_0027",
+   "best_metrics": {
+    "bw": 105076.3,
+    "cm_db": -55.89309,
+    "gain_db": 40.06409,
+    "pm": -0.0024611,
+    "pm_deg": 69.60297,
+    "ugf": 4722017.0
+   },
+   "best_score": 5.253815,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "gain_db",
+     "required": ">=39.9",
+     "actual": 40.06409,
+     "passed": true
+    },
+    {
+     "constraint": "gain_db",
+     "required": "<=40.1",
+     "actual": 40.06409,
+     "passed": true
+    },
+    {
+     "constraint": "bw",
+     "required": ">=20000",
+     "actual": 105076.3,
+     "passed": true
+    },
+    {
+     "constraint": "cm_db",
+     "required": "<=-40",
+     "actual": -55.89309,
+     "passed": true
+    },
+    {
+     "constraint": "pm_deg",
+     "required": ">=45",
+     "actual": 69.60297,
+     "passed": true
+    }
+   ],
+   "pareto_size": 1,
+   "useful_observation": "R2A increases ugf (217.9/unit, finite_difference, conf 1.0)",
+   "promising_unexplored_region": "R2A = 13625.2..100000",
+   "at_param_space_bound": null,
+   "next_step": "Design meets all limits. Call finish_design(run_id='ina') for standard part values and yield, then generate_design_report."
+  }
+ },
+ {
+  "tool": "query_run",
+  "args": {
+   "run_id": "ina",
+   "what": "status"
+  },
+  "answer": {
+   "run_id": "ina",
+   "status": "running",
+   "iterations_evaluated": 31,
+   "unique_candidates": 31,
+   "failures": 0,
+   "current_candidate": "cand_0032",
+   "best_candidate": "cand_0027",
+   "best_metrics": {
+    "bw": 105076.3,
+    "cm_db": -55.89309,
+    "gain_db": 40.06409,
+    "pm": -0.0024611,
+    "pm_deg": 69.60297,
+    "ugf": 4722017.0
+   },
+   "best_score": 5.253815,
+   "best_is_feasible": true,
+   "constraints": [
+    {
+     "constraint": "gain_db",
+     "required": ">=39.9",
+     "actual": 40.06409,
+     "passed": true
+    },
+    {
+     "constraint": "gain_db",
+     "required": "<=40.1",
+     "actual": 40.06409,
+     "passed": true
+    },
+    {
+     "constraint": "bw",
+     "required": ">=20000",
+     "actual": 105076.3,
+     "passed": true
+    },
+    {
+     "constraint": "cm_db",
+     "required": "<=-40",
+     "actual": -55.89309,
+     "passed": true
+    },
+    {
+     "constraint": "pm_deg",
+     "required": ">=45",
+     "actual": 69.60297,
+     "passed": true
+    }
+   ],
+   "pareto_size": 1,
+   "useful_observation": "R2A increases ugf (217.9/unit, finite_difference, conf 1.0)",
+   "promising_unexplored_region": "R2A = 13625.2..100000",
+   "at_param_space_bound": null,
+   "next_step": "Design meets all limits. Call finish_design(run_id='ina') for standard part values and yield, then generate_design_report."
+  }
+ },
+ {
+  "tool": "query_run",
+  "args": {
+   "run_id": "ina",
+   "what": "best"
+  },
+  "answer": {
+   "run_id": "ina",
+   "current_candidate": "cand_0032",
+   "best": {
+    "candidate_id": "cand_0006",
+    "iteration": 5,
+    "status": "ok",
+    "metrics": {
+     "bw": 265128.2,
+     "cm_db": -81.26404,
+     "gain_db": 45.99556,
+     "pm": -0.0004303847,
+     "pm_deg": 75.6851,
+     "ugf": 3318038.0
+    },
+    "constraints": [
+     {
+      "actual": 45.99556,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": ">=39.9"
+     },
+     {
+      "actual": 45.99556,
+      "constraint": "gain_db",
+      "passed": false,
+      "required": "<=40.1"
+     },
+     {
+      "actual": 265128.2,
+      "constraint": "bw",
+      "passed": true,
+      "required": ">=20000"
+     },
+     {
+      "actual": -81.26404,
+      "constraint": "cm_db",
+      "passed": true,
+      "required": "<=-40"
+     },
+     {
+      "actual": 75.6851,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     }
+    ],
+    "feasible": false,
+    "score": 11.786195536159603,
+    "failure_type": "constraint_violation",
+    "failure_message": "gain_db needs <=40.1 got 45.99556"
+   },
+   "best_feasible": {
+    "candidate_id": "cand_0027",
+    "iteration": 26,
+    "status": "ok",
+    "metrics": {
+     "bw": 105076.3,
+     "cm_db": -55.89309,
+     "gain_db": 40.06409,
+     "pm": -0.0024611,
+     "pm_deg": 69.60297,
+     "ugf": 4722017.0
+    },
+    "constraints": [
+     {
+      "actual": 40.06409,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": ">=39.9"
+     },
+     {
+      "actual": 40.06409,
+      "constraint": "gain_db",
+      "passed": true,
+      "required": "<=40.1"
+     },
+     {
+      "actual": 105076.3,
+      "constraint": "bw",
+      "passed": true,
+      "required": ">=20000"
+     },
+     {
+      "actual": -55.89309,
+      "constraint": "cm_db",
+      "passed": true,
+      "required": "<=-40"
+     },
+     {
+      "actual": 69.60297,
+      "constraint": "pm_deg",
+      "passed": true,
+      "required": ">=45"
+     }
+    ],
+    "feasible": true,
+    "score": 5.253815,
+    "failure_type": null,
+    "failure_message": null
+   },
+   "next_step": "Call generate_design_report(run_id='ina') when the design is good."
+  }
+ },
+ {
+  "tool": "finish_design",
+  "args": {
+   "run_id": "ina",
+   "resistors": "E96",
+   "yield_runs": 40
+  },
+  "answer": {
+   "run_id": "ina",
+   "from_candidate": "cand_0027",
+   "buildable_candidate": "cand_0075",
+   "parts": {
+    "R1A": {
+     "value": 9760.0,
+     "label": "9.76k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 9932.45374,
+     "change_pct": -1.74
+    },
+    "R1B": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 9929.95855,
+     "change_pct": 0.71
+    },
+    "R2A": {
+     "value": 9760.0,
+     "label": "9.76k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 9652.05914,
+     "change_pct": 1.12
+    },
+    "R2B": {
+     "value": 9760.0,
+     "label": "9.76k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 9679.63483,
+     "change_pct": 0.83
+    },
+    "R3A": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 9888.57033,
+     "change_pct": 1.13
+    },
+    "R3B": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 9947.34982,
+     "change_pct": 0.53
+    },
+    "RG": {
+     "value": 205.0,
+     "label": "205",
+     "series": "E96",
+     "tolerance_pct": 1.0,
+     "optimised_value": 202.71537,
+     "change_pct": 1.13
+    }
+   },
+   "other_values": {},
+   "metrics": {
+    "gain_db": 39.9186,
+    "bw": 103268.5,
+    "cm_db": -87.03175,
+    "ugf": 4721765.0,
+    "pm": -0.002466578,
+    "pm_deg": 69.60075
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.047,
+   "optimised_metrics": {
+    "bw": 105076.3,
+    "cm_db": -55.89309,
+    "gain_db": 40.06409,
+    "pm": -0.0024611,
+    "pm_deg": 69.60297,
+    "ugf": 4722017.0
+   },
+   "nearest_values_meet_limits": true,
+   "nearest_values_margin_pct": 0.195,
+   "combinations_simulated": 52,
+   "yield": {
+    "runs": 40,
+    "passed": 19,
+    "yield_pct": 47.5,
+    "distribution": "uniform inside each part's tolerance",
+    "resolution_note": "40 runs resolve yield to about 2%",
+    "spread": {
+     "gain_db": {
+      "min": 39.76093,
+      "max": 40.07733,
+      "limit": "<=40.1"
+     },
+     "bw": {
+      "min": 99889.89,
+      "max": 106019.3,
+      "limit": ">=20000"
+     },
+     "cm_db": {
+      "min": -68.06211,
+      "max": -37.4544,
+      "limit": "<=-40"
+     },
+     "pm_deg": {
+      "min": 69.44402,
+      "max": 69.73024,
+      "limit": ">=45"
+     }
+    },
+    "samples_path": "/tmp/tmpeht_wf07/.ltspice-mcp/simulations/ina/yield/samples.json"
+   },
+   "alternatives": [
+    {
+     "candidate_id": "cand_0075",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.047,
+     "yield_pct": 47.5
+    },
+    {
+     "candidate_id": "cand_0082",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "200"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.073,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0076",
+     "parts": {
+      "R1A": "9.53k",
+      "R1B": "10k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.205,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0077",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "9.76k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.216,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0079",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10k",
+      "R2A": "9.76k",
+      "R2B": "9.53k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -4.091,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0078",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10k",
+      "R2A": "9.53k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -4.192,
+     "yield_pct": null
+    }
+   ],
+   "next_step": "Standard values meet the limits but yield is low: tighten tolerance_pct (e.g. 1% capacitors) or relax a limit."
+  }
+ },
+ {
+  "tool": "finish_design",
+  "args": {
+   "run_id": "ina",
+   "resistors": "E96",
+   "yield_runs": 40,
+   "tolerance_pct": {
+    "R": 0.1
+   }
+  },
+  "answer": {
+   "run_id": "ina",
+   "from_candidate": "cand_0063",
+   "buildable_candidate": "cand_0125",
+   "parts": {
+    "R1A": {
+     "value": 9760.0,
+     "label": "9.76k",
+     "series": "E96",
+     "tolerance_pct": 0.1,
+     "optimised_value": 9735.777978628721,
+     "change_pct": 0.25
+    },
+    "R1B": {
+     "value": 10200.0,
+     "label": "10.2k",
+     "series": "E96",
+     "tolerance_pct": 0.1,
+     "optimised_value": 10130.55701912014,
+     "change_pct": 0.69
+    },
+    "R2A": {
+     "value": 9760.0,
+     "label": "9.76k",
+     "series": "E96",
+     "tolerance_pct": 0.1,
+     "optimised_value": 9652.05914,
+     "change_pct": 1.12
+    },
+    "R2B": {
+     "value": 9760.0,
+     "label": "9.76k",
+     "series": "E96",
+     "tolerance_pct": 0.1,
+     "optimised_value": 9679.63483,
+     "change_pct": 0.83
+    },
+    "R3A": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 0.1,
+     "optimised_value": 9888.57033,
+     "change_pct": 1.13
+    },
+    "R3B": {
+     "value": 10000.0,
+     "label": "10k",
+     "series": "E96",
+     "tolerance_pct": 0.1,
+     "optimised_value": 9947.34982,
+     "change_pct": 0.53
+    },
+    "RG": {
+     "value": 205.0,
+     "label": "205",
+     "series": "E96",
+     "tolerance_pct": 0.1,
+     "optimised_value": 202.71537,
+     "change_pct": 1.13
+    }
+   },
+   "other_values": {},
+   "metrics": {
+    "gain_db": 40.00482,
+    "bw": 104321.6,
+    "cm_db": -87.03189,
+    "ugf": 4721750.0,
+    "pm": -0.002466924,
+    "pm_deg": 69.6025
+   },
+   "meets_all_limits": true,
+   "worst_margin_pct": 0.237,
+   "optimised_metrics": {
+    "bw": 105099.8,
+    "cm_db": -55.89308,
+    "gain_db": 40.06591,
+    "pm": -0.002461987,
+    "pm_deg": 69.60663,
+    "ugf": 4721976.0
+   },
+   "nearest_values_meet_limits": true,
+   "nearest_values_margin_pct": 0.237,
+   "combinations_simulated": 51,
+   "yield": {
+    "runs": 40,
+    "passed": 40,
+    "yield_pct": 100.0,
+    "distribution": "uniform inside each part's tolerance",
+    "resolution_note": "40 runs resolve yield to about 2%",
+    "spread": {
+     "gain_db": {
+      "min": 39.98908,
+      "max": 40.02068,
+      "limit": "<=40.1"
+     },
+     "bw": {
+      "min": 103993.8,
+      "max": 104591.7,
+      "limit": ">=20000"
+     },
+     "cm_db": {
+      "min": -129.277,
+      "max": -57.14477,
+      "limit": "<=-40"
+     },
+     "pm_deg": {
+      "min": 69.58669,
+      "max": 69.61537,
+      "limit": ">=45"
+     }
+    },
+    "samples_path": "/tmp/tmpeht_wf07/.ltspice-mcp/simulations/ina/yield/samples.json"
+   },
+   "alternatives": [
+    {
+     "candidate_id": "cand_0125",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10.2k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.237,
+     "yield_pct": 100.0
+    },
+    {
+     "candidate_id": "cand_0075",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.047,
+     "yield_pct": 100.0
+    },
+    {
+     "candidate_id": "cand_0124",
+     "parts": {
+      "R1A": "9.53k",
+      "R1B": "10.2k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": true,
+     "worst_margin_pct": 0.014,
+     "yield_pct": 72.5
+    },
+    {
+     "candidate_id": "cand_0130",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10.2k",
+      "R2A": "9.76k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "200"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -0.288,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0127",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10.2k",
+      "R2A": "9.76k",
+      "R2B": "9.53k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -4.09,
+     "yield_pct": null
+    },
+    {
+     "candidate_id": "cand_0126",
+     "parts": {
+      "R1A": "9.76k",
+      "R1B": "10.2k",
+      "R2A": "9.53k",
+      "R2B": "9.76k",
+      "R3A": "10k",
+      "R3B": "10k",
+      "RG": "205"
+     },
+     "meets_all_limits": false,
+     "worst_margin_pct": -4.191,
+     "yield_pct": null
+    }
+   ],
+   "next_step": "Buildable design found. Call generate_design_report(run_id='ina')."
+  }
+ },
+ {
+  "tool": "generate_design_report",
+  "args": {
+   "run_id": "ina",
+   "plots": true
+  },
+  "answer": {
+   "report_path": "/tmp/tmpeht_wf07/.ltspice-mcp/reports/ina_DESIGN_REPORT.md",
+   "run_id": "ina",
+   "candidate_id": "cand_0113",
+   "analyses_run": [
+    "none (stored state only)"
+   ],
+   "figures": [],
+   "notes": [
+    "backend is `ngspice`, not `ltspice`: no waveforms, bias point or tolerance sampling exist for it"
+   ],
+   "bytes": 10077,
+   "next_step": "Open the report at the returned path and review it."
+  }
+ }
+]
