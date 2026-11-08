@@ -597,6 +597,11 @@ TEMPLATES: dict[str, Template] = {t.name: t for t in [
 ]}
 
 
+from .topologies_more import MORE  # noqa: E402  (the second half of the library)
+
+TEMPLATES.update({t.name: t for t in MORE})
+
+
 def get(name: str) -> Template:
     t = TEMPLATES.get(name)
     if t is None:
