@@ -27,6 +27,9 @@ never existed.
 > | ![2D Phase Portraits](gallery/chua/chua_phase_portraits_2d.png) | ![Chua Diode IV Curve](gallery/chua/chua_diode_iv_curve.png) |
 > | *Orthogonal projections ($V_{C1}-V_{C2}, V_{C1}-I_L$) with orbital density* | *Piecewise-linear Negative Differential Resistance ($G_a, G_b$) DC sweep* |
 
+
+**Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 0.10, written for circuit designers.
+
 ## Architecture
 
 ```mermaid
