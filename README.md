@@ -28,6 +28,32 @@ never existed.
 > | *Orthogonal projections ($V_{C1}-V_{C2}, V_{C1}-I_L$) with orbital density* | *Piecewise-linear Negative Differential Resistance ($G_a, G_b$) DC sweep* |
 
 
+## Circuits built so far
+
+**17 circuits.** Full list with key results: [docs/CIRCUITS.md](docs/CIRCUITS.md).
+
+| No. | Circuit | Key result |
+|---:|---|---|
+| 1 | RC low-pass filter | 1000.0 Hz cutoff for a 1 kHz spec |
+| 2 | Sallen-Key low-pass filter | 9998 Hz for a 10 kHz spec, 40 dB/decade |
+| 3 | Non-inverting amplifier | 20.00 dB gain, 1.06 MHz bandwidth |
+| 4 | LDO regulator (5 V to 3.3 V) | 3.301 V, 72° phase margin |
+| 5 | Buck converter (12 V to 5 V, closed loop) | 41.6 mV ripple, 94.5% efficient |
+| 6 | Instrumentation amplifier (gain 100) | 87 dB hum rejection, 104 kHz bandwidth |
+| 7 | Inverting amplifier | drawn clean, score 100 |
+| 8 | Common-source MOSFET amplifier | drawn clean, score 99 |
+| 9 | Wheatstone bridge | drawn clean, score 99 |
+| 10 | Boost converter | drawn clean, score 100 |
+| 11 | Two-stage amplifier with feedback | drawn clean, score 100 |
+| 12 | Pi filter | drawn clean, score 100 |
+| 13 | 5-stage RC ladder | drawn clean, score 100 |
+| 14 | LC tank | drawn clean, score 100 |
+| 15 | Two-stage CMOS op-amp (8 MOSFETs) | 87 dB gain, 10.6 MHz unity-gain |
+| 16 | Comparator with gate drive | drives the buck's power MOSFET |
+| 17 | Chua's chaotic circuit | double-scroll attractor (gallery above) |
+
+Circuits 1 to 14 were each drawn by SpiceMCP and read back by LTspice as the same circuit.
+
 **Engineering report:** [docs/final/SpiceMCP_Engineering_Report.pdf](docs/final/SpiceMCP_Engineering_Report.pdf) is a pictorial before/after summary of versions 0.6 to 0.13, written for circuit designers.
 
 ## Architecture
