@@ -56,6 +56,10 @@ SUBCKT_LETTERS = set("x")
 SWITCH_LETTERS = set("sw")
 
 # Practical value windows for on-chip / lab-realistic passives -> (lo, hi, unit).
+# Elements a stability test deck adds on purpose (the 1 kH / 1 kF loop break). They are
+# measurement fixtures, never placed on a board, so a value check on them is noise.
+TEST_FIXTURES = {"lbrk", "cinj"}
+
 PASSIVE_WINDOW = {"r": (0.1, 100e6, "ohm"), "c": (0.1e-15, 1e-3, "F"),
                   "l": (1e-12, 1.0, "H")}
 
@@ -1025,6 +1029,8 @@ def _practical(v: FeasibilityVerdict, lim: dict, param_space: dict | None,
 
     for e in (scan or {}).get("elements", []):
         if e["letter"] not in PASSIVE_WINDOW or not e["value"]:
+            continue
+        if e["name"].lower() in TEST_FIXTURES:     # loop-break L/C: test gear, not parts
             continue
         val = ir.parse_value(e["value"])
         if val is None:

@@ -166,6 +166,7 @@ pytest -q
 
 LTspice is auto-detected (`AppData\Local\Programs\ADI\LTspice\LTspice.exe`,
 `Program Files\LTC\LTspiceXVII\XVIIx64.exe`, …). Override with `LTSPICE_EXE`.
+Without LTspice (Linux, macOS), install ngspice and set `SPICEMCP_BACKEND=ngspice`.
 
 Register with your MCP client:
 
@@ -445,8 +446,12 @@ finish_design(run_id="ldo_001", supply="Vin", supply_tol_pct=5)
 3. The fine-step parts are then picked from their series the same way.
 4. The best few sets get a Monte Carlo yield run (default 30 boards): every part is
    drawn uniformly inside its tolerance, and optionally the supply inside its own.
-   The set with the highest yield is returned as a parts list, with the margin and the
-   spread of every limited metric.
+   The set with the highest yield is returned as a parts list, with the margin.
+   The yield is stated honestly: `30/30 pass: yield is at least 90% (95% confidence)`
+   (a one-sided Clopper-Pearson bound). Each call draws new boards from a fresh random
+   `seed`, which is reported; pass `seed=` to repeat a run exactly.
+5. The answer is kept short. The spread of every metric, the alternatives and the
+   optimiser's own numbers are on `query_run(run_id, what="details")`.
 
 On the templates, plain rounding to the nearest standard value breaks the RC and the
 Sallen-Key filters (the corner frequency leaves its window), and `finish_design` finds
@@ -595,8 +600,9 @@ Two additional cases where missing data is made explicit:
 
 ### Tools Reference
 
-11 tools, each with a two-line description, typed inputs, and sensible defaults. Every
-answer ends with `next_step` (the call that most likely comes next), and every error carries
+13 tools, each with a two-line description, typed inputs, and sensible defaults. The
+tool list is about 2,500 tokens and answers are one-line JSON, because both are re-sent
+to the model on every turn. Every answer ends with `next_step` (the call that most likely comes next), and every error carries
 `fix` plus a correct `example` call, so even a small model can recover on its own.
 
 | tool | purpose |
@@ -604,10 +610,12 @@ answer ends with `next_step` (the call that most likely comes next), and every e
 | `check_setup` | Show the LTspice path and project folder in use |
 | `simulate` | One-off netlist run, or a one-launch sweep (`sweep_param`, `sweep_values`) |
 | `check_feasibility` | Zero-sim check (static, template, physics) before spending simulations |
+| `list_templates` | The ready-made circuits and the spec keys each needs |
+| `start_from_template` | Build, hand-size and simulate a ready-made circuit as a new run |
 | `start_optimization` | Create a persistent run: `params`, `goals`, `limits` |
 | `run_optimization` | Let the server run N iterations; returns one summary |
 | `evaluate_candidate` | Simulate one exact parameter set, with dedup and scoring |
-| `query_run` | Read stored state: `what` = status, best, pareto, history, candidates, candidate, netlist, compare, similar, sensitivity, explored, failed, trace, next, runs |
+| `query_run` | Read stored state: `what` = status, best, pareto, history, candidates, candidate, netlist, compare, similar, sensitivity, explored, failed, trace, next, runs, details (hand calculation, full feasibility report, finish_design alternatives) |
 | `rollback_to_candidate` | Restore a byte exact past circuit and its metrics |
 | `finish_design` | End a run: standard part values (E6 to E96), re-centred, with Monte Carlo yield |
 | `generate_design_report` | Six section Markdown report with BOM, plots, DC/PVT/Monte Carlo |
@@ -674,3 +682,7 @@ Upgrading from 0.5: the 15 `get_*` / `list_runs` / `select_next_experiment` tool
 * **Visual Gallery** (`tests/gallery.py`): renders side by side comparison sheets of every schematic style and plot type into `gallery/index.html` using real `.asy` library symbols.
 * **Preflight & Report Testing** (`tests/test_feasibility.py`, `tests/test_report.py`, `tests/test_robustness.py`): validates 3 tier feasibility checks, Monte Carlo yield and Cpk calculations, DC bias audits, and full Markdown report generation.
 * **Rendering & Sweeps** (`tests/test_render.py`, `tests/test_sweep.py`, `tests/test_asc.py`): tests deterministic SVG and PNG rendering, symbol orientation matrices, collision offsets, and single launch parameter sweeps.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

@@ -121,3 +121,29 @@ def test_sallen_key_nearest_values_fail_but_finish_finds_a_passing_set(project):
     out = server.finish_design("sk", yield_runs=10)
     assert not out["nearest_values_meet_limits"]        # plain rounding misses
     assert out["meets_all_limits"] and out["worst_margin_pct"] > 0
+
+
+def test_yield_states_a_confidence_bound_not_a_resolution():
+    assert B.yield_lower_bound(30, 30) == pytest.approx(0.05 ** (1 / 30), abs=1e-4)
+    assert "at least 90%" in B.yield_statement(30, 30)
+    assert B.yield_lower_bound(0, 30) == 0.0
+    assert B.yield_lower_bound(29, 30) < B.yield_lower_bound(30, 30)
+
+
+def test_yield_seed_is_fresh_each_time_reported_and_repeatable(project):
+    _rc_run("a", 990, 1010)
+    y1 = server.finish_design("a", yield_runs=20)["yield"]
+    _rc_run("b", 990, 1010)
+    y2 = server.finish_design("b", yield_runs=20)["yield"]
+    assert y1["seed"] != y2["seed"] and "confidence" in y1["statement"]
+    _rc_run("c", 990, 1010)
+    y3 = server.finish_design("c", yield_runs=20, seed=y1["seed"])["yield"]
+    assert y3["passed"] == y1["passed"] and y3["seed"] == y1["seed"]
+
+
+def test_finish_answer_is_short_and_the_rest_is_on_query_run(project):
+    _rc_run("rc", 980, 1020)
+    out = server.finish_design("rc", yield_runs=5)
+    assert "alternatives" not in out and "optimised_metrics" not in out
+    d = server.query_run("rc", "details")
+    assert d["finish"]["alternatives"] and d["finish"]["yield"]["spread"] is not None

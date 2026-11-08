@@ -83,10 +83,11 @@ class Template:
         return self.build(self.resolve(spec))
 
     def describe(self) -> dict:
-        return {"name": self.name, "title": self.title, "circuit_type": self.circuit_type,
-                "summary": self.summary,
-                "spec": {f.name: (f"{f.unit}, {f.help}" + (
-                    f" (default {f.default:g})" if f.default is not None else " (required)"))
+        """One entry of list_templates: name, one-line summary, spec keys. Required keys
+        are marked `*`; optional ones show their default. Units are SI."""
+        return {"name": self.name, "summary": self.summary,
+                "spec": {f.name: (f"{f.unit} {f.help}".strip() + (
+                    f" ={f.default:g}" if f.default is not None else " *"))
                          for f in self.spec}}
 
 

@@ -431,7 +431,8 @@ def test_yield_counts_the_spec_and_cpk_says_whether_it_was_comfortable():
 
 def test_the_reported_sample_size_stops_thirty_of_thirty_reading_as_a_hundred_percent():
     s = rb._stats([1.0, 1.0, 1.0], (0.0, 2.0))
-    assert s["yield_pct"] == 100.0 and "3 runs" in s["yield_ci_note"]
+    assert s["yield_pct"] == 100.0 and "3/3 pass" in s["yield_ci_note"]
+    assert s["yield_at_least_pct"] == pytest.approx(36.8, abs=0.1)   # 0.05 ** (1/3)
 
 
 def test_statistics_are_the_closed_form_not_a_reimplementation():

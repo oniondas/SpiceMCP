@@ -8,6 +8,8 @@ from docs/reports/step1..5, and every number is copied from those reports.
 from __future__ import annotations
 
 import json
+import re
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -26,6 +28,25 @@ from reportlab.platypus import (Image, PageBreak, Paragraph,  # noqa: E402
                                 SimpleDocTemplate, Spacer, Table, TableStyle)
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[1]))
+NSTEPS = 9                                 # one section per roadmap step
+VERSION = re.search(r'^version\s*=\s*"([^"]+)"',
+                    (HERE.parents[1] / "pyproject.toml").read_text(), re.M).group(1)
+
+
+def current_scores() -> dict:
+    """Readability of each template's drawing as the code draws it today."""
+    import tempfile
+    from spicemcp import layout, topologies as T
+    specs = {"rc_lowpass": {"fc": 1000}, "sallen_key_lowpass": {"fc": 10000},
+             "noninverting_amp": {"gain": 10, "bw": 100e3},
+             "ldo": {"vin": 5, "vout": 3.3, "iload": 0.1},
+             "buck": {"vin": 12, "vout": 5, "iout": 1}}
+    w, out = Path(tempfile.mkdtemp()), {}
+    for n, sp in specs.items():
+        d = T.get(n).design(sp)
+        out[n] = layout.lint(layout.draw(d.netlist, d.start).write(w / f"{n}.asc"))["score"]
+    return out
 REP = HERE.parent / "reports"
 OUT = HERE / "SpiceMCP_Engineering_Report.pdf"
 BEFORE, AFTER, AFTER2, BAND = "#E07A5F", "#1E56A0", "#38A3A5", "#F2CC8F"
@@ -210,7 +231,7 @@ def footer(c, doc):
     c.saveState()
     c.setFont("Sans", 7.5)
     c.setFillColor(colors.HexColor(MUTED))
-    c.drawString(18 * mm, 10 * mm, "SpiceMCP 0.13 · engineering report")
+    c.drawString(18 * mm, 10 * mm, f"SpiceMCP {VERSION[:-2]} · engineering report")
     c.drawRightString(A4[0] - 18 * mm, 10 * mm, f"page {doc.page}")
     c.restoreState()
 
@@ -227,7 +248,7 @@ def build():
     # ---- cover
     st += [Spacer(1, 18 * mm), P("SpiceMCP", "title"),
            P("From a circuit-simulation prototype to an engineering design tool", "sub"),
-           Spacer(1, 4), P("What changed in versions 0.6 to 0.13, shown with simulations, "
+           Spacer(1, 4), P(f"What changed in versions 0.6 to {VERSION[:-2]}, shown with simulations, "
                           "and what it means for someone designing circuits.", "body"),
            Spacer(1, 10), img(TMP / "scoreboard.png"),
            P("Eight headline results. Orange: before this work. Blue: now. Every number is from a "
@@ -248,7 +269,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 1
-    st += section("STEP 1 OF 8", "Easier to drive: fewer, clearer controls",
+    st += section(f"STEP 1 OF {NSTEPS}", "Easier to drive: fewer, clearer controls",
                   "SpiceMCP is operated through an AI assistant, which picks from a list of "
                   "commands. The old list was long and loosely described, so the assistant "
                   "guessed. Guessing is where wrong circuits come from.")
@@ -270,7 +291,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 2
-    st += section("STEP 2 OF 8", "Finds working part values reliably",
+    st += section(f"STEP 2 OF {NSTEPS}", "Finds working part values reliably",
                   "Part values span decades (100 Ω to 1 MΩ, 1 pF to 1 µF), and several specs "
                   "pull on the same parts. The old search stepped in straight lines and adjusted "
                   "one spec at a time, so it often got stuck.")
@@ -291,7 +312,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 3
-    st += section("STEP 3 OF 8", "Start from a known circuit, sized by textbook equations",
+    st += section(f"STEP 3 OF {NSTEPS}", "Start from a known circuit, sized by textbook equations",
                   "Engineers rarely start from a blank page. Now you can name a circuit and a "
                   "spec, and get a netlist sized by the standard design equations, already "
                   "checked in simulation.")
@@ -327,7 +348,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 4
-    st += section("STEP 4 OF 8", "Schematics drawn automatically, and proven correct",
+    st += section(f"STEP 4 OF {NSTEPS}", "Schematics drawn automatically, and proven correct",
                   "A netlist is a list of connections, not a picture. Before, without someone "
                   "placing every part by hand, parts landed in a row and straight wires joined "
                   "them. In the simulator, a wire that crosses a pin connects to it, so those "
@@ -337,17 +358,23 @@ def build():
              "whether the drawing is still the circuit in the netlist. In the old drawings, "
              "look for wires running straight across resistor and capacitor pins.", "cap")]
     st.append(PageBreak())
-    rows = [["circuit", "before: score", "before: nodes shorted or broken", "after: score",
-             "after: nodes shorted or broken"]]
+    rows = [["circuit", "before: score", "before: shorted or broken", "step 4: score",
+             "step 4: shorted or broken", f"today (v{VERSION}): score"]]
     title = {"rc_lowpass": "RC low-pass", "sallen_key_lowpass": "Sallen-Key low-pass",
              "noninverting_amp": "Non-inverting amp", "ldo": "LDO regulator",
              "buck": "Buck converter"}
+    now = current_scores()
     for n, v in s4["templates"].items():
         rows.append([title[n], v["before"]["score"], v["before"]["wrong_connections"],
-                     f"<b>{v['after']['score']}</b>", f"<b>{v['after']['wrong_connections']}</b>"])
-    st += [img(REP / "step4/scores.png"), table(rows, [42 * mm, 25 * mm, 41 * mm, 25 * mm, 41 * mm]),
+                     f"<b>{v['after']['score']}</b>", f"<b>{v['after']['wrong_connections']}</b>",
+                     f"<b>{now.get(n, '-')}</b>"])
+    st += [img(REP / "step4/scores.png"),
+           table(rows, [34 * mm, 21 * mm, 30 * mm, 21 * mm, 30 * mm, 28 * mm]),
            P("Readability score: 100 minus points for each wire crossing, wire through a part, "
-             "overlapping part, hidden connection and dangling wire.", "cap"),
+             "overlapping part, hidden connection and dangling wire. The step 4 columns were "
+             "measured when step 4 shipped. The last column is measured from today's drawings "
+             "every time this PDF is built: the LDO and buck gained a real op-amp (step 6) and "
+             "a controller (step 8), which added parts and lowered their scores.", "cap"),
            P("How the drawing is laid out", "h2")]
     st += bullets([
         "Signal flows left to right; an amplifier's inputs are always left of its output.",
@@ -369,7 +396,7 @@ def build():
     st.append(PageBreak())
 
     # ---- step 5
-    st += section("STEP 5 OF 8", "From ideal values to a parts list you can order",
+    st += section(f"STEP 5 OF {NSTEPS}", "From ideal values to a parts list you can order",
                   "Tuning produces values like C1 = 1.5915 nF. Nobody sells that. Rounding "
                   "every part to the nearest standard value moves all of them at once, and on "
                   "a real board every part is also off by its tolerance. A design that sits on "
@@ -422,7 +449,7 @@ def build():
     # ---- step 6
     s6 = json.load(open(REP / "step6/results.json"))
     st.append(PageBreak())
-    st += section("STEP 6 OF 8", "Real op-amps and switches, not ideal stand-ins",
+    st += section(f"STEP 6 OF {NSTEPS}", "Real op-amps and switches, not ideal stand-ins",
                   "The amplifier circuits used to model the op-amp as a dependent voltage "
                   "source: one number for its gain, no supply, no limits. The buck used an "
                   "ideal switch. Quick for a first look, but it hides what a real part does.")
@@ -464,7 +491,7 @@ def build():
     # ---- step 7
     s7 = json.load(open(REP / "step7/results.json"))
     st.append(PageBreak())
-    st += section("STEP 7 OF 8", "Proven in LTspice on Windows, and checked on every change",
+    st += section(f"STEP 7 OF {NSTEPS}", "Proven in LTspice on Windows, and checked on every change",
                   "Until now every result came from ngspice on Linux. The tool is meant for "
                   "LTspice on Windows, so it had to be shown working there, on a real install.")
     st += [img(REP / "step7/ltspice_vs_ngspice.png", max_h=110 * mm),
@@ -493,7 +520,7 @@ def build():
     s8 = json.load(open(REP / "step8/results.json"))
     b8, l8 = s8["buck"], s8["ldo"]
     st.append(PageBreak())
-    st += section("STEP 8 OF 8", "A buck that regulates, and every feedback loop checked "
+    st += section(f"STEP 8 OF {NSTEPS}", "A buck that regulates, and every feedback loop checked "
                   "for stability",
                   "The buck ran at a fixed duty cycle, so its output followed the input. And "
                   "a circuit with feedback can meet every spec on paper and still oscillate "
@@ -543,6 +570,56 @@ def build():
     ])
     st += [img(REP / "step8/opamp_phase_margin.png", max_h=62 * mm)]
 
+    # ---- step 9 (phase 0 of the industry roadmap)
+    s9 = json.load(open(REP / "step9/results.json"))
+    st.append(PageBreak())
+    st += section(f"STEP 9 OF {NSTEPS}", "Cheaper to run, nothing misleading, and licensed",
+                  "Everything SpiceMCP says is read by an AI assistant, and every word costs "
+                  "money on every turn. The command list alone was re-sent on each turn. And "
+                  "one sentence in the yield answer claimed more certainty than the "
+                  "simulation gave.")
+    st += [img(REP / "step9/tokens.png", max_h=82 * mm),
+           P("Left: the part re-sent on every turn, and the three biggest answers, in tokens "
+             "(the unit an assistant is billed in). Right: the whole design of each of the "
+             "17 circuits in the project, the same flows before and after.", "cap"),
+           P("What changed", "h2")]
+    st += bullets([
+        f"<b>Command list {s9['overhead_before']:,} → {s9['overhead_after']:,} tokens</b>, "
+        "re-sent on every turn: automatic labels removed, field text shortened, expert "
+        "settings still accepted but no longer listed.",
+        "<b>Answers are one line, numbers to 6 digits.</b> Indentation alone was a fifth of "
+        "every answer.",
+        "<b>Short answers, details on request.</b> Starting a ready-made circuit answered in "
+        f"{s9['per_tool_before']['start_from_template']:,} tokens on average, now "
+        f"{s9['per_tool_after']['start_from_template']:,}; the parts list in "
+        f"{s9['per_tool_before']['finish_design']:,}, now "
+        f"{s9['per_tool_after']['finish_design']:,}. The hand calculation, warnings and "
+        "alternative part sets are one call away.",
+        f"<b>All 17 circuits: {s9['billed_before'] / 1000:.0f}k → "
+        f"{s9['billed_after'] / 1000:.0f}k input tokens</b> without caching "
+        f"({(1 - s9['billed_after'] / s9['billed_before']) * 100:.0f}% less), "
+        f"{s9['cached_before'] / 1000:.0f}k → {s9['cached_after'] / 1000:.0f}k with caching.",
+        "<b>MIT license.</b> Without one, nobody could legally use the code at work.",
+    ])
+    st.append(PageBreak())
+    st += [P("An honest yield", "h2"),
+           img(REP / "step9/yield_bound.png", max_h=70 * mm),
+           P("Orange: how a clean run used to read. Blue: what it actually proves.", "cap")]
+    st += bullets([
+        "Before: \"30 runs resolve yield to about 3%\". That is wrong. 30 boards out of 30 "
+        "passing does not show the yield is 97 to 100%; a design with 92% yield passes all "
+        "30 about one time in ten.",
+        f"Now: \"30/30 pass: yield is at least {s9['yield_30_of_30_at_least_pct']:.0f}% (95% "
+        "confidence)\". This is the standard lower bound (Clopper-Pearson). 100 clean boards "
+        "prove 97%, 300 prove 99%.",
+        "Each yield run now draws new boards. It used the same random boards every time, so "
+        "a re-run could never find a failure the first run missed. The seed is reported, so "
+        "any run can be repeated exactly.",
+        "This report itself is rebuilt: the copy shipped with 0.13 was two files written over "
+        "each other and would not open. It is now written in one piece, and a test opens "
+        "every shipped PDF.",
+    ])
+
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]
     st += bullets([
@@ -570,11 +647,13 @@ def build():
                    "simulator reads, and what the schematic must match."]],
                  [42 * mm, 132 * mm])]
 
-    doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
+    tmp = OUT.with_suffix(".part")         # written whole, then moved: never two builds
+    doc = SimpleDocTemplate(str(tmp), pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
                             topMargin=16 * mm, bottomMargin=18 * mm,
                             title="SpiceMCP engineering report",
-                            author="Shounak Das", subject="SpiceMCP 0.6 to 0.13")
+                            author="Shounak Das", subject=f"SpiceMCP 0.6 to {VERSION}")
     doc.build(st, onFirstPage=footer, onLaterPages=footer)
+    tmp.replace(OUT)                       # atomic on one filesystem
     print(OUT)
 
 

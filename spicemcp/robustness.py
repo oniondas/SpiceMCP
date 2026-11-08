@@ -605,10 +605,11 @@ def _stats(vals: list[float], spec=None) -> dict:
             k = [(mu - lo) / (3 * sd) for lo in [lo] if lo is not None] + \
                 [(hi - mu) / (3 * sd) for hi in [hi] if hi is not None]
             out["cpk"] = raw._r(min(k)) if k else None
-        # ponytail: 30 runs resolves yield to ~3%. A 99% spec needs hundreds of runs;
-        # the sample size is reported so nobody reads 30/30 as "100% yield".
-        out["yield_ci_note"] = (f"{n} runs; a pass rate this size cannot resolve better "
-                                f"than about {100 / n:.0f}%")
+        # A pass rate is not a yield: 30/30 only proves yield above ~90 % (95 %
+        # confidence). Report the one-sided Clopper-Pearson lower bound with it.
+        from .buildable import yield_lower_bound, yield_statement
+        out["yield_at_least_pct"] = raw._r(100 * yield_lower_bound(len(inside), n))
+        out["yield_ci_note"] = yield_statement(len(inside), n)
     return out
 
 

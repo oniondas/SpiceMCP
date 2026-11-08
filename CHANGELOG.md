@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.14.0
+
+- MIT license (`LICENSE`, `license` in `pyproject.toml`).
+- Fewer tokens per design. The tool list is 2,547 tokens instead of 4,270 (no schema
+  `title`s, shorter field text, optional inputs without `null` alternatives, advanced
+  inputs `sim_options`, `skip_preflight`, `seed` still accepted but not listed). Answers
+  are one-line JSON with numbers to 6 digits. `start_from_template` answers in about 250
+  tokens instead of 800 to 1,700, `finish_design` in about 300 instead of 850 to 1,750,
+  `list_templates` in about 430 instead of 715. The hand calculation, the full
+  feasibility report and the finish_design alternatives and spread are on the new
+  `query_run(what="details")`.
+- Yield is stated with a real confidence bound: `30/30 pass: yield is at least 90% (95%
+  confidence)` (one-sided Clopper-Pearson), replacing the wrong "30 runs resolve yield to
+  about 3%". The design report's Monte Carlo table says the same.
+- Yield draws new boards each time: a fresh random seed per `finish_design`, reported in
+  the answer; `seed=` repeats a run exactly. It was always seed 0 before.
+- `SPICEMCP_BACKEND=ngspice` selects ngspice for every run without passing `sim_options`.
+- The loop-break test parts (`Lbrk`, `Cinj`) no longer raise "impractical value" warnings.
+- After a template run meets every limit, a design on a search bound no longer asks for a
+  new run with wider ranges; the template's ranges are deliberate.
+- The engineering report PDF is rebuilt (the v0.13.0 copy was two files written over each
+  other and would not open), is written atomically, and a test checks it opens. Its
+  schematic readability table adds today's scores next to the step 4 ones (LDO 76, buck 69).
+
 ## 0.13.0
 
 - The buck template is closed loop: an integrating error amplifier, a comparator against

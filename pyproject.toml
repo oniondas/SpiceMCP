@@ -1,8 +1,10 @@
 [project]
 name = "spicemcp"
-version = "0.13.0"
+version = "0.14.0"
 description = "LTspice MCP server with a stateful, anti-hallucination optimization layer"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = ["mcp>=1.2,<2", "pydantic>=2"]
 
 [project.optional-dependencies]
