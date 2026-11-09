@@ -40,28 +40,22 @@ def _clean(s):
     assert s["ambiguous"] == 0 and s["dangling"] == 0, s
 
 
-# Drawn correctly (verified against the netlist) but not yet tidy: the score the
-# auto-placer reaches today, so a regression shows. The flyback's transformer (K) has
-# no symbol yet: it is refused with a clear message instead of drawn wrong.
-ROUGH = {"boost": (40, 4), "voltage_reference": (55, 3)}
-NOT_DRAWN = {"flyback": "'K' is not supported"}
+# Floors the auto-placer reaches today (score, wire crossings), so a regression shows.
+# The switchers carry a controller, a comparator and their output network (13 to 19
+# parts, two ICs): one crossing is allowed there. Every other template: one at most.
+ROUGH = {"boost": (75, 1), "buck": (80, 1), "flyback": (75, 1), "ldo": (90, 0),
+         "voltage_reference": (85, 0)}
 
 
 @pytest.mark.parametrize("name", sorted(SPECS))
 def test_every_template_draws_as_the_same_circuit(name, tmp_path):
     d = T.get(name).design(SPECS[name])
-    if name in NOT_DRAWN:
-        with pytest.raises(layout.LayoutError, match=NOT_DRAWN[name]):
-            layout.draw(d.netlist, d.start)
-        return
     dr = layout.draw(d.netlist, d.start)               # raises if it doesn't match
     p = dr.write(tmp_path / f"{name}.asc")
     assert layout.verify(p, _filled(d)) == []
     s = layout.lint(p)
     _clean(s)
-    # The regulator and the converter carry their controller and output network
-    # (13 parts and two ICs for the buck): two wire crossings are allowed there.
-    lo, cross = (65, 2) if name in ("ldo", "buck") else ROUGH.get(name, (85, 1))
+    lo, cross = ROUGH.get(name, (85, 1))
     assert s["score"] >= lo and s["crossings"] <= cross, s
 
 

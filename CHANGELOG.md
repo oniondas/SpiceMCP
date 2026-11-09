@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.1.0
+
+- The schematic drawer recognises familiar blocks from the wiring alone and draws them
+  the way an engineer does, in any circuit, templated or not (`spicemcp/blocks.py`):
+  differential pairs side by side with gates outward, current mirrors with their gates on
+  one bar, push-pull output stages one transistor over the other with the bias string
+  beside them, and coupled windings facing each other.
+- Placement is a search: candidate layouts (supplies wired or as rail labels, feedback
+  laid out forward or back, crossing-reduction row orders and seeded restarts) are each
+  routed, checked against the netlist and scored; the most readable correct one is kept.
+  Deterministic. Routing stops early on paths that would be rejected anyway, so the
+  search costs about what one layout used to on large circuits.
+- Coupled windings (`K` lines) are drawn instead of refused; the flyback template now has
+  a schematic.
+- `lint` also counts signals carried by label pairs instead of wires (`jump_labels`) and
+  page shape (`aspect`, width / height); a page much taller than wide or a very long
+  strip costs points. Supplies and ground labels are not counted as jumps.
+- Values written as a filled-in formula (`{5.2e-05*0.47}`) are shown as a number.
+- Readability on 14 hard circuits (6 templates, 8 with no template): average 55 -> 88
+  (the old drawer refused the two with a transformer; 55 is over the 12 it drew).
+  Transistor-level op-amp 4 -> 51, class-AB stage 0 -> 88, state-variable filter
+  33 -> 86, instrumentation amp 26 -> 75, flyback refused -> 81. Report:
+  `docs/reports/autoplacer/`.
+
 ## 1.0.0
 
 - The interface is frozen for 1.x: the 14 tools, their parameters and accepted values,

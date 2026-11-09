@@ -1,0 +1,112 @@
+{
+ "ldo": {
+  "score": 100,
+  "crossings": 0,
+  "jump_labels": 1,
+  "sec": 1.4,
+  "blocks": []
+ },
+ "buck": {
+  "score": 88,
+  "crossings": 1,
+  "jump_labels": 1,
+  "sec": 2.4,
+  "blocks": []
+ },
+ "voltage_reference": {
+  "score": 95,
+  "crossings": 0,
+  "jump_labels": 0,
+  "sec": 2.4,
+  "blocks": []
+ },
+ "boost": {
+  "score": 82,
+  "crossings": 1,
+  "jump_labels": 2,
+  "sec": 3.9,
+  "blocks": []
+ },
+ "flyback": {
+  "score": 81,
+  "crossings": 1,
+  "jump_labels": 2,
+  "sec": 5.4,
+  "blocks": [
+   "transformer"
+  ]
+ },
+ "bandpass": {
+  "score": 88,
+  "crossings": 1,
+  "jump_labels": 0,
+  "sec": 0.2,
+  "blocks": []
+ },
+ "instrumentation": {
+  "score": 75,
+  "crossings": 2,
+  "jump_labels": 0,
+  "sec": 1.9,
+  "blocks": []
+ },
+ "cmos_opamp": {
+  "score": 51,
+  "crossings": 4,
+  "jump_labels": 1,
+  "sec": 5.1,
+  "blocks": [
+   "diff_pair",
+   "mirror"
+  ]
+ },
+ "state_variable": {
+  "score": 86,
+  "crossings": 1,
+  "jump_labels": 0,
+  "sec": 2.3,
+  "blocks": []
+ },
+ "bjt_diff_pair": {
+  "score": 100,
+  "crossings": 0,
+  "jump_labels": 0,
+  "sec": 1.9,
+  "blocks": [
+   "diff_pair",
+   "mirror"
+  ]
+ },
+ "wien_oscillator": {
+  "score": 93,
+  "crossings": 0,
+  "jump_labels": 0,
+  "sec": 0.8,
+  "blocks": []
+ },
+ "class_ab": {
+  "score": 88,
+  "crossings": 1,
+  "jump_labels": 0,
+  "sec": 2.2,
+  "blocks": [
+   "push_pull"
+  ]
+ },
+ "sallen_key_4th": {
+  "score": 100,
+  "crossings": 0,
+  "jump_labels": 0,
+  "sec": 0.3,
+  "blocks": []
+ },
+ "bare_flyback": {
+  "score": 98,
+  "crossings": 0,
+  "jump_labels": 0,
+  "sec": 1.4,
+  "blocks": [
+   "transformer"
+  ]
+ }
+}

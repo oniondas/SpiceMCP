@@ -33,7 +33,7 @@ import math
 import re
 from pathlib import Path
 
-from . import asc
+from . import asc, blocks
 
 GND = {"0", "gnd"}
 G = asc.GRID
@@ -66,6 +66,10 @@ class El:
     out_pin: int = -1           # spice index of the output pin, where it is fixed
     supply_pins: tuple = ()     # spice indices drawn with a rail label, not a wire
     part: asc.Part | None = None
+    rail_up: bool = False       # hangs from a positive rail: rail end up, node end down
+    upright: bool = False       # stands in its node's own column (a block member)
+    face: str = ""              # node the gate/base pin turns towards
+    gate_side: int = 0          # or a fixed side for the gate: -1 left, +1 right
 
 
 def _gnd(n: str) -> bool:
@@ -128,6 +132,9 @@ def parse(netlist: str) -> tuple[list[El], list[str], list[str]]:
         s = s.split(";")[0].strip()
         tok = s.split()
         kind = tok[0][0].upper()
+        if kind == "K":                  # coupled windings: LTspice takes K as a directive
+            dirs.append(s)
+            continue
         if kind not in NODES:
             raise LayoutError(
                 f"{tok[0]}: element type {kind!r} is not supported by the auto-placer "
@@ -235,7 +242,7 @@ def _rails(els: list[El]) -> set[str]:
     return out
 
 
-def _columns(els: list[El]) -> dict[str, int]:
+def _columns(els: list[El], extra=(), back=False) -> dict[str, int]:
     """Column per node: layered-graph placement, the way schematics are drawn by hand.
 
     1. Distance from the sources (breadth-first over every connection) says which way
@@ -264,6 +271,11 @@ def _columns(els: list[El]) -> dict[str, int]:
         for u, v in links:
             adj[u].add(v)
             adj[v].add(u)
+    for u, v in extra:                   # a block's own left-to-right order
+        if u in adj and v in adj:
+            flows.append((u, v))
+            adj[u].add(v)
+            adj[v].add(u)
     sources = sorted({e.main[0] for e in els if e.kind in "VI" and e.role == "shunt"})
     dist: dict[str, int] = {}
     frontier = sources or nodes[:1]
@@ -282,7 +294,12 @@ def _columns(els: list[El]) -> dict[str, int]:
     out_edges: dict[str, list] = {n: [] for n in nodes}
     for u, v in flows:
         out_edges[u].append(v)
+    fixed = {frozenset(x) for x in extra}
+    if back:     # feedback parts run back from an amplifier's output to its input
+        fixed |= {frozenset(x) for x in flows}
     for u, v in pairs:
+        if frozenset((u, v)) in fixed:
+            continue                     # a block already says which way this goes
         if dist[u] != dist[v]:
             a, b = (u, v) if dist[u] < dist[v] else (v, u)
             out_edges[a].append(b)
@@ -331,7 +348,7 @@ def _stacks(els: list[El], col: dict[str, int]) -> list[tuple[str, str]]:
     rails = _rails(els)
     out = []
     for e in els:
-        if e.kind not in "MQ" or e.role != "pair":
+        if e.kind not in "MQ" or e.role != "pair" or e.upright:
             continue
         s_, d_ = e.main
         if s_ in rails or d_ in rails:
@@ -473,7 +490,7 @@ class _Placer:
         self.top_lanes: list[list[tuple]] = []
         self.bot_lanes: list[list[tuple]] = []
         self.slots: set = set()
-        self.shunts: dict[str, int] = {}
+        self.shunts: dict[tuple, int] = {}
         self.max_row = max(row.values(), default=0)
 
     def X(self, n):
@@ -494,7 +511,9 @@ class _Placer:
         meta = asc.symbol(e.sym)
         order = meta["order"]
         idx = {i: n for i, n in enumerate(e.pin_nodes)}
-        if e.role in ("series", "pair"):
+        if e.role == "pair" and e.upright:
+            self._upright(sheet, e, meta)
+        elif e.role in ("series", "pair"):
             self._series(sheet, e, meta, idx)
         elif e.role == "amp":
             want = {}
@@ -531,16 +550,25 @@ class _Placer:
                 self.slots.add((self.row[out], self.col[out] - 1))
             e.part = sheet.part(e.sym, e.name, (_snap(tx - px), _snap(ty - py)), rot,
                                 value=e.rest or None)
-        else:                                            # shunt: node pin up, gnd down
-            node = e.main[0]
-            k = self.shunts.get(node, 0)
-            self.shunts[node] = k + 1
+        else:            # shunt: node pin up, ground (or negative rail) down
+            node = e.main[0]                 # a positive rail's part hangs the other way
+            up = e.rail_up
+            k = self.shunts.get((node, up), 0)
+            self.shunts[(node, up)] = k + 1
             ni = e.pin_nodes.index(node)
             gi = e.ground_pin if e.ground_pin >= 0 else 1 - ni
-            want = {i: (-1.0, 0.0) for i in range(len(e.pin_nodes))}
-            want.update({ni: (0.0, -1.0), gi: (0.0, 1.0)})
+            want = {i: (self._side(e), 0.0) for i in range(len(e.pin_nodes))}
+            want.update({ni: (0.0, 1.0 if up else -1.0), gi: (0.0, -1.0 if up else 1.0)})
             rot = _orient(meta, want)
             px, py = asc.ORIENT[rot](*meta["pins"][order[ni]])
+            if up or e.upright:
+                # a block member stands in its node's own column; a part from a
+                # positive rail hangs above its node, the way a pull-up is drawn
+                tx = self.X(node) + (0 if e.upright else 80 + 96 * k)
+                ty = self.Y(node) + (-64 if up else 64)
+                e.part = sheet.part(e.sym, e.name, (_snap(tx - px), _snap(ty - py)),
+                                    rot, value=e.rest or None)
+                return
             tail = k == 0 and sum(node in o.nodes for o in self.els) == 2 and any(
                 o.role == "series" and node in o.nodes and
                 self.col.get(next(x for x in o.main if x != node)) == self.col[node]
@@ -551,6 +579,32 @@ class _Placer:
             ty = self.Y(node) + 64
             e.part = sheet.part(e.sym, e.name, (_snap(tx - px), _snap(ty - py)), rot,
                                 value=e.rest or None)
+
+    def _side(self, e) -> float:
+        """Which way a transistor's gate (base) points: towards the node it faces
+        (a mirror's gates meet on one bar), a fixed side, or left by default."""
+        if e.face and e.face in self.col and e.main and e.main[0] in self.col:
+            d = self.X(e.face) - self.X(e.main[0])
+            if d:
+                return 1.0 if d > 0 else -1.0
+        return float(e.gate_side or -1)
+
+    def _upright(self, sheet, e, meta):
+        """A diff-pair transistor: standing in its drain's column, drain towards the
+        load, source towards the shared tail, gate pointing away from its partner."""
+        s_, d_ = e.main
+        down = self.Y(s_) > self.Y(d_)              # tail below the drains (N pair)
+        order = meta["order"]
+        di, si = e.pin_nodes.index(d_), e.pin_nodes.index(s_)
+        want = {i: (float(e.gate_side or -1), 0.0) for i in range(len(e.pin_nodes))}
+        want.update({di: (0.0, -1.0 if down else 1.0), si: (0.0, 1.0 if down else -1.0)})
+        rot = _orient(meta, want)
+        pd = asc.ORIENT[rot](*meta["pins"][order[di]])
+        ps = asc.ORIENT[rot](*meta["pins"][order[si]])
+        ty = (self.Y(d_) + self.Y(s_)) / 2
+        ox, oy = self.X(d_) - pd[0], ty - (pd[1] + ps[1]) / 2
+        e.part = sheet.part(e.sym, e.name, (_snap(ox), _snap(oy)), rot,
+                            value=e.rest or None)
 
     def _series(self, sheet, e, meta, idx):
         a, b = e.main
@@ -683,7 +737,11 @@ class _Router:
         return pts
 
     # -- search
-    def search(self, net: str, start: tuple, targets: set) -> tuple[list, float] | None:
+    def search(self, net: str, start: tuple, targets: set,
+               limit: float = math.inf) -> tuple[list, float] | None:
+        """Cheapest path from `start` to any target, or None. `limit`: a path dearer
+        than this would not be used anyway, so the search stops once every open path
+        costs more (the heuristic never overestimates, so nothing cheaper is lost)."""
         x0, y0, x1, y1 = self.box
         tx0 = min(t[0] for t in targets)
         tx1 = max(t[0] for t in targets)
@@ -703,6 +761,8 @@ class _Router:
         n_exp = 0
         while openq:
             f, g, p, d = heapq.heappop(openq)
+            if f > limit + 1e-9:
+                return None
             if best.get((p, d), 1e18) < g - 1e-9:
                 continue
             if p in targets and p != start:
@@ -768,9 +828,10 @@ class _Router:
 
     def _near(self, net, q):
         n = 0
-        for dx, dy in ((G, 0), (-G, 0), (0, G), (0, -G)):
-            r = (q[0] + dx, q[1] + dy)
-            if self._other(net, r) or (r in self.blocked):
+        x, y = q
+        for r in ((x + G, y), (x - G, y), (x, y + G), (x, y - G)):
+            w = self.wire_at.get(r)
+            if (w and (len(w) > 1 or net not in w)) or r in self.blocked:
                 n += 1
         return n
 
@@ -816,6 +877,7 @@ class Drawing:
     labels: list[str]
     score: dict | None = None
     libs: dict = dataclasses.field(default_factory=dict)   # file name -> text
+    blocks: list = dataclasses.field(default_factory=list)  # blocks.Block found
 
     def write(self, path) -> Path:
         """The `.asc`, plus any subcircuit library it names, written beside it."""
@@ -831,50 +893,282 @@ def draw(netlist: str, values: dict | None = None, label_nets=None) -> Drawing:
     `values` fills `{name}` placeholders first, so a template's start point is drawn
     with real part values. `label_nets` are nets that get a name label even when wired
     (default: every node a `.meas` reads, i.e. what the user is looking at).
+
+    Placement is a search, not a single guess: the familiar blocks (`blocks.find`) are
+    placed as units first, then a handful of candidate layouts are built (supplies
+    wired or drawn as rail labels; feedback parts laid out forward or back from the
+    amplifier output; row orders from crossing-reduction sweeps and seeded restarts). Every candidate is routed and checked to be the netlist's circuit;
+    the most readable one is kept. Deterministic: same netlist, same drawing.
     """
     if values:
         from . import ir
         netlist, _ = ir.render(netlist, values)
-    els, dirs, notes = parse(netlist)
-    if not els:
+    els0, dirs, notes = parse(netlist)
+    if not els0:
         raise LayoutError("no elements in the netlist")
-    col = _columns(els)
-    tails = _tails(els, col, dirs)
-    row = _rows(els, col, _stacks(els, col) + tails)
-    for _, n in tails:                  # keep wires from the left clear of the tail
-        for x in col:
-            if col[x] < col[n] and row[x] >= row[n]:
-                row[x] += 1
-    _tuck_rails(els, col, row)
     if label_nets is None:
         # what the user is looking at (.meas) and what a behavioural source reads: a
         # B source has no input pins, so the label is the only visible link to it
-        text = dirs + [e.rest for e in els if e.kind == "B"]
+        text = dirs + [e.rest for e in els0 if e.kind == "B"]
         label_nets = sorted({m.group(1).lower() for d in text
                              for m in re.finditer(r"\bV\(\s*([^,\s)]+)", d, re.I)}
                             | {x.lower() for d in text
                                for m in re.finditer(r"\bV\(\s*[^,\s)]+\s*,\s*([^\s)]+)",
                                                     d, re.I) for x in [m.group(1)]})
-    best = None
-    for order in ("short", "long", "name"):
-        d = _attempt(els, dirs, notes, col, row, order, label_nets)
-        k = _badness(d)
-        if best is None or k < best[0]:
-            best = (k, d)
-        if k == 0:
+    signs = _rail_signs(els0)
+    found = blocks.find(els0, dirs, rails=set(signs))
+    cands = []
+    for rails in _rail_choices(els0, signs):
+        els = _railify(els0, rails) if rails else [dataclasses.replace(e) for e in els0]
+        extra, rules = _block_hints(els, found)
+        for back in (False, True):
+            col = _columns(els, extra, back)
+            tails = _tails(els, col, dirs)
+            stacks = _stacks(els, col) + tails
+            base = _rows(els, col, stacks)
+            links = _links(els)
+            orders = [base, _bary(col, base, links),
+                      _bary(col, base, links, down_first=False)]
+            orders += [_bary(col, _shuffle(col, base, k), links)
+                       for k in range(SEARCH_RESTARTS)]
+            for row in orders:
+                c2, r2 = _finish_rows(els, dict(col), row, stacks, tails, rules, rails)
+                cands.append((els, c2, r2, rails))
+    # every candidate routed once; the best few get the other two routing orders
+    scored, seen = [], set()
+    for els, col, row, rails in cands:
+        key = (tuple(sorted(rails)), tuple(sorted(col.items())), tuple(sorted(row.items())))
+        if key in seen:
+            continue
+        seen.add(key)
+        d = _attempt(els, dirs, notes, col, row, "short", label_nets, rails, found)
+        scored.append((_badness(d, found), len(scored), d, (els, col, row, rails)))
+        if scored[-1][0] <= 0:
             break
+    scored.sort(key=lambda t: t[:2])
+    best = None
+    for k, i, d, args in scored:
+        if best is not None and k >= best[0]:
+            break
+        if not verify(d.sheet, netlist):        # a wrong circuit is never a candidate
+            best = (k, d)
+    for k, i, d, (els, col, row, rails) in scored[:6]:
+        if best is not None and best[0] <= 0:
+            break
+        for order in ("long", "name"):
+            d2 = _attempt(els, dirs, notes, col, row, order, label_nets, rails, found)
+            k2 = _badness(d2, found)
+            if (best is None or k2 < best[0]) and not verify(d2.sheet, netlist):
+                best = (k2, d2)
+    if best is None:
+        raise LayoutError("auto-placed drawing does not match the netlist "
+                          "in any layout tried")
     d = best[1]
-    used = {e.rest.split()[0].lower() for e in els if e.kind == "X" and e.rest}
+    used = {e.rest.split()[0].lower() for e in els0 if e.kind == "X" and e.rest}
     for name, text in subcircuits(netlist).items():
         if name in used:
             fname = f"{text.split()[1]}.lib"
             d.libs[fname] = text
             d.sheet.directive(f".lib {fname}")
-    problems = verify(d.sheet, netlist)
-    if problems:
-        raise LayoutError("auto-placed drawing does not match the netlist: "
-                          + "; ".join(problems))
+    d.blocks = found
     return d
+
+
+SEARCH_RESTARTS = 2          # seeded random row orders, each refined by sweeps
+
+
+def _finish_rows(els, col, row, stacks, tails, rules, rails):
+    """Make one candidate row order legal: stacked pairs in order, tails clear, block
+    rules applied, supplies tucked into their own column at the left."""
+    row = dict(row)
+    for c in set(col.values()):
+        here = sorted((n for n in col if col[n] == c), key=lambda n: (row[n], n))
+        for up, lo in stacks:                     # keep each stacked pair in order
+            if up in here and lo in here and here.index(lo) < here.index(up):
+                here.remove(lo)
+                here.insert(here.index(up) + 1, lo)
+        for r, n in enumerate(here):
+            row[n] = r
+    for kind, a, b, k in rules:
+        if a not in col or b not in col:
+            continue
+        if kind == "level":                       # b on a's row, swapping in b's column
+            _swap_to(col, row, b, row[a] + k)
+        elif kind == "under":                     # b in a's column, k rows from it
+            col[b] = col[a]
+            _swap_to(col, row, b, row[a] + k)
+    for _, n in tails:                  # keep wires from the left clear of the tail
+        for x in col:
+            if col[x] < col[n] and row[x] >= row[n]:
+                row[x] += 1
+    _tuck_rails(els, col, row)
+    for i, n in enumerate(sorted(rails)):
+        col[n], row[n] = -1, i
+    return col, row
+
+
+def _swap_to(col, row, n, r):
+    other = next((m for m in col if m != n and col[m] == col[n] and row[m] == r), None)
+    if other is not None:
+        row[other] = row[n]
+    row[n] = r
+
+
+def _links(els):
+    out = []
+    for e in els:
+        if e.role in ("series", "pair"):
+            out.append(e.main)
+        out += [(i, x) for i in e.inputs for x in e.main if i != x]
+    return out
+
+
+def _bary(col, row, links, sweeps=4, down_first=True):
+    """Crossing reduction, the classic layered-drawing step: each node's row follows
+    the mean row of its neighbours in other columns, swept left to right and back."""
+    row = dict(row)
+    nb = {n: [] for n in col}
+    for u, v in links:
+        if u in col and v in col and u != v:
+            nb[u].append(v)
+            nb[v].append(u)
+    cols = sorted(set(col.values()))
+    for k in range(sweeps):
+        for c in (cols if (k % 2 == 0) == down_first else cols[::-1]):
+            here = [n for n in col if col[n] == c]
+
+            def key(n):
+                ws = [row[m] for m in nb[n] if col[m] != c]
+                return (sum(ws) / len(ws) if ws else row[n], row[n], n)
+            for r, n in enumerate(sorted(here, key=key)):
+                row[n] = r
+    return row
+
+
+def _shuffle(col, row, seed):
+    import random
+    rnd = random.Random(seed)
+    row = dict(row)
+    for c in sorted(set(col.values())):
+        here = sorted(n for n in col if col[n] == c)
+        rnd.shuffle(here)
+        for r, n in enumerate(here):
+            row[n] = r
+    return row
+
+
+def _rail_signs(els) -> dict[str, int]:
+    """Nodes held by a DC source to ground -> +1 (positive supply) or -1."""
+    out = {}
+    for e in els:
+        if e.kind != "V" or e.role != "shunt" or re.search(
+                r"\b(ac|pulse|sin|pwl|exp|sffm)\b", e.rest, re.I):
+            continue
+        try:
+            v = float(re.sub(r"(?i)^dc\s*", "", e.rest.split()[-1]) if e.rest else 0)
+        except ValueError:
+            v = 1.0                          # a {param}: assume a positive supply
+        sgn = 1 if v >= 0 else -1
+        node = e.main[0]
+        out[node] = sgn if node == e.nodes[0] else -sgn
+    return out
+
+
+def _rail_choices(els, signs) -> list[dict]:
+    """Supplies drawn as wires, then (if any feeds three or more pins) as rail labels."""
+    count: dict[str, int] = {}
+    for e in els:
+        for n in e.pin_nodes:
+            count[n] = count.get(n, 0) + 1
+    busy = {n: s for n, s in signs.items() if count.get(n, 0) >= 3}
+    return [{}, busy] if busy else [{}]
+
+
+def _railify(els, rails) -> list[El]:
+    """Parts with one end on a supply drawn as a rail hang from their other node, the
+    supply end ending in a rail label instead of a wire back to the source."""
+    els = [dataclasses.replace(e) for e in els]
+    for e in els:
+        if e.kind not in "RCLDMQ" or e.role not in ("series", "pair"):
+            continue
+        on = [x for x in e.main if x in rails]
+        other = [x for x in e.main if x not in rails]
+        if len(on) != 1 or not other or _gnd(other[0]) or on[0] not in e.pin_nodes:
+            continue
+        e.role, e.main = "shunt", (other[0],)
+        e.ground_pin = e.pin_nodes.index(on[0])
+        e.rail_up = rails[on[0]] > 0
+        if e.kind in "MQ":                   # a transistor still amplifies: gate -> drain
+            e.out = other[0]
+    return els
+
+
+def _block_hints(els, found):
+    """What each block asks of the placement: extra left-to-right edges for the column
+    layering, row rules, and per-part orientation. Returns (edges, rules)."""
+    by = {e.name: e for e in els}
+    extra, rules = [], []
+    for b in found:
+        ps = [by[n] for n in b.parts if n in by]
+        if b.kind == "diff_pair" and len(ps) == 2 and all(p.role == "pair" for p in ps):
+            left, right, tail = b.nodes["left"], b.nodes["right"], b.nodes["tail"]
+            extra += [(left, tail), (tail, right)]
+            # N pair: tail below the drains; P pair: tail above them
+            rules += [("level", left, right, 0),
+                      ("level", left, tail, 1 if b.nodes["pol"] == "n" else -1)]
+            for p, side in zip(ps, (-1, 1)):
+                p.upright, p.gate_side = True, side
+        elif b.kind == "mirror":
+            ref = b.nodes["ref"]
+            for p, n in zip(ps, (ref,) + tuple(b.nodes["outs"])):
+                p.face = ref if n != ref else (b.nodes["outs"][0])
+                if p.role == "shunt":
+                    p.upright = True             # stands in its drain's column
+            tails = {t.nodes["tail"] for t in found if t.kind == "diff_pair"}
+            for o in b.nodes["outs"]:
+                if o not in tails:                 # a tail current source sits apart
+                    rules.append(("level", ref, o, 0))
+        elif b.kind == "push_pull" and len(ps) == 2:
+            # one transistor over the other: emitters (and the resistors between them)
+            # in one column, the bias string between the bases in the column before it
+            for chain in (b.nodes["emitters"], b.nodes["bias"]):
+                for u, v in zip(chain, chain[1:]):
+                    rules.append(("under", u, v, 1))
+            for p in ps:
+                if p.role == "shunt":
+                    p.upright = True
+    return extra, rules
+
+
+def _asymmetry(d: Drawing, found) -> int:
+    """How many blocks are not drawn in their familiar shape: a diff pair whose drains
+    are not level or whose gates do not point outward, a mirror whose gates are not on
+    one bar, a push-pull not one above the other, windings not side by side."""
+    by = {e.name: e for e in d.elements}
+
+    def pin(name, i):
+        e = by[name]
+        return e.part[e.part.meta["order"][i]]
+    bad = 0
+    for b in found:
+        if any(n not in by or by[n].part is None for n in b.parts):
+            continue
+        if b.kind == "diff_pair":
+            a, c = b.parts
+            (da, ga), (dc, gc) = (pin(a, 0), pin(a, 1)), (pin(c, 0), pin(c, 1))
+            bad += (da[1] != dc[1]) + (not (ga[0] < da[0] and gc[0] > dc[0]))
+        elif b.kind == "mirror":
+            g0 = pin(b.parts[0], 1)[1]
+            bad += sum(pin(n, 1)[1] != g0 for n in b.parts[1:])
+        elif b.kind == "push_pull":
+            a, c = b.parts
+            bad += not (pin(a, 2)[1] < pin(c, 2)[1] and pin(a, 2)[0] == pin(c, 2)[0])
+        elif b.kind == "transformer":
+            pa, pc = (by[n].part for n in b.parts[:2])
+            ya = sorted((pa["A"][1], pa["B"][1]))
+            yc = sorted((pc["A"][1], pc["B"][1]))
+            bad += not (ya == yc and abs(pa["A"][0] - pc["A"][0]) <= 96)
+    return bad
 
 
 def _tuck_rails(els: list[El], col: dict, row: dict) -> None:
@@ -897,22 +1191,35 @@ def _tuck_rails(els: list[El], col: dict, row: dict) -> None:
         col[n], row[n] = -1, i
 
 
-def _badness(d: Drawing) -> float:
+def _badness(d: Drawing, found=()) -> float:
+    """What the search minimises: the readability lint, plus how far each block is
+    from its familiar shape. Anything that makes a drawing wrong-looking (a wire through
+    a part, parts on top of each other) costs more than any amount of tidiness."""
     s = lint_sheet(d.sheet)
-    return s["crossings"] * 10 + len(d.labels) * 4 + s["bends"] + s["wire_length"] / 400
+    # the lint penalty first (the score a user sees), block shape next, then the
+    # small things that separate two equally scored drawings
+    return (10 * s["penalty"] + 60 * _asymmetry(d, found)
+            + len(d.labels) * 4 + s["bends"] + s["wire_length"] / 400)
 
 
-def _attempt(els, dirs, notes, col, row, order, label_nets) -> Drawing:
+def _attempt(els, dirs, notes, col, row, order, label_nets, rails=frozenset(),
+             blocks=()) -> Drawing:
     els = [dataclasses.replace(e) for e in els]
     sheet = asc.Sheet(size=(1600, 1200))
     pl = _Placer(els, col, row)
     rank = {"amp": 0, "series": 1, "pair": 1, "shunt": 2}
     for e in sorted(els, key=lambda e: (rank[e.role], e.name)):
         pl.put(sheet, e)
+    for b in blocks:
+        if b.kind == "transformer":
+            _face_windings(els, b)
     r = _Router(els)
-    # op-amp supply pins take a rail label, as on any drawn schematic, not a wire
+    # op-amp supply pins, and every pin on a supply drawn as a rail, take a rail
+    # label, as on any drawn schematic, not a wire back to the source
     rail_pins = [(e.part[e.part.meta["order"][i]], e.pin_nodes[i])
-                 for e in els for i in e.supply_pins if not _gnd(e.pin_nodes[i])]
+                 for e in els for i in range(len(e.pin_nodes))
+                 if not _gnd(e.pin_nodes[i])
+                 and (i in e.supply_pins or e.pin_nodes[i] in rails)]
     skip = {pt for pt, _ in rail_pins}
     nets: dict[str, list] = {}
     for pt, n, _ in r.pins:
@@ -941,7 +1248,7 @@ def _attempt(els, dirs, notes, col, row, order, label_nets) -> Drawing:
             rest.sort(key=lambda p: min(abs(p[0] - t[0]) + abs(p[1] - t[1]) for t in tree))
             p = rest.pop(0)
             manh = min(abs(p[0] - t[0]) + abs(p[1] - t[1]) for t in tree) / G
-            got = r.search(n, p, tree)
+            got = r.search(n, p, tree, min(2.2 * manh + 24, 110))
             if got and got[1] <= 2.2 * manh + 24 and got[1] <= 110:
                 r.add_path(n, got[0])
                 tree_pins.add(p)
@@ -971,6 +1278,63 @@ def _attempt(els, dirs, notes, col, row, order, label_nets) -> Drawing:
     sheet.note(*notes)
     sheet.directive(*dirs)
     return Drawing(sheet, els, sorted(set(labels)))
+
+
+def _face_windings(els: list[El], b) -> None:
+    """Two coupled windings drawn the way a transformer is: side by side, coils facing
+    across the core, the same height; the secondary's grounded end at the bottom, like
+    any part to ground. Secondary to the right of the primary if there is room, else to
+    the left; if neither spot is free both stay where the placer put them."""
+    by = {e.name: e for e in els}
+    ws = [by[n] for n in b.parts if n in by and by[n].part is not None][:2]
+    if len(ws) < 2:
+        return
+    p1, p2 = ws[0].part, ws[1].part
+    a1, b1 = p1["A"], p1["B"]
+    if a1[0] != b1[0]:
+        return                                     # primary on its side: leave both
+    old = [(p1.at, p1.rot), (p2.at, p2.rot)]
+    top, bottom = min(a1[1], b1[1]), max(a1[1], b1[1])
+    na, nb = ws[1].pin_nodes[0], ws[1].pin_nodes[1]
+    a_up = (not _gnd(na)) if _gnd(na) != _gnd(nb) else a1[1] < b1[1]
+    others = [bx for e, bx in zip(els, _boxes(els)) if e is not ws[1] and e is not ws[0]]
+    pins = {pt for e in els if e not in ws for pt, _ in _pin_points(e)}
+    flip = {"R0": "M0", "M0": "R0", "R180": "M180", "M180": "R180"}
+    for side in (1, -1):
+        (p1.at, p1.rot), (p2.at, p2.rot) = old
+        cx = _body_center(p1.meta, p1.rot)[0] + p1.at[0]
+        if (cx - a1[0]) * side < 0:                # coils bulge the wrong way: mirror
+            p1.rot = flip.get(p1.rot, p1.rot)
+            q = p1["A"]
+            p1.at = (p1.at[0] + a1[0] - q[0], p1.at[1] + a1[1] - q[1])
+        rot = {(1, True): "M0", (1, False): "R180",
+               (-1, True): "R0", (-1, False): "M180"}[(side, a_up)]
+        pa = asc.ORIENT[rot](*p2.meta["pins"]["A"])
+        target = (a1[0] + side * 64, top if a_up else bottom)
+        p2.at, p2.rot = (target[0] - pa[0], target[1] - pa[1]), rot
+        hit = any(me[0] - G < o[2] and o[0] < me[2] + G and me[1] - G < o[3]
+                  and o[1] < me[3] + G for me in _boxes(ws) for o in others) or any(
+            pt in pins for pt in (p2["A"], p2["B"]))
+        if not hit:
+            # name and value outside the pair, never in the gap between the coils
+            for e, out in ((ws[0], -side), (ws[1], side)):
+                x0, y0, x1, y1 = _boxes([e])[0]
+                x = x1 + 8 if out > 0 else x0 - 8
+                just = "Left" if out > 0 else "Right"
+                cy = (y0 + y1) // 2
+                _window_abs(e.part, 0, (x, cy - 16), just)
+                _window_abs(e.part, 3, (x, cy + 16), just)
+            return
+    (p1.at, p1.rot), (p2.at, p2.rot) = old
+
+
+def _window_abs(part: asc.Part, idx: int, at: tuple, just: str) -> None:
+    """Put attribute window `idx` at sheet point `at` (justification in sheet frame,
+    as LTspice writes an override; the position is stored in the symbol's frame)."""
+    inv = next(q for q in asc.ORIENT if all(
+        asc.ORIENT[q](*asc.ORIENT[part.rot](*v)) == v for v in ((1, 0), (0, 1))))
+    lx, ly = asc.ORIENT[inv](at[0] - part.at[0], at[1] - part.at[1])
+    part.windows[idx] = (int(lx), int(ly), just, 2)
 
 
 def _label_spot(r: _Router, net: str, pins: list) -> tuple:
@@ -1204,11 +1568,35 @@ def lint_schematic(sch: asc.Schematic) -> dict:
             if (ax - pt[0]) * (by - pt[1]) != (ay - pt[1]) * (bx - pt[0]):
                 bends += 1
     ambiguous = sum(1 for w in warns if "middle of a wire" in w)
+    # A signal carried by a pair of name labels instead of a wire (a "jump"): fine
+    # once or twice, a treasure hunt when many. Supplies and ground are exempt: a VCC
+    # flag on every pull-up is how schematics are drawn.
+    got, _ = connectivity(sch)
+    supplies = set()
+    for p in sch.parts:
+        if p.sym == "voltage" and re.fullmatch(
+                r"(?i)\s*(dc\s*)?[-+]?[\d.]+(e[-+]?\d+)?[a-z]*\s*",
+                p.attrs.get("Value", "") or ""):
+            supplies |= {got.get((p.inst, i)) for i in (0, 1)}
+    count: dict = {}
+    for f in sch.flags:
+        count[f["label"].lower()] = count.get(f["label"].lower(), 0) + 1
+    jumps = sum(1 for n, c in count.items() if c >= 2 and n not in ("0", "gnd")
+                and n not in supplies)
+    xs = [v for w in W for v in (w[0], w[2])] + [b[0] for b in boxes] + [b[2] for b in boxes]
+    ys = [v for w in W for v in (w[1], w[3])] + [b[1] for b in boxes] + [b[3] for b in boxes]
+    w_, h_ = (max(xs) - min(xs), max(ys) - min(ys)) if xs else (1, 1)
+    aspect = w_ / max(1, h_)            # width / height: schematics read left to right
+    # a page much taller than wide (a stack of parts) or a very long thin strip
+    shape = 8 * max(0.0, 1 / max(aspect, 1e-3) - 1.5) + 4 * max(0.0, aspect - 5)
     length = sum(abs(x2 - x1) + abs(y2 - y1) for x1, y1, x2, y2 in W)
     labels = len([f for f in sch.flags if f["label"] not in ("0", "GND")])
     score = 100 - (12 * crossings + 20 * through + 20 * overlaps + 25 * ambiguous
-                   + 10 * dangling + 1 * max(0, bends - len(sch.parts)))
-    return {"score": max(0, score), "crossings": crossings, "through_parts": through,
+                   + 10 * dangling + 1 * max(0, bends - len(sch.parts))
+                   + 5 * max(0, jumps - 1) + round(shape))
+    return {"score": max(0, score), "penalty": 100 - score,
+            "crossings": crossings, "through_parts": through,
+            "jump_labels": jumps, "aspect": round(aspect, 2),
             "overlaps": overlaps, "ambiguous": ambiguous, "dangling": dangling,
             "bends": bends, "wire_length": length, "net_labels": labels,
             "parts": len(sch.parts)}

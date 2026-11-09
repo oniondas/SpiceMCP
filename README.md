@@ -512,13 +512,28 @@ render_schematic("filter.cir", "filter.png")   # -> filter.png + filter.asc
 * Wires are right angles only. They never run through a part, never end on another
   net's wire, and cross another net only when they have to. A connection that would need
   a long detour becomes a pair of net labels instead. Measured nodes are labelled.
+* Familiar blocks are recognised from the wiring alone and drawn the familiar way, in
+  any circuit, templated or not: a differential pair side by side with its gates pointing
+  outward and its sources joined below, a current mirror with its gates on one bar, a
+  push-pull output stage one transistor over the other with its bias string beside it,
+  and a transformer's two windings facing each other (`K` lines are kept as a directive).
+* A supply that feeds three or more parts can be drawn as rail labels (a `vcc` flag on
+  each pull-up) instead of long wires back to the source.
+
+**Placement is a search, not one guess.** Each netlist gets a few dozen candidate
+layouts (supplies wired or labelled, feedback laid out forward or back, row orders from
+crossing-reduction sweeps and seeded restarts). Every candidate is routed and scored;
+the most readable correct one is kept. Same netlist, same drawing. Typical time is 0.2 s
+for a small filter and 2 to 6 s for a 15 to 20 part converter or a transistor-level
+op-amp.
 
 **Every drawing is checked.** The geometry is read back the way LTspice joins it (wire
 ends, tees, pins and same-named labels) and compared with the netlist, pin by pin. A
 drawing that is not the same circuit is refused, never returned. This check needs no
 LTspice, and on Windows `asc.check()` can still netlist the file through LTspice itself.
 `layout.lint()` scores readability (crossings, wires through parts, overlaps, hidden
-connections, dangling ends) and the score comes back with the picture.
+connections, dangling ends, signals carried by label pairs instead of wires, and a page
+much taller than wide) and the score comes back with the picture.
 
 `start_from_template` also draws its circuit, so a templated run has a schematic from
 its first step. A 5-pin op-amp subcircuit is drawn as LTspice's `opamp2` symbol with
@@ -716,7 +731,8 @@ for what has and has not been checked.
 | `check_feasibility` inspects top level netlist elements | subcircuit internal pole modeling is required (handled during simulation in robustness) |
 | W/L aspect ratio check requires explicit W and L parameters | device geometry is defined via unified size parameters or model cards |
 | `render_schematic` applies single pass greedy label collision offsets | complex placement solver is required for high density schematics |
-| the auto-placer draws flat netlists on one sheet; the only subcircuit it draws is a 5-pin op-amp | hierarchical designs need a block per subcircuit |
+| the auto-placer draws flat netlists on one sheet; the only subcircuit it draws is a 5-pin op-amp | hierarchical designs need a block per subcircuit; above about 40 parts one sheet gets crowded |
+| block recognition covers diff pairs, current mirrors, push-pull stages and transformers | cascodes, H-bridges and other blocks are placed by the general rules |
 | `simulate_sweep` steps one parameter per launch | nested 2D parameter sweeps are needed (run sequentially across outer values) |
 
 ## Schematic rendering styles
