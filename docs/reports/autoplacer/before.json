@@ -1,0 +1,70 @@
+{
+ "ldo": {
+  "score": 76,
+  "crossings": 2,
+  "sec": 1.03
+ },
+ "buck": {
+  "score": 69,
+  "crossings": 2,
+  "sec": 0.65
+ },
+ "voltage_reference": {
+  "score": 59,
+  "crossings": 3,
+  "sec": 0.75
+ },
+ "boost": {
+  "score": 43,
+  "crossings": 4,
+  "sec": 0.9
+ },
+ "flyback": {
+  "error": "refused: coupled windings (K) not supported",
+  "sec": 0.0
+ },
+ "bandpass": {
+  "score": 88,
+  "crossings": 1,
+  "sec": 0.21
+ },
+ "instrumentation": {
+  "score": 26,
+  "crossings": 5,
+  "sec": 0.87
+ },
+ "cmos_opamp": {
+  "score": 4,
+  "crossings": 6,
+  "sec": 1.49
+ },
+ "state_variable": {
+  "score": 33,
+  "crossings": 5,
+  "sec": 0.63
+ },
+ "bjt_diff_pair": {
+  "score": 67,
+  "crossings": 2,
+  "sec": 1.1
+ },
+ "wien_oscillator": {
+  "score": 96,
+  "crossings": 0,
+  "sec": 0.33
+ },
+ "class_ab": {
+  "score": 0,
+  "crossings": 8,
+  "sec": 3.75
+ },
+ "sallen_key_4th": {
+  "score": 100,
+  "crossings": 0,
+  "sec": 0.34
+ },
+ "bare_flyback": {
+  "error": "refused: coupled windings (K) not supported",
+  "sec": 0.0
+ }
+}

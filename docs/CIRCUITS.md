@@ -13,7 +13,7 @@
 Circuits 1 to 14 were all drawn by SpiceMCP and read back by LTspice 26 on Windows as the
 same circuit, pin by pin. Simulated numbers are from ngspice (1 to 17 on version 0.13,
 18 to 25 on 0.17). Circuits 18 to 24 are drawn by the same placer but not yet re-read in
-LTspice; the flyback (25) is not drawn, because the placer has no transformer symbol.
+LTspice. Since 1.1.0 the flyback (25) is drawn too, its two windings facing each other.
 
 | No. | Circuit | What it does | Key result |
 |---:|---|---|---|

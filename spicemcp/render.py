@@ -172,9 +172,31 @@ def pretty_value(text: str) -> str:
     if re.match(r"\s*[VIRQ]\s*=", text, re.I):
         return text
     parts = re.split(r"(\{[^}]*\})", text)               # leave {expressions} alone
+    parts = [_arith(p) if p.startswith("{") else p for p in parts]
     return "".join(p if p.startswith("{") else _NUM.sub(
         lambda m: eng(float(m.group(1))) if re.search(r"[.eE]", m.group(1))
         else m.group(1), p) for p in parts)
+
+
+def _arith(expr: str) -> str:
+    """`{5.2e-05*0.47}` (a filled-in template formula, numbers only) -> `24.5u`.
+    Anything with a name in it is a real expression and is kept as typed."""
+    import ast
+    body = expr[1:-1]
+    if not re.fullmatch(r"[\d.eE+\-*/() ]+", body):
+        return expr
+    try:
+        tree = ast.parse(body, mode="eval")
+    except SyntaxError:
+        return expr
+    ok = (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Add, ast.Sub,
+          ast.Mult, ast.Div, ast.USub, ast.UAdd)
+    if not all(isinstance(n, ok) for n in ast.walk(tree)):
+        return expr
+    try:
+        return eng(float(eval(compile(tree, "<value>", "eval"), {"__builtins__": {}})))
+    except (ZeroDivisionError, OverflowError, ValueError):
+        return expr
 
 
 def _net_role(label: str) -> str:
