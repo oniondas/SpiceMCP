@@ -130,7 +130,7 @@
  ],
  "haiku": {
   "about": [
-   "Same spec text, same parts file, same checker and the same random boards as the Opus run. Every design call was made by claude-haiku-5-5 (checked in the transcripts); Opus only checked the results and wrote this report.",
+   "Same spec text, same parts file, same checker and the same random boards as the Opus run. Every design call was made by Haiku 5.5 (checked in the transcripts); Opus only checked the results and wrote this report.",
    "SpiceMCP arm: Haiku saw the real tool list and called the real server through a small shell bridge (measure/bridge.py) that keeps one MCP session open and logs every call. It chose its own calls: templates, re-optimising, finish, simulate.",
    "Raw-simulator arm: Haiku wrote netlists and ran ngspice itself (22 runs). No-tool arm: Haiku wrote the netlists from memory."
   ],

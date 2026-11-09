@@ -1,7 +1,7 @@
 {
  "rawspice": {
   "models": [
-   "claude-haiku-5-5"
+   "Haiku 5.5"
   ],
   "tool_calls": 30,
   "req": 13457,
@@ -14,7 +14,7 @@
  },
  "blind": {
   "models": [
-   "claude-haiku-5-5"
+   "Haiku 5.5"
   ],
   "tool_calls": 1,
   "req": 996,
@@ -27,7 +27,7 @@
  },
  "spicemcp": {
   "models": [
-   "claude-haiku-5-5"
+   "Haiku 5.5"
   ],
   "tool_calls": 44,
   "req": 7255,
