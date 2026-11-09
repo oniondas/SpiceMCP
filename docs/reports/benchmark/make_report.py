@@ -33,10 +33,11 @@ CIRC_NAME = {"rc": "RC low-pass 1 kHz", "amp": "x10 amplifier", "buck": "12 V to
 
 
 def load():
-    return json.loads((RES / "checks.json").read_text()), json.loads((RES / "effort.json").read_text())
+    return (json.loads((RES / "checks.json").read_text()), json.loads((RES / "effort.json").read_text()),
+            json.loads((RES / "haiku_checks.json").read_text()))
 
 
-def fig_yield(checks):
+def fig_yield(checks, tag="", title=""):
     FIG.mkdir(exist_ok=True)
     fig, ax = plt.subplots(figsize=(7.2, 3.0), dpi=200)
     w = 0.26
@@ -50,12 +51,14 @@ def fig_yield(checks):
     ax.set_xticks(range(len(CIRC)), [f"{CIRC_NAME[c]}\n({checks['spicemcp'][c]['boards']} boards)" for c in CIRC], fontsize=8)
     ax.set_ylabel("boards that meet every spec", fontsize=8)
     ax.set_ylim(0, 112)
+    if title:
+        ax.set_title(title, fontsize=9, loc="left")
     ax.legend(fontsize=7, frameon=False, ncol=3, loc="upper left")
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     ax.tick_params(labelsize=7)
     fig.tight_layout()
-    p = FIG / "yield.png"
+    p = FIG / f"yield{tag}.png"
     fig.savefig(p)
     plt.close(fig)
     return p
@@ -123,24 +126,54 @@ def nominal_text(c, r):
     return ", ".join(f"{k}: {v.get('vout', 0):.3f} V / {v.get('ripple_mv', 0):.0f} mV" for k, v in n.items())
 
 
+def results_table(checks):
+    rows = [["circuit", "arm", "values", "meets spec (nominal)", "measured", "yield", "all values buyable"]]
+    for c in CIRC:
+        for a in ARMS:
+            r = checks[a][c]
+            parts = ", ".join(f"{k} {eng(v)}" for k, v in r["parts"].items()) if c != "buck" else \
+                f"{len(r['parts'])} R/C/L"
+            buy = yes(r["all_buyable"]) + (f" ({', '.join(r['not_buyable'])})" if r["not_buyable"] else "")
+            if r.get("ideal"):
+                buy += f"; {r['ideal']}"
+            rows.append([CIRC_NAME[c], ARM_NAME[a], parts, yes(r["nominal_pass"]),
+                         nominal_text(c, r), f"{r['yield_pct']:g}% of {r['boards']}", buy])
+    return table(rows, [24 * mm, 26 * mm, 30 * mm, 17 * mm, 40 * mm, 16 * mm, 21 * mm])
+
+
+def effort_table(e):
+    rows = [["arm", "wall-clock (3 circuits)", "tool calls", "simulator runs",
+             "tokens to/from tools", "model output tokens", "what you get back"]]
+    for a in ARMS:
+        x = e[a]
+        rows.append([ARM_NAME[a], x["time"], f"{x['calls']}", x["sims"], f"{x['tool_tokens']:,}",
+                     x["model_out"], x["deliverables"]])
+    return table(rows, [26 * mm, 26 * mm, 14 * mm, 20 * mm, 20 * mm, 26 * mm, 42 * mm])
+
+
 def build():
-    checks, effort = load()
-    yfig, efig = fig_yield(checks), fig_effort(effort)
+    checks, effort, hk = load()
+    yfig = fig_yield(hk, "_haiku", "Haiku 5.5 (a smaller model) as the designer")
+    yfig_o = fig_yield(checks, "", "Opus 5.5 (a strong model) as the designer")
+    efig = fig_effort(effort)
     st = [P("How SpiceMCP compares", "title"),
           P(f"Three circuits, three ways of designing them, one independent checker. "
             f"SpiceMCP {effort['version']}, ngspice 42, {effort['date']}.", "small"),
           Spacer(1, 6), P("The short answer", "h2")]
     st += bullets(effort["headline"])
-    st += [Spacer(1, 4), Image(str(yfig), width=174 * mm, height=72.5 * mm),
+    st += [Spacer(1, 4), Image(str(yfig), width=140 * mm, height=58.3 * mm),
+           Image(str(yfig_o), width=140 * mm, height=58.3 * mm),
            P("Yield: share of randomly built boards (resistors 1%, capacitors 5%, inductors 20%, "
              "supply ±5%) that meet every spec at −40, 25 and 85 °C. Same random boards for "
              "every arm. * = uses a value you cannot buy or an ideal switch.", "small")]
 
     st += [PageBreak(), P("What was compared", "h2")]
     st += bullets([
-        "<b>SpiceMCP 1.1:</b> the calls a model would make: list templates, start from the "
-        "template, optimise 20 rounds, finish (standard values + yield), report, draw. Driven "
-        "by a script over the real MCP connection, so its time has no model thinking in it.",
+        "<b>Two designers:</b> Opus 5.5 (strong) and Haiku 5.5 (smaller). Opus checked every "
+        "result and wrote the report.",
+        "<b>SpiceMCP 1.1:</b> with Opus, a script made the calls a model would make (list "
+        "templates, start, optimise 20 rounds, finish, report, draw) over the real MCP "
+        "connection. With Haiku, the model chose and made every call itself.",
         "<b>Model alone, no tools:</b> a fresh model given only the spec text; it wrote the "
         "three netlists from memory, without simulating.",
         "<b>Model + raw simulator:</b> a fresh model allowed only to write netlists and run "
@@ -153,29 +186,12 @@ def build():
         "<b>The checker</b> (measure/checker.py) is written separately from SpiceMCP, strips "
         "every arm's own analyses and measures all of them with the same decks.",
     ])
-    st += [P("Results, circuit by circuit", "h2")]
-    rows = [["circuit", "arm", "values", "meets spec (nominal)", "measured", "yield", "all values buyable"]]
-    for c in CIRC:
-        for a in ARMS:
-            r = checks[a][c]
-            parts = ", ".join(f"{k} {eng(v)}" for k, v in r["parts"].items()) if c != "buck" else \
-                f"{len(r['parts'])} R/C/L"
-            buy = yes(r["all_buyable"]) + (f" ({', '.join(r['not_buyable'])})" if r["not_buyable"] else "")
-            if r.get("ideal"):
-                buy += f"; {r['ideal']}"
-            rows.append([CIRC_NAME[c], ARM_NAME[a], parts, yes(r["nominal_pass"]),
-                         nominal_text(c, r), f"{r['yield_pct']:g}% of {r['boards']}", buy])
-    st.append(table(rows, [24 * mm, 26 * mm, 30 * mm, 17 * mm, 40 * mm, 16 * mm, 21 * mm]))
+    st += [P("Results, circuit by circuit (Opus 5.5 as the designer)", "h2")]
+    st.append(results_table(checks))
 
-    st += [PageBreak(), P("Effort: time, calls and tokens", "h2"),
+    st += [PageBreak(), P("Effort with Opus 5.5: time, calls and tokens", "h2"),
            Image(str(efig), width=174 * mm, height=58 * mm)]
-    rows = [["arm", "wall-clock (3 circuits)", "tool calls", "simulator runs",
-             "tokens to/from tools", "model output tokens", "what you get back"]]
-    for a in ARMS:
-        e = effort[a]
-        rows.append([ARM_NAME[a], e["time"], f"{e['calls']}", e["sims"], f"{e['tool_tokens']:,}",
-                     e["model_out"], e["deliverables"]])
-    st.append(table(rows, [26 * mm, 26 * mm, 14 * mm, 20 * mm, 20 * mm, 26 * mm, 42 * mm]))
+    st.append(effort_table(effort))
     st.append(P(effort["effort_note"], "small"))
 
     st += [P("Against other open-source SPICE servers (features, from their public pages)", "h2")]
@@ -183,6 +199,12 @@ def build():
     st.append(table([feats["head"]] + feats["rows"],
                     [40 * mm] + [134 * mm / (len(feats["head"]) - 1)] * (len(feats["head"]) - 1)))
     st.append(P(feats["note"], "small"))
+
+    he = effort["haiku"]
+    st += [PageBreak(), P("Same test with a smaller model: Haiku 5.5", "h2")]
+    st += bullets(he["about"])
+    st += [P("Results, circuit by circuit (Haiku 5.5 as the designer)", "h2"), results_table(hk),
+           P("Effort with Haiku 5.5", "h2"), effort_table(he), P(he["note"], "small")]
 
     st += [PageBreak(), P("Brutally honest reading", "h2")]
     st += bullets(effort["honest"])

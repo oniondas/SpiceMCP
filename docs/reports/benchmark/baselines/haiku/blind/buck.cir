@@ -1,0 +1,21 @@
+.include parts.lib
+Vin vin 0 12
+Vctl ctl 0 12
+Vref ref 0 PWL(0 0 0.5m 2.5)
+Vramp ramp 0 PULSE(0 6 0 1.99u 10n 10n 2u)
+S1 vin sw pwm 0 SWM
+.model SWM SW(Ron=0.05 Roff=1Meg Vt=6 Vh=0.5)
+D1 0 sw DSCH
+.model DSCH D(Is=1u N=1.05 Rs=0.02 Bv=40)
+L1 sw out 22u
+Resr out nc 0.1
+C1 nc 0 22u
+RL out 0 5
+Rt out fb 10k
+Rb fb 0 10k
+Rin fb ea_in 10k
+Rz ea_in nz 15k
+Cz nz vc 47n
+Cp ea_in vc 15n
+X1 ref ea_in ctl 0 vc OPAMP2M
+X2 vc ramp ctl 0 pwm CMP

@@ -1,0 +1,6 @@
+* RC low-pass, first order, fc = 1 kHz: R1 = 1.58k (E96 1%), C1 = 100n (E12 5%)
+.include parts.lib
+V1 in 0 DC 0 AC 1
+R1 in out 1.58k
+C1 out 0 100n
+.end

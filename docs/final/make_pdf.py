@@ -812,29 +812,35 @@ def build():
     # ---- step 14 (benchmark against other ways of designing)
     bench = HERE.parents[1] / "docs/reports/benchmark"
     ck = json.load(open(bench / "results/checks.json"))
+    hk = json.load(open(bench / "results/haiku_checks.json"))
     st.append(PageBreak())
     st += section(f"STEP 14 OF {NSTEPS}", "How it compares with designing without it",
                   "Before: every number in this report was SpiceMCP checking itself. After: "
-                  "the same three circuits were designed three ways and measured by one "
-                  "checker written separately from SpiceMCP.")
+                  "the same three circuits were designed three ways, by a strong model (Opus "
+                  "5.5) and by a smaller one (Haiku 5.5), and measured by one checker written "
+                  "separately from SpiceMCP.")
     arms = [("spicemcp", "SpiceMCP"), ("blind", "Model alone"), ("rawspice", "Model + raw simulator")]
     names = {"rc": "RC filter 1 kHz", "amp": "x10 amplifier", "buck": "12 V to 5 V buck"}
-    rows = [["", "before", "after: " + ", ".join(n for _, n in arms)]]
-    for c in ("rc", "amp", "buck"):
-        rows.append([names[c], "not compared",
-                     "  /  ".join(f"{'meets' if ck[a][c]['nominal_pass'] else 'fails'}, "
-                                  f"yield {ck[a][c]['yield_pct']:g}%" for a, _ in arms)])
-    st.append(table(rows, [30 * mm, 24 * mm, 120 * mm]))
-    st += [Spacer(1, 6), img(bench / "figures/yield.png", max_h=70 * mm)]
+    rows = [["", "designer", "before", "after: " + ", ".join(n for _, n in arms)]]
+    for data, who in ((hk, "Haiku 5.5"), (ck, "Opus 5.5")):
+        for c in ("rc", "amp", "buck"):
+            rows.append([names[c], who, "not compared",
+                         "  /  ".join(f"{'meets' if data[a][c]['nominal_pass'] else 'fails'}, "
+                                      f"yield {data[a][c]['yield_pct']:g}%" for a, _ in arms)])
+    st.append(table(rows, [28 * mm, 18 * mm, 20 * mm, 108 * mm]))
+    st += [Spacer(1, 6), img(bench / "figures/yield_haiku.png", max_h=62 * mm)]
     st += bullets([
-        "<b>Same circuits, same pass rate:</b> for simple, well-known circuits a strong model "
-        "with no tools already writes the textbook answer, and it meets spec at nominal.",
+        "<b>With the smaller model, only SpiceMCP got the buck working:</b> Haiku alone and "
+        "Haiku with a raw simulator both missed 5 V or the ripple limit (0 of 30 boards); "
+        "Haiku with SpiceMCP passed 30 of 30, and its amplifier reached 91.5%.",
+        "<b>With the strong model, same circuits, same pass rate:</b> for simple, well-known "
+        "circuits Opus with no tools already writes the textbook answer.",
         "<b>SpiceMCP's edge is proof and paperwork:</b> measured yield over hundreds of "
         "random boards and three temperatures, buyable values, ratings to buy, a drawing "
         "and a report. The others return a netlist and a claim.",
-        "<b>Where it lost:</b> slowest (14 min for the buck), about a third more tokens than "
-        "a model driving a raw simulator, and on the amplifier it snapped to an off-centre "
-        "resistor pair: 66.5% yield where a centred buyable pair gives 91%.",
+        "<b>Where it lost:</b> slowest (about 14 min for the buck yield check, with 13 to 23 "
+        "repeated 'still running' polls), and its first answer on the amplifier is an "
+        "off-centre resistor pair (66.5% yield) unless the model re-optimises.",
         "Full method, numbers and limits: docs/reports/benchmark/SpiceMCP_Benchmark.pdf.",
     ])
 

@@ -1,0 +1,25 @@
+* Buck converter, closed loop: 12 V -> 5 V, 1 A, 500 kHz
+* SpiceMCP run buck1, candidate cand_0128 (voltage-mode PWM, OPAMP2M + CMP)
+* L1 18u E12 20 %, C1 2.7u E12 5 %, CI 15n E12 5 %, R1 31.6k E96 1 %, R2 10k E96 1 %
+.include parts.lib
+Vin in 0 12
+Vref ref 0 1.2
+Vramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)
+X2 ref fb in 0 vc OPAMP2M
+CI vc fb 15n
+R1 out fb 31.6k
+R2 fb 0 10k
+X3 ramp vc in 0 g CMP
+M1 sw g in PSW
+D1 0 sw DS
+L1 sw out 18u
+C1 out 0 2.7u
+RL out 0 5
+.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)
+.model DS D(Is=1e-6 Rs=0.02 N=1.2)
+.tran 2n 2m
+.meas TRAN v_1p5ms FIND V(out) AT 1.5m
+.meas TRAN vmax MAX V(out) FROM 1.5m TO 2m
+.meas TRAN vmin MIN V(out) FROM 1.5m TO 2m
+.meas TRAN ripple_mv PARAM (vmax-vmin)*1000
+.end
