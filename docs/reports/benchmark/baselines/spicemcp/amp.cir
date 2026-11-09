@@ -1,0 +1,94 @@
+* Non-inverting amplifier (SpiceMCP template noninverting_amp)
+* gain target 10 V/V; transistor-level op-amp on +-5 V, GBW 1e+07 Hz
+V1 in 0 AC 1
+Vcc vcc 0 5
+Vee vee 0 -5
+X1 in inn vcc vee out SPMCP_OA
+R2 out inn 90900.0
+R1 inn 0 10000.0
+RL out 0 10k
+CL out 0 1e-10
+.subckt SPMCP_OA inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply
+M8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u
+Rb pb vss 4.476e+05
+M5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u
+M6 out x2 vss vss SPMCP_OA_N W=400u L=1u
+M7 out pb vdd vdd SPMCP_OA_P W=500u L=2u
+Cc x2 cz 4.026e-12
+Rz cz out 111.8
+.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_OA
+.ac dec 100 10 1e+08
+.meas AC gain_db FIND mag(V(out)) AT 10
+.meas AC bw WHEN mag(V(out))=7.071 FALL=1
+.end
+* Amplifier stability: loop gain, feedback broken at the amplifier input
+V1 in 0 0
+Vcc vcc 0 5
+Vee vee 0 -5
+X1 in inn vcc vee out SPMCP_OA
+R2 out fbd 90900.0
+R1 fbd 0 10000.0
+RL out 0 10k
+CL out 0 1e-10
+Lbrk fbd inn 1k
+Cinj inn inj 1k
+.subckt SPMCP_OA inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply
+M8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u
+Rb pb vss 4.476e+05
+M5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u
+M6 out x2 vss vss SPMCP_OA_N W=400u L=1u
+M7 out pb vdd vdd SPMCP_OA_P W=500u L=2u
+Cc x2 cz 4.026e-12
+Rz cz out 111.8
+.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_OA
+Vinj inj 0 AC 1
+.ac dec 50 100 1e+09
+.meas AC ugf WHEN mag(V(fbd))=1 FALL=1
+.meas AC pm FIND V(fbd) WHEN mag(V(fbd))=1 FALL=1
+.end
+* Amplifier noise: output noise, 10 Hz to 1e+06 Hz
+V1 in 0 AC 1
+Vcc vcc 0 5
+Vee vee 0 -5
+X1 in inn vcc vee out SPMCP_OA
+R2 out inn 90900.0
+R1 inn 0 10000.0
+RL out 0 10k
+CL out 0 1e-10
+.subckt SPMCP_OA inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply
+M8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u
+Rb pb vss 4.476e+05
+M5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u
+M6 out x2 vss vss SPMCP_OA_N W=400u L=1u
+M7 out pb vdd vdd SPMCP_OA_P W=500u L=2u
+Cc x2 cz 4.026e-12
+Rz cz out 111.8
+.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_OA
+.noise V(out) V1 dec 20 10 1e+06
+.meas NOISE vn INTEG V(onoise)
+.meas NOISE vn_uv PARAM vn*1e6
+.end

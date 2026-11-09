@@ -1,0 +1,59 @@
+* Parts library handed to every benchmark arm (same blocks SpiceMCP uses)
+* OPAMP10M: pins in+ in- V+ V- out, GBW 10 MHz, for a +-5 V supply
+.subckt OPAMP10M inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply
+M8 pb pb vdd vdd OPAMP10M_P W=10u L=2u
+Rb pb vss 4.476e+05
+M5 tail pb vdd vdd OPAMP10M_P W=20u L=2u
+M1 x1 inn tail vdd OPAMP10M_P W=40u L=1u
+M2 x2 inp tail vdd OPAMP10M_P W=40u L=1u
+M3 x1 x1 vss vss OPAMP10M_N W=10u L=2u
+M4 x2 x1 vss vss OPAMP10M_N W=10u L=2u
+M6 out x2 vss vss OPAMP10M_N W=400u L=1u
+M7 out pb vdd vdd OPAMP10M_P W=500u L=2u
+Cc x2 cz 4.026e-12
+Rz cz out 111.8
+.model OPAMP10M_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model OPAMP10M_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends OPAMP10M
+* OPAMP2M: pins in+ in- V+ V- out, GBW 2 MHz, for a 0..12 V supply
+.subckt OPAMP2M inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply
+M8 pb pb vdd vdd OPAMP2M_P W=10u L=2u
+Rb pb vss 5.476e+05
+M5 tail pb vdd vdd OPAMP2M_P W=20u L=2u
+M1 x1 inn tail vdd OPAMP2M_P W=40u L=1u
+M2 x2 inp tail vdd OPAMP2M_P W=40u L=1u
+M3 x1 x1 vss vss OPAMP2M_N W=10u L=2u
+M4 x2 x1 vss vss OPAMP2M_N W=10u L=2u
+M6 out x2 vss vss OPAMP2M_N W=400u L=1u
+M7 out pb vdd vdd OPAMP2M_P W=500u L=2u
+Cc x2 cz 2.013e-11
+Rz cz out 111.8
+.model OPAMP2M_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model OPAMP2M_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends OPAMP2M
+* CMP: comparator, pins in+ in- V+ V- out, push-pull output rail to rail, 0..12 V supply
+.subckt CMP inp inn vdd vss out
+* comparator with gate-drive output, pins in+ in- V+ V- out
+* the op-amp's two stages, then a 0.1 A inverter driving a 5 A inverter
+M8 pb pb vdd vdd CMP_P W=10u L=2u
+Rb pb vss 5.476e+05
+M5 tail pb vdd vdd CMP_P W=20u L=2u
+M1 x1 inn tail vdd CMP_P W=40u L=1u
+M2 x2 inp tail vdd CMP_P W=40u L=1u
+M3 x1 x1 vss vss CMP_N W=10u L=2u
+M4 x2 x1 vss vss CMP_N W=10u L=2u
+M6 o1 x2 vss vss CMP_N W=400u L=1u
+M7 o1 pb vdd vdd CMP_P W=500u L=2u
+Cc x2 cz 4.026e-13
+Rz cz o1 111.8
+M9 o2 o1 vdd vdd CMP_P W=40u L=1u
+M10 o2 o1 vss vss CMP_N W=16u L=1u
+M11 out o2 vdd vdd CMP_P W=2000u L=1u
+M12 out o2 vss vss CMP_N W=800u L=1u
+.model CMP_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model CMP_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends CMP

@@ -1,0 +1,131 @@
+{
+ "version": "1.1.0",
+ "date": "9 Nov 2026",
+ "spicemcp": {
+  "time": "13 min 53 s (RC 2 s, amp 3 s, buck 13.8 min), no model thinking included",
+  "calls": 33,
+  "sims": "about 1,100 (optimiser, stability and noise decks, yield boards at 3 temperatures)",
+  "tool_tokens": 12971,
+  "model_out": "not measured (script played the model; its 33 requests are 1,005 tokens)",
+  "deliverables": "standard-value parts list (CSV), yield with confidence, part ratings to buy, schematic, report with plots"
+ },
+ "blind": {
+  "time": "61 s",
+  "calls": 0,
+  "sims": "0",
+  "tool_tokens": 0,
+  "model_out": "11,736 (mostly reasoning)",
+  "deliverables": "3 netlists and one line of reasoning each"
+ },
+ "rawspice": {
+  "time": "3 min 18 s",
+  "calls": 18,
+  "sims": "37",
+  "tool_tokens": 13357,
+  "model_out": "30,304 (mostly reasoning)",
+  "deliverables": "3 netlists and its own corner table; no parts list, no yield, no drawing"
+ },
+ "effort_note": "Tokens counted with the same tokenizer for all arms (\u00b125% against today's models). Billed input if nothing is cached, with each turn resending the conversation: SpiceMCP 197k (its 3,006-token tool list goes out every turn, and the buck needed 13 finish_design polls), model + raw simulator 145k, model alone about 1k. Model output tokens are from the API for the two model arms.",
+ "features": {
+  "head": [
+   "",
+   "SpiceMCP 1.1",
+   "ltspice-mcp 0.8 (Cognitohazard)",
+   "mcp-spice 0.1 (zesun33)",
+   "spicebridge"
+  ],
+  "rows": [
+   [
+    "runs ngspice / LTspice",
+    "both",
+    "both",
+    "ngspice",
+    "ngspice"
+   ],
+   [
+    "ready-made circuits sized by equations",
+    "13",
+    "no",
+    "no",
+    "not stated"
+   ],
+   [
+    "optimises part values",
+    "yes",
+    "no (API usable by one)",
+    "no",
+    "not stated"
+   ],
+   [
+    "snaps to buyable values",
+    "E12/E24/E96",
+    "no",
+    "no",
+    "not stated"
+   ],
+   [
+    "Monte Carlo / yield",
+    "yes, with confidence bound",
+    "yes",
+    "no",
+    "listed"
+   ],
+   [
+    "temperature and supply corners",
+    "yes",
+    "corners mentioned",
+    "no",
+    "worst-case listed"
+   ],
+   [
+    "parts list and ratings to buy",
+    "yes",
+    "no",
+    "no",
+    "no"
+   ],
+   [
+    "draws the schematic",
+    "yes, auto-placed",
+    "edits .asc",
+    "no",
+    "no"
+   ],
+   [
+    "MCP tools",
+    "14",
+    "8",
+    "2",
+    "not checked"
+   ]
+  ],
+  "note": "From each project's public page on 9 Nov 2026 (ltspice-mcp: PyPI page; mcp-spice: Glama listing; spicebridge: search listing only, its page did not load). Not run here: installing third-party packages was blocked in this sandbox. Treat 'not stated' as unknown, not as missing."
+ },
+ "headline": [
+  "<b>All three ways met every spec at nominal on all three circuits.</b> For simple, well-known circuits a strong model with no tools already gets the textbook answer. SpiceMCP did not beat it on pass rate.",
+  "<b>Yield was a tie on the RC filter and the buck, and SpiceMCP lost on the amplifier</b> (66.5% vs 67.5% model alone vs 89% model + simulator). The 89% came from a 1.01 k\u03a9 resistor, a value you cannot buy; with 1.00 k\u03a9 it is 67.5%. A centred buyable pair (10.2 k\u03a9 / 1.13 k\u03a9) reaches 91%, so SpiceMCP left 25 points on the table.",
+  "<b>The RC filter caps out near 40% for everyone:</b> \u00b12% cutoff with 5% capacitors is not buildable reliably. SpiceMCP was the only arm that said so and named the fix (tighter capacitor); the plain model also flagged it in words.",
+  "<b>Where SpiceMCP clearly wins is what you get back:</b> a measured yield, a parts list in buyable values, the ratings to buy each part at, a drawn schematic and a report. The other arms return a netlist and a claim.",
+  "<b>Where it loses:</b> slowest (14 min for the buck, mostly the 90-run yield check) and about 35% more billed tokens than a model driving a raw simulator. Its smallest-parts goal also leaves thinner margins (buck ripple up to 44 of 50 mV vs 5 mV with bigger capacitors)."
+ ],
+ "honest": [
+  "This benchmark does not show that SpiceMCP designs better circuits than a strong model. On these three it designs about the same circuits.",
+  "Its value here is verification and paperwork: it measured yield over 30 to 200 boards at three temperatures and a \u00b15% supply, while the model-alone arm said 'meets spec' without checking and was right only at nominal.",
+  "The model + raw simulator arm checked corners by itself, but hit a simulator convergence failure it could not fix, used a non-standard resistor, and spent 37 runs and 3 minutes doing what one SpiceMCP call does.",
+  "The model-alone buck used an ideal switch, which is not a part you can buy and skips the gate drive. It still passed, so the checker does not punish idealisations; a stricter benchmark should.",
+  "The baselines were handed SpiceMCP's own working op-amp and comparator models. That removes the hardest part of the buck for them, so the buck result flatters the baselines.",
+  "The model used for the baselines is a strong one. SpiceMCP is meant to help weaker models; that case is untested here and is where the gap should be largest."
+ ],
+ "fixes": [
+  "<b>finish_design should centre ratios, not just snap each value:</b> search standard-value pairs for the one closest to the middle of the limits. On the amplifier that lifts yield from 66.5% to 91%.",
+  "<b>Do not shrink parts to the edge by default:</b> the 'smallest capacitor / inductor' goals left the buck at 44 mV worst-case ripple against a 50 mV limit. Aim for the middle of the limit, or give the user the size-vs-margin choice.",
+  "<b>Make long finishes cheaper to wait for:</b> 13 identical polling calls cost about 70k billed tokens on the buck. Return an estimated finish time and tell the model to wait that long.",
+  "<b>Say 'not buildable at this tolerance' up front:</b> when the spec window is narrower than the part tolerance (RC \u00b12% with 5% capacitors), say so before optimising."
+ ],
+ "limits": [
+  "Three circuits, one run each; model arms are not repeated, so luck is not averaged out.",
+  "Simulation only (ngspice 42). The buck ripple needs a 2 ns time step to be honest: at 20 ns SpiceMCP's buck reads 180 mV. The raw-simulator buck only runs at 20 ns or 5 ns, so its ripple number is less certain.",
+  "Buck yield is 30 boards per arm (90 runs at three temperatures): 30/30 means at least 90% with 95% confidence. RC and amplifier use 200 boards.",
+  "Tokens are counted with an older public tokenizer and exclude the tool harness's own system prompt, which is the same for every arm."
+ ]
+}

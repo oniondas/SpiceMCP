@@ -1,0 +1,8 @@
+* RC low-pass (SpiceMCP template rc_lowpass), fc target 1000 Hz
+V1 in 0 AC 1
+R1 in out 88700.0
+C1 out 0 1.8e-09
+.ac dec 100 1 1e+06
+.meas AC fc WHEN mag(V(out))=0.7071 FALL=1
+.meas AC atten10_db FIND mag(V(out)) AT 10000
+.end

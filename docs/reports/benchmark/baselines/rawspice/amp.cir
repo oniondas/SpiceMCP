@@ -1,0 +1,31 @@
+Non-inverting x10
+.include parts.lib
+Vcc vcc 0 5
+Vee vee 0 -5
+V1 in 0 DC 0 AC 1 PULSE(0 10m 1u 1n 1n 20u 40u)
+XU1 in fb vcc vee out OPAMP10M
+Rf out fb 9.09k
+Rg fb 0 1.01k
+RL out 0 10k
+CL out 0 100p
+.control
+foreach t -40 27 85
+ foreach vs 4.75 5 5.25
+  set temp=$t
+  alter vcc dc=$vs
+  alter vee dc=-$vs
+  ac dec 50 100 100meg
+  meas ac g1k find vdb(out) at=1k
+  meas ac g0 find vdb(out) at=100
+  let gref=g0-3
+  meas ac fbw when vdb(out)=gref fall=1
+  tran 5n 30u
+  meas tran vmax max v(out) from=1u to=15u
+  meas tran vfin find v(out) at=19u
+  let os=(vmax-vfin)/vfin*100
+  echo T=$t VS=$vs
+  print g1k fbw os vfin
+ end
+end
+.endc
+.end

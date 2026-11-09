@@ -1,0 +1,13 @@
+RC lowpass 1 kHz
+.include parts.lib
+V1 in 0 DC 0 AC 1
+R1 in out 1.58k
+C1 out 0 100n
+.control
+foreach t -40 85
+set temp=$t
+ac dec 500 100 10k
+meas ac f3db when vdb(out)=-3.0103
+end
+.endc
+.end

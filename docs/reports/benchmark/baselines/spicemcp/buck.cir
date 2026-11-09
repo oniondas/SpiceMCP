@@ -1,0 +1,101 @@
+* Buck converter, closed loop (SpiceMCP template buck)
+* 12 V -> 5 V at 1 A, 500 kHz, ripple target 50 mV
+* voltage-mode PWM: error amplifier (integrator) -> comparator against a ramp -> switch
+Vin in 0 12
+Vref ref 0 1.2
+Vramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)
+X2 ref fb in 0 vc SPMCP_OA
+CI vc fb 2.2e-08
+R1 out fb 31600.0
+R2 fb 0 10000
+X3 ramp vc in 0 g SPMCP_CMP
+M1 sw g in PSW
+D1 0 sw DS
+L1 sw out 1.8e-05
+C1 out 0 2.7e-06
+RL out 0 5
+.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)
+.model DS D(Is=1e-6 Rs=0.02 N=1.2)
+.subckt SPMCP_OA inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply
+M8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u
+Rb pb vss 5.476e+05
+M5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u
+M6 out x2 vss vss SPMCP_OA_N W=400u L=1u
+M7 out pb vdd vdd SPMCP_OA_P W=500u L=2u
+Cc x2 cz 2.013e-11
+Rz cz out 111.8
+.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_OA
+.subckt SPMCP_CMP inp inn vdd vss out
+* comparator with gate-drive output, pins in+ in- V+ V- out
+* the op-amp's two stages, then a 0.1 A inverter driving a 5 A inverter
+M8 pb pb vdd vdd SPMCP_CMP_P W=10u L=2u
+Rb pb vss 5.476e+05
+M5 tail pb vdd vdd SPMCP_CMP_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_CMP_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_CMP_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_CMP_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_CMP_N W=10u L=2u
+M6 o1 x2 vss vss SPMCP_CMP_N W=400u L=1u
+M7 o1 pb vdd vdd SPMCP_CMP_P W=500u L=2u
+Cc x2 cz 4.026e-13
+Rz cz o1 111.8
+M9 o2 o1 vdd vdd SPMCP_CMP_P W=40u L=1u
+M10 o2 o1 vss vss SPMCP_CMP_N W=16u L=1u
+M11 out o2 vdd vdd SPMCP_CMP_P W=2000u L=1u
+M12 out o2 vss vss SPMCP_CMP_N W=800u L=1u
+.model SPMCP_CMP_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_CMP_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_CMP
+.tran 2e-09 0.00111225 0 2e-09
+.meas TRAN vout AVG V(out) FROM 0.000912252 TO 0.00111225
+.meas TRAN vmax MAX V(out) FROM 0.000912252 TO 0.00111225
+.meas TRAN vmin MIN V(out) FROM 0.000912252 TO 0.00111225
+.meas TRAN iin AVG I(Vin) FROM 0.000912252 TO 0.00111225
+.meas TRAN ripple_mv PARAM (vmax-vmin)*1000
+.meas TRAN eff PARAM vout*vout/5/(-12*iin)
+.end
+* Buck stability (averaged switch): loop gain, feedback broken at the amplifier input
+Vin in 0 12
+Vref ref 0 1.2
+X2 ref fb in 0 vc SPMCP_OA
+CI vc fb 2.2e-08
+* loop broken between the output and the divider: the integrator (R1, CI) stays whole
+R1 outx fb 31600.0
+R2 fb 0 10000
+Lbrk out outx 1k
+Cinj outx inj 1k
+* the switch, diode and comparator averaged over a cycle: duty = (Vc - 0.5) / 2
+Bsw sw 0 V=V(in)*min(max((V(vc)-0.5)/2,0),1)-0.4*(1-min(max((V(vc)-0.5)/2,0),1))
+L1 sw out 1.8e-05
+C1 out 0 2.7e-06
+RL out 0 5
+.subckt SPMCP_OA inp inn vdd vss out
+* two-stage CMOS op-amp, pins in+ in- V+ V- out
+* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply
+M8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u
+Rb pb vss 5.476e+05
+M5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u
+M1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u
+M2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u
+M3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u
+M4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u
+M6 out x2 vss vss SPMCP_OA_N W=400u L=1u
+M7 out pb vdd vdd SPMCP_OA_P W=500u L=2u
+Cc x2 cz 2.013e-11
+Rz cz out 111.8
+.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)
+.ends SPMCP_OA
+Vinj inj 0 AC 1
+.ac dec 50 22.4769 250000
+.meas AC ugf WHEN mag(V(out))=1 FALL=1
+.meas AC pm FIND V(out) WHEN mag(V(out))=1 FALL=1
+.end
