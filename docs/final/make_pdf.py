@@ -29,7 +29,7 @@ from reportlab.platypus import (Image, PageBreak, Paragraph,  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
-NSTEPS = 13                                # one section per roadmap step
+NSTEPS = 14                                # one section per roadmap step
 VERSION = re.search(r'^version\s*=\s*"([^"]+)"',
                     (HERE.parents[1] / "pyproject.toml").read_text(), re.M).group(1)
 
@@ -808,6 +808,35 @@ def build():
                  [[n, ", ".join(f"<b>{p}</b>" if p in t["required"] else p
                                 for p in t["params"]) or "none"]
                   for n, t in api["tools"].items()], [44 * mm, 130 * mm])]
+
+    # ---- step 14 (benchmark against other ways of designing)
+    bench = HERE.parents[1] / "docs/reports/benchmark"
+    ck = json.load(open(bench / "results/checks.json"))
+    st.append(PageBreak())
+    st += section(f"STEP 14 OF {NSTEPS}", "How it compares with designing without it",
+                  "Before: every number in this report was SpiceMCP checking itself. After: "
+                  "the same three circuits were designed three ways and measured by one "
+                  "checker written separately from SpiceMCP.")
+    arms = [("spicemcp", "SpiceMCP"), ("blind", "Model alone"), ("rawspice", "Model + raw simulator")]
+    names = {"rc": "RC filter 1 kHz", "amp": "x10 amplifier", "buck": "12 V to 5 V buck"}
+    rows = [["", "before", "after: " + ", ".join(n for _, n in arms)]]
+    for c in ("rc", "amp", "buck"):
+        rows.append([names[c], "not compared",
+                     "  /  ".join(f"{'meets' if ck[a][c]['nominal_pass'] else 'fails'}, "
+                                  f"yield {ck[a][c]['yield_pct']:g}%" for a, _ in arms)])
+    st.append(table(rows, [30 * mm, 24 * mm, 120 * mm]))
+    st += [Spacer(1, 6), img(bench / "figures/yield.png", max_h=70 * mm)]
+    st += bullets([
+        "<b>Same circuits, same pass rate:</b> for simple, well-known circuits a strong model "
+        "with no tools already writes the textbook answer, and it meets spec at nominal.",
+        "<b>SpiceMCP's edge is proof and paperwork:</b> measured yield over hundreds of "
+        "random boards and three temperatures, buyable values, ratings to buy, a drawing "
+        "and a report. The others return a netlist and a claim.",
+        "<b>Where it lost:</b> slowest (14 min for the buck), about a third more tokens than "
+        "a model driving a raw simulator, and on the amplifier it snapped to an off-centre "
+        "resistor pair: 66.5% yield where a centred buyable pair gives 91%.",
+        "Full method, numbers and limits: docs/reports/benchmark/SpiceMCP_Benchmark.pdf.",
+    ])
 
     # ---- closing
     st += [PageBreak(), P("Where it stands, honestly", "h2")]

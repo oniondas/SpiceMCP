@@ -1,0 +1,9 @@
+.include parts.lib
+Vcc vcc 0 5
+Vee vee 0 -5
+V1 in 0 AC 1
+X1 in fb vcc vee out OPAMP10M
+Rf out fb 9.09k
+Rg fb 0 1.00k
+RL out 0 10k
+CL out 0 100p

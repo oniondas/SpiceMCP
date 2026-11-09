@@ -1,0 +1,24 @@
+.include parts.lib
+Vin vin 0 12
+* power stage: voltage-controlled switch (high side) + Schottky freewheel
+S1 vin sw pwm 0 SWMOD
+D1 0 sw DSCH
+L1 sw out 22u
+Co out 0 22u
+RL out 0 5
+* feedback divider 5V -> 2.5V, type-III compensation around OPAMP2M
+Rtop out fb 10.0k
+Rbot fb 0 10.0k
+R3 out n3 487
+C3 n3 fb 2.2n
+R2 fb n2 10.5k
+Cz n2 ea 3.3n
+Cp fb ea 56p
+* soft-start reference (0 -> 2.5 V in 0.5 ms)
+Vref ref 0 PWL(0 0 500u 2.5)
+XEA ref fb vin 0 ea OPAMP2M
+* 500 kHz sawtooth 1..4 V, comparator PWM (EA > ramp => switch on)
+Vramp ramp 0 PULSE(1 4 0 1.97u 20n 5n 2u)
+XC ea ramp vin 0 pwm CMP
+.model SWMOD SW(Ron=0.05 Roff=1e6 Vt=6 Vh=0.1)
+.model DSCH D(Is=1e-5 Rs=0.02 N=1 Cjo=200p)

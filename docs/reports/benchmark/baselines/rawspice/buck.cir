@@ -1,0 +1,32 @@
+Buck 12V to 5V, 500 kHz voltage-mode PWM
+.include parts.lib
+Vin vin 0 12
+* power stage
+Msw sw gp vin vin PSW W=1u L=1u
+D1 0 sw DSCH
+* RC snubber across the diode
+Rsn sw nsn 10.0
+Csn nsn 0 1n
+L1 sw out 22u
+C1 out 0 47u
+RL out 0 5
+* feedback divider 5V -> 2.5V
+R1 out fb 10k
+Rb fb 0 10k
+* type III compensation
+R3 out n3 280
+C3 n3 fb 5.6n
+R2 fb n2 3.65k
+C4 n2 vc 15n
+C2 fb vc 270p
+* reference and ramp
+Vref ref 0 2.5
+Vramp ramp 0 PULSE(1 4 0 1.95u 50n 0 2u)
+XEA ref fb vin 0 vc OPAMP2M
+XCMP ramp vc vin 0 gd CMP
+* gate resistor and gate capacitance (soft edges)
+Rgate gd gp 10.0
+Cgs gp vin 1n
+.model PSW PMOS(LEVEL=1 VTO=-2 KP=5)
+.model DSCH D(IS=1e-5 RS=0.02 N=1.05 CJO=200p)
+.end

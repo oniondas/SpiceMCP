@@ -1,0 +1,4 @@
+.include parts.lib
+V1 in 0 AC 1
+R1 in out 15.8k
+C1 out 0 10n

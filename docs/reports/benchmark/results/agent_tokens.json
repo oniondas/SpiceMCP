@@ -1,0 +1,52 @@
+{
+ "rawspice": {
+  "seq_counts": {
+   "text": 2,
+   "tool_use": 18,
+   "tool_result": 18,
+   "thinking": 15
+  },
+  "tokens": {
+   "text": 448,
+   "tool_use": 4779,
+   "tool_result": 8578,
+   "thinking": 0
+  },
+  "api_turns": 33,
+  "usage_sum": {
+   "input_tokens": 66,
+   "output_tokens": 30304,
+   "cache_read_input_tokens": 2136601,
+   "cache_creation_input_tokens": 103629
+  },
+  "span": [
+   "2026-11-09T15:42:18.281Z",
+   "2026-11-09T15:45:36.229Z"
+  ]
+ },
+ "blind": {
+  "seq_counts": {
+   "text": 2,
+   "tool_use": 1,
+   "tool_result": 1,
+   "thinking": 1
+  },
+  "tokens": {
+   "text": 782,
+   "tool_use": 895,
+   "tool_result": 26,
+   "thinking": 0
+  },
+  "api_turns": 2,
+  "usage_sum": {
+   "input_tokens": 4,
+   "output_tokens": 11736,
+   "cache_read_input_tokens": 0,
+   "cache_creation_input_tokens": 101938
+  },
+  "span": [
+   "2026-11-09T15:42:18.258Z",
+   "2026-11-09T15:43:18.916Z"
+  ]
+ }
+}
