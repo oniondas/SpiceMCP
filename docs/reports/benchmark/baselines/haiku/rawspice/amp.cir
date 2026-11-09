@@ -1,0 +1,13 @@
+* Non-inverting amplifier, gain 10 (20 dB), OPAMP10M, +-5 V
+* Rg = 10k (E96 1%), Rf = 88.7k + 1.21k (E96 1%), ideal gain 1 + 89.91/10 = 9.99
+.include parts.lib
+Vcc vcc 0 DC 5
+Vee vee 0 DC -5
+V1 in 0 DC 0 AC 1
+X1 in fb vcc vee out OPAMP10M
+Rg fb 0 10k
+Rfa out fbm 88.7k
+Rfb fbm fb 1.21k
+RL out 0 10k
+CL out 0 100p
+.end

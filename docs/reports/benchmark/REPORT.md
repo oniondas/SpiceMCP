@@ -1,8 +1,20 @@
 # Benchmark: SpiceMCP against designing without it
 
 Three circuits (RC low-pass 1 kHz, x10 amplifier, 12 V to 5 V buck), designed three ways
-and measured by one checker written separately from SpiceMCP (`measure/checker.py`).
+by two models (Opus 5.5, and the smaller Haiku 5.5) and measured by one checker written separately from SpiceMCP (`measure/checker.py`).
 Full write-up with charts: `SpiceMCP_Benchmark.pdf`.
+
+## Haiku 5.5 as the designer
+
+| circuit | SpiceMCP 1.1 | model alone, no tools | model + raw ngspice |
+|---|---|---|---|
+| RC 1 kHz ±2 % (200 boards) | meets, 43 % | meets, 43 % | meets, 39.5 % |
+| x10 amp ±0.1 dB (200 boards) | meets, 91.5 % | meets, 65 % | meets, 90 % |
+| buck 5 V ±2 %, ≤50 mV (30 boards × 3 temps) | meets, 100 % | **fails**, 0 % | **fails**, 0 % |
+
+With the smaller model, the buck only works with SpiceMCP.
+
+## Opus 5.5 as the designer
 
 | circuit | SpiceMCP 1.1 | model alone, no tools | model + raw ngspice |
 |---|---|---|---|
@@ -24,11 +36,12 @@ ideal switch.
 
 ```
 apt-get install ngspice
-PYTHONPATH=. python docs/reports/benchmark/measure/arm_spicemcp.py out.json   # SpiceMCP arm
+PYTHONPATH=. python docs/reports/benchmark/measure/arm_spicemcp.py out.json   # scripted SpiceMCP arm
+PYTHONPATH=. python docs/reports/benchmark/measure/bridge.py serve <dir> log.json  # let a model with a shell drive SpiceMCP
 python docs/reports/benchmark/measure/checker.py <arm> <rc|amp|buck> <netlist.cir> [boards]
 python docs/reports/benchmark/make_report.py
 ```
 
 The specs handed to every arm are in `baselines/SPECS.md`, their parts in
-`baselines/parts.lib`, and each arm's final netlists in `baselines/<arm>/`. Checker output
+`baselines/parts.lib`, and each arm's final netlists in `baselines/<arm>/` (Opus) and `baselines/haiku/<arm>/`. Checker output
 is in `results/checks.json`; time, calls and tokens in `results/effort.json`.

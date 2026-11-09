@@ -6,7 +6,7 @@
   "calls": 33,
   "sims": "about 1,100 (optimiser, stability and noise decks, yield boards at 3 temperatures)",
   "tool_tokens": 12971,
-  "model_out": "not measured (script played the model; its 33 requests are 1,005 tokens)",
+  "model_out": "none: a script made the calls in this run",
   "deliverables": "standard-value parts list (CSV), yield with confidence, part ratings to buy, schematic, report with plots"
  },
  "blind": {
@@ -14,7 +14,7 @@
   "calls": 0,
   "sims": "0",
   "tool_tokens": 0,
-  "model_out": "11,736 (mostly reasoning)",
+  "model_out": "5,868 (mostly reasoning)",
   "deliverables": "3 netlists and one line of reasoning each"
  },
  "rawspice": {
@@ -22,10 +22,10 @@
   "calls": 18,
   "sims": "37",
   "tool_tokens": 13357,
-  "model_out": "30,304 (mostly reasoning)",
+  "model_out": "15,329 (mostly reasoning)",
   "deliverables": "3 netlists and its own corner table; no parts list, no yield, no drawing"
  },
- "effort_note": "Tokens counted with the same tokenizer for all arms (\u00b125% against today's models). Billed input if nothing is cached, with each turn resending the conversation: SpiceMCP 197k (its 3,006-token tool list goes out every turn, and the buck needed 13 finish_design polls), model + raw simulator 145k, model alone about 1k. Model output tokens are from the API for the two model arms.",
+ "effort_note": "Tokens counted with the same tokenizer for all arms (\u00b125% against today's models). Billed input if nothing is cached, with each turn resending the conversation: SpiceMCP 197k (its 3,006-token tool list goes out every turn, and the buck needed 13 finish_design polls), model + raw simulator 145k, model alone about 1k. Model output tokens are from the API.",
  "features": {
   "head": [
    "",
@@ -102,30 +102,62 @@
   "note": "From each project's public page on 9 Nov 2026 (ltspice-mcp: PyPI page; mcp-spice: Glama listing; spicebridge: search listing only, its page did not load). Not run here: installing third-party packages was blocked in this sandbox. Treat 'not stated' as unknown, not as missing."
  },
  "headline": [
-  "<b>All three ways met every spec at nominal on all three circuits.</b> For simple, well-known circuits a strong model with no tools already gets the textbook answer. SpiceMCP did not beat it on pass rate.",
-  "<b>Yield was a tie on the RC filter and the buck, and SpiceMCP lost on the amplifier</b> (66.5% vs 67.5% model alone vs 89% model + simulator). The 89% came from a 1.01 k\u03a9 resistor, a value you cannot buy; with 1.00 k\u03a9 it is 67.5%. A centred buyable pair (10.2 k\u03a9 / 1.13 k\u03a9) reaches 91%, so SpiceMCP left 25 points on the table.",
-  "<b>The RC filter caps out near 40% for everyone:</b> \u00b12% cutoff with 5% capacitors is not buildable reliably. SpiceMCP was the only arm that said so and named the fix (tighter capacitor); the plain model also flagged it in words.",
-  "<b>Where SpiceMCP clearly wins is what you get back:</b> a measured yield, a parts list in buyable values, the ratings to buy each part at, a drawn schematic and a report. The other arms return a netlist and a claim.",
-  "<b>Where it loses:</b> slowest (14 min for the buck, mostly the 90-run yield check) and about 35% more billed tokens than a model driving a raw simulator. Its smallest-parts goal also leaves thinner margins (buck ripple up to 44 of 50 mV vs 5 mV with bigger capacitors)."
+  "<b>With a smaller model (Haiku 5.5), SpiceMCP is the only way the buck converter worked.</b> Haiku alone and Haiku with a raw simulator both produced bucks that miss 5 V \u00b12% or the ripple limit (0 of 30 boards); Haiku driving SpiceMCP got 30 of 30.",
+  "<b>With a strong model (Opus 5.5), all three approaches met every spec at nominal on all three circuits.</b> For simple, well-known circuits a strong model already writes the textbook answer, and SpiceMCP did not beat it on pass rate or yield.",
+  "<b>The RC filter caps out near 40% for everyone:</b> \u00b12% cutoff with 5% capacitors is not buildable reliably. Both SpiceMCP runs said so and named the fix (tighter capacitor).",
+  "<b>Amplifier:</b> Haiku with SpiceMCP reached 91.5% yield by re-optimising to a centred pair (102k / 11.3k); the scripted Opus run took SpiceMCP's first answer and got 66.5%. Haiku alone got 65%.",
+  "<b>What SpiceMCP costs:</b> it is the slowest (buck yield check about 14 min) and Haiku made 44 tool calls, 23 of them repeated 'still running' polls. Haiku with a raw simulator used 4 times the output tokens (146k vs 35k) and still failed the buck."
  ],
  "honest": [
-  "This benchmark does not show that SpiceMCP designs better circuits than a strong model. On these three it designs about the same circuits.",
-  "Its value here is verification and paperwork: it measured yield over 30 to 200 boards at three temperatures and a \u00b15% supply, while the model-alone arm said 'meets spec' without checking and was right only at nominal.",
-  "The model + raw simulator arm checked corners by itself, but hit a simulator convergence failure it could not fix, used a non-standard resistor, and spent 37 runs and 3 minutes doing what one SpiceMCP call does.",
-  "The model-alone buck used an ideal switch, which is not a part you can buy and skips the gate drive. It still passed, so the checker does not punish idealisations; a stricter benchmark should.",
-  "The baselines were handed SpiceMCP's own working op-amp and comparator models. That removes the hardest part of the buck for them, so the buck result flatters the baselines.",
-  "The model used for the baselines is a strong one. SpiceMCP is meant to help weaker models; that case is untested here and is where the gap should be largest."
+  "With a strong model, this benchmark does not show that SpiceMCP designs better circuits. On these three it designs about the same circuits; its value is the measured yield, standard values, ratings and drawings.",
+  "With a smaller model it clearly does: the closed-loop buck is out of Haiku's reach without it (two different failed designs: one settles slowly and sits 0.1 to 0.2 V low, one is 0.8 to 1 V high with 0.5 V ripple), and in reach with it.",
+  "Haiku also stayed honest with SpiceMCP: it reported the RC filter as not meeting spec at 41% yield instead of claiming a pass. Haiku alone gave itself 'high confidence' on RC and amp and only 'low-medium' on the buck, which failed.",
+  "Both no-tool bucks and the Haiku raw-simulator buck used an ideal switch, which is not a part you can buy. The checker does not punish idealisations; a stricter benchmark should.",
+  "All arms were handed SpiceMCP's own working op-amp and comparator models. That removes the hardest part of the buck for the baselines, so the buck result still flatters them.",
+  "The Opus SpiceMCP arm was driven by a script, not a model; the Haiku SpiceMCP arm was driven by the model itself through a bridge to the real server. The Haiku run is the fairer test of the tool."
  ],
  "fixes": [
   "<b>finish_design should centre ratios, not just snap each value:</b> search standard-value pairs for the one closest to the middle of the limits. On the amplifier that lifts yield from 66.5% to 91%.",
   "<b>Do not shrink parts to the edge by default:</b> the 'smallest capacitor / inductor' goals left the buck at 44 mV worst-case ripple against a 50 mV limit. Aim for the middle of the limit, or give the user the size-vs-margin choice.",
-  "<b>Make long finishes cheaper to wait for:</b> 13 identical polling calls cost about 70k billed tokens on the buck. Return an estimated finish time and tell the model to wait that long.",
+  "<b>Make long finishes cheaper to wait for:</b> the buck needed 13 (script) and 23 (Haiku) identical 'still running' polls. Return an estimated finish time and tell the model to wait that long, or report progress instead.",
   "<b>Say 'not buildable at this tolerance' up front:</b> when the spec window is narrower than the part tolerance (RC \u00b12% with 5% capacitors), say so before optimising."
  ],
  "limits": [
-  "Three circuits, one run each; model arms are not repeated, so luck is not averaged out.",
+  "Three circuits, one run per model and arm; runs are not repeated, so luck is not averaged out.",
   "Simulation only (ngspice 42). The buck ripple needs a 2 ns time step to be honest: at 20 ns SpiceMCP's buck reads 180 mV. The raw-simulator buck only runs at 20 ns or 5 ns, so its ripple number is less certain.",
   "Buck yield is 30 boards per arm (90 runs at three temperatures): 30/30 means at least 90% with 95% confidence. RC and amplifier use 200 boards.",
   "Tokens are counted with an older public tokenizer and exclude the tool harness's own system prompt, which is the same for every arm."
- ]
+ ],
+ "haiku": {
+  "about": [
+   "Same spec text, same parts file, same checker and the same random boards as the Opus run. Every design call was made by Haiku 5.5 (checked in the transcripts); Opus only checked the results and wrote this report.",
+   "SpiceMCP arm: Haiku saw the real tool list and called the real server through a small shell bridge (measure/bridge.py) that keeps one MCP session open and logs every call. It chose its own calls: templates, re-optimising, finish, simulate.",
+   "Raw-simulator arm: Haiku wrote netlists and ran ngspice itself (22 runs). No-tool arm: Haiku wrote the netlists from memory."
+  ],
+  "spicemcp": {
+   "time": "21 min (16 min waiting on the buck finish)",
+   "calls": 44,
+   "sims": "about 3,900 inside SpiceMCP",
+   "tool_tokens": 25926,
+   "model_out": "34,994",
+   "deliverables": "standard values, yield with confidence, parts list, ratings, schematic; flagged the RC filter as failing"
+  },
+  "blind": {
+   "time": "4 min",
+   "calls": 0,
+   "sims": "0",
+   "tool_tokens": 0,
+   "model_out": "35,157",
+   "deliverables": "3 netlists; 'high confidence' on RC and amp, 'low-medium' on the buck"
+  },
+  "rawspice": {
+   "time": "16 min",
+   "calls": 30,
+   "sims": "22",
+   "tool_tokens": 34174,
+   "model_out": "146,366",
+   "deliverables": "3 netlists; said honestly that its buck does not meet spec"
+  },
+  "note": "Billed input if nothing is cached: Haiku + SpiceMCP about 900k, Haiku + raw simulator about 515k (both grow with every call; with prompt caching the real cost is a fraction). Tool tokens are requests plus answers through the tool."
+ }
 }

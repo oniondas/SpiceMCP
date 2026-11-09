@@ -1,0 +1,1421 @@
+{
+ "calls": [
+  {
+   "tool": "list_templates",
+   "args": {},
+   "answer": "{\"templates\":[{\"name\":\"rc_lowpass\",\"summary\":\"First-order passive low-pass. 20 dB/decade roll-off.\",\"spec\":{\"fc\":\"Hz -3 dB cutoff frequency *\"}},{\"name\":\"sallen_key_lowpass\",\"summary\":\"Unity-gain active low-pass, 40 dB/decade. Q 0.707 = Butterworth.\",\"spec\":{\"fc\":\"Hz cutoff frequency *\",\"q\":\"quality factor =0.707107\",\"cload\":\"F capacitance on the output =1e-10\",\"noise_uv\":\"uV max output noise rms, 0 = report only =0\"},\"parts\":\"opamp\"},{\"name\":\"noninverting_amp\",\"summary\":\"Gain 1 + R2/R1 around a transistor-level CMOS op-amp.\",\"spec\":{\"gain\":\"V/V closed-loop gain (>= 1) *\",\"bw\":\"Hz minimum -3 dB bandwidth *\",\"gbw\":\"Hz op-amp gain-bandwidth product =1e+07\",\"cload\":\"F capacitance on the output =1e-10\",\"noise_uv\":\"uV max output noise rms, 0 = report only =0\"},\"parts\":\"opamp\"},{\"name\":\"ldo\",\"summary\":\"Linear regulator: PMOS pass device, 1.2 V reference, resistor divider, output capacitor; checked for phase margin and load step.\",\"spec\":{\"vin\":\"V nominal input voltage *\",\"vout\":\"V output voltage (> 1.2 V) *\",\"iload\":\"A load current *\",\"dropout\":\"V max input-output difference at full load =0.3\",\"cout\":\"F output capacitor =1e-06\",\"step_pct\":\"% max output change on a 10%-to-100% load step =3\"}},{\"name\":\"buck\",\"summary\":\"Step-down switching converter: P-MOSFET switch, diode, L, C, and a voltage-mode PWM controller that holds the output.\",\"spec\":{\"vin\":\"V input voltage *\",\"vout\":\"V output voltage *\",\"iout\":\"A load current *\",\"fsw\":\"Hz switching frequency =500000\",\"ripple_mv\":\"mV max output ripple, peak to peak =50\"},\"parts\":\"switch/diode\"},{\"name\":\"inverting_amp\",\"summary\":\"Gain -R2/R1, input resistance R1, transistor-level op-amp.\",\"spec\":{\"gain\":\"V/V gain magnitude (output is inverted) *\",\"bw\":\"Hz minimum -3 dB bandwidth *\",\"rin\":\"ohm minimum input resistance =10000\",\"gbw\":\"Hz op-amp gain-bandwidth product =1e+07\",\"cload\":\"F capacitance on the output =1e-10\"},\"parts\":\"opamp\"},{\"name\":\"bandpass\",\"summary\":\"Second-order band-pass around one op-amp; centre, Q and centre gain.\",\"spec\":{\"f0\":\"Hz centre frequency *\",\"q\":\"quality factor (f0 / bandwidth) =5\",\"gain\":\"V/V centre gain magnitude =1\"},\"parts\":\"opamp\"},{\"name\":\"current_sense\",\"summary\":\"Shunt resistor and amplifier: load current to a voltage for an ADC.\",\"spec\":{\"imax\":\"A full-scale current *\",\"vout_fs\":\"V output at full scale =2.5\",\"shunt_w\":\"W shunt power rating =0.25\",\"bw\":\"Hz minimum bandwidth =10000\",\"err_pct\":\"% max full-scale error =2\"},\"parts\":\"opamp\"},{\"name\":\"adc_driver\",\"summary\":\"Op-amp buffer and RC that settle a step to 1/2 LSB within acquisition.\",\"spec\":{\"fs\":\"S/s ADC sample rate *\",\"bits\":\"ADC resolution =12\",\"vstep\":\"V largest input step =2\"},\"parts\":\"opamp\"},{\"name\":\"voltage_reference\",\"summary\":\"Two-transistor bandgap and a gain stage; low drift from -40 to 85 C.\",\"spec\":{\"vout\":\"V output voltage (1.25 to 3.5) *\",\"tc_ppm\":\"ppm/C max temperature coefficient =50\",\"acc_pct\":\"% initial accuracy at 25 C =1\"}},{\"name\":\"protection\",\"summary\":\"Series Schottky, series resistor and TVS clamp for a DC input.\",\"spec\":{\"vin\":\"V nominal input *\",\"vsurge\":\"V surge voltage (1 ms) *\",\"vmax\":\"V max voltage the load can stand *\",\"iload\":\"A load current *\",\"drop_max\":\"V max drop at the load current =1\"}},{\"name\":\"boost\",\"summary\":\"Step-up switching converter: N-MOSFET, diode, L, C, voltage-mode PWM.\",\"spec\":{\"vin\":\"V input voltage *\",\"vout\":\"V output voltage *\",\"iout\":\"A load current *\",\"fsw\":\"Hz switching frequency =300000\",\"ripple_mv\":\"mV max output ripple, peak to peak =100\"},\"parts\":\"diode\"},{\"name\":\"flyback\",\"summary\":\"Coupled-inductor converter with RCD clamp; output any voltage from the input.\",\"spec\":{\"vin\":\"V input voltage *\",\"vout\":\"V output voltage *\",\"iout\":\"A load current *\",\"fsw\":\"Hz switching frequency =200000\",\"ripple_mv\":\"mV max output ripple, peak to peak =100\",\"vds_max\":\"V max switch voltage =60\"}}],\"next_step\":\"Call start_from_template(run_id, template, spec).\"}",
+   "secs": 0.0,
+   "at": 1794241734.1976936
+  },
+  {
+   "tool": "start_from_template",
+   "args": {
+    "run_id": "rc1",
+    "template": "rc_lowpass",
+    "spec": {
+     "fc": 1000
+    }
+   },
+   "answer": "{\"run_id\":\"rc1\",\"template\":\"rc_lowpass\",\"limits\":[\"fc>=980\",\"fc<=1020\"],\"goal\":[\"min param_c1\"],\"start_point\":{\"R1\":10000.0,\"C1\":1.59155e-08},\"start_result\":{\"candidate_id\":\"cand_0001\",\"status\":\"ok\",\"feasible\":true,\"metrics\":{\"fc\":1000.02,\"param_c1\":1.59155e-08}},\"schematic_asc\":\"/work/smcp/proj/.ltspice-mcp/schematics/rc1.asc\",\"hand_calculation\":\"query_run(run_id='rc1', what='details')\",\"next_step\":\"Start point already meets every limit. Call run_optimization(run_id='rc1', iterations=20) to improve the goal, or generate_design_report.\"}",
+   "secs": 0.3,
+   "at": 1794241737.6321607
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "rc1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "none",
+    "supply": "",
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 30
+   },
+   "answer": "{\"run_id\":\"rc1\",\"buildable_candidate\":\"cand_0018\",\"parts\":{\"C1\":{\"value\":1.5e-08,\"label\":\"15n\",\"series\":\"E12\",\"tolerance_pct\":5.0,\"change_pct\":-5.75},\"R1\":{\"value\":10700.0,\"label\":\"10.7k\",\"series\":\"E96\",\"tolerance_pct\":1.0,\"change_pct\":7.0}},\"metrics\":{\"fc\":991.669},\"meets_all_limits\":true,\"worst_margin_pct\":1.191,\"nearest_values_meet_limits\":false,\"yield\":{\"runs\":30,\"passed\":8,\"yield_pct\":26.7,\"yield_at_least_pct\":14.0,\"seed\":731385,\"statement\":\"8/30 pass: yield is at least 14% (95% confidence). More yield_runs narrow this.\",\"covers\":\"part tolerance, -40/25/85 \u00b0C\",\"samples_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/rc1/yield/samples.json\",\"worst_case\":{\"fails_most\":\"fc\",\"most_failures_at_c\":-40.0,\"part_driving_failures\":{\"part\":\"R1\",\"direction\":\"high\",\"strength\":0.28},\"tightest\":{\"metric\":\"fc\",\"limit\":\">=980\",\"worst\":943.943,\"worst_margin_pct\":-3.679,\"at_temp_c\":-40.0}}},\"stress\":\"not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)\",\"parts_list\":\"/work/smcp/proj/.ltspice-mcp/simulations/rc1/bom.csv\",\"more\":\"query_run(run_id='rc1', what='details')\",\"next_step\":\"Standard values meet the limits but yield is low, mostly from fc at -40 C with R1 high: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit.\"}",
+   "secs": 1.0,
+   "at": 1794241737.9666555
+  },
+  {
+   "tool": "evaluate_candidate",
+   "args": {
+    "run_id": "rc1",
+    "params": {
+     "R1": 13300,
+     "C1": 1.2e-08
+    }
+   },
+   "answer": "{\"cached\":false,\"candidate_id\":\"cand_0035\",\"iteration\":35,\"new_candidate\":true,\"status\":\"ok\",\"metrics\":{\"fc\":997.244,\"atten10_db\":-20.0672,\"param_c1\":1.2e-08},\"constraints\":[{\"constraint\":\"fc\",\"required\":\">=980\",\"actual\":997.244,\"passed\":true},{\"constraint\":\"fc\",\"required\":\"<=1020\",\"actual\":997.244,\"passed\":true}],\"feasible\":true,\"score\":-0.753982,\"failure_type\":null,\"failure_message\":null,\"warnings\":[],\"best_candidate\":\"cand_0035\",\"improved_best\":true,\"next_step\":\"Call query_run(run_id='rc1', what='status') or run_optimization.\"}",
+   "secs": 0.0,
+   "at": 1794241747.5175333
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "rc1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "none",
+    "supply": "",
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 200
+   },
+   "answer": "{\"run_id\":\"rc1\",\"buildable_candidate\":\"cand_0035\",\"parts\":{\"C1\":{\"value\":1.2e-08,\"label\":\"12n\",\"series\":\"E12\",\"tolerance_pct\":5.0,\"change_pct\":0.0},\"R1\":{\"value\":13300.0,\"label\":\"13.3k\",\"series\":\"E96\",\"tolerance_pct\":1.0,\"change_pct\":0.0}},\"metrics\":{\"fc\":997.244},\"meets_all_limits\":true,\"worst_margin_pct\":1.76,\"nearest_values_meet_limits\":true,\"yield\":{\"runs\":200,\"passed\":82,\"yield_pct\":41.0,\"yield_at_least_pct\":35.2,\"seed\":398029,\"statement\":\"82/200 pass: yield is at least 35% (95% confidence). More yield_runs narrow this.\",\"covers\":\"part tolerance, -40/25/85 \u00b0C\",\"samples_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/rc1/yield/samples.json\",\"worst_case\":{\"fails_most\":\"fc\",\"most_failures_at_c\":-40.0,\"part_driving_failures\":{\"part\":\"C1\",\"direction\":\"low\",\"strength\":-0.02},\"tightest\":{\"metric\":\"fc\",\"limit\":\">=980\",\"worst\":941.777,\"worst_margin_pct\":-3.9,\"at_temp_c\":-40.0}}},\"stress\":\"not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)\",\"parts_list\":\"/work/smcp/proj/.ltspice-mcp/simulations/rc1/bom.csv\",\"more\":\"query_run(run_id='rc1', what='details')\",\"next_step\":\"Standard values meet the limits but yield is low, mostly from fc at -40 C with C1 low: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit.\"}",
+   "secs": 1.6,
+   "at": 1794241747.6063473
+  },
+  {
+   "tool": "query_run",
+   "args": {
+    "run_id": "rc1",
+    "what": "netlist",
+    "candidate_id": "cand_0035"
+   },
+   "answer": "{\"candidate_id\":\"cand_0035\",\"params\":{\"C1\":1.2e-08,\"R1\":13300.0},\"netlist\":\"* RC low-pass (SpiceMCP template rc_lowpass), fc target 1000 Hz\\nV1 in 0 AC 1\\nR1 in out 13300.0\\nC1 out 0 1.2e-08\\n.ac dec 100 1 1e+06\\n.meas AC fc WHEN mag(V(out))=0.7071 FALL=1\\n.meas AC atten10_db FIND mag(V(out)) AT 10000\\n.end\\n\",\"next_step\":\"Use this netlist as-is; do not retype it from memory.\"}",
+   "secs": 0.0,
+   "at": 1794241752.5899532
+  },
+  {
+   "tool": "find_part",
+   "args": {
+    "query": "OPAMP10M",
+    "kind": "opamp"
+   },
+   "answer": "{\"error\":\"part not found in the SPICE libraries: no library folder found\",\"fix\":\"Call find_part with part of the name. If LTspice is not installed here, set SPICEMCP_LIB_DIRS to the folder holding your .lib/.sub/.model files.\",\"example\":{\"query\":\"1N5819\",\"kind\":\"diode\"}}",
+   "secs": 0.0,
+   "at": 1794241757.5964034
+  },
+  {
+   "tool": "find_part",
+   "args": {
+    "query": "OPAMP2M",
+    "kind": "opamp"
+   },
+   "answer": "{\"error\":\"part not found in the SPICE libraries: no library folder found\",\"fix\":\"Call find_part with part of the name. If LTspice is not installed here, set SPICEMCP_LIB_DIRS to the folder holding your .lib/.sub/.model files.\",\"example\":{\"query\":\"1N5819\",\"kind\":\"diode\"}}",
+   "secs": 0.0,
+   "at": 1794241757.6726472
+  },
+  {
+   "tool": "start_from_template",
+   "args": {
+    "run_id": "amp1",
+    "template": "noninverting_amp",
+    "spec": {
+     "gain": 10,
+     "bw": 100000,
+     "gbw": 10000000,
+     "cload": 1e-10
+    },
+    "parts": {
+     "opamp": "OPAMP10M"
+    }
+   },
+   "answer": "{\"error\":\"part 'OPAMP10M' not found in the SPICE libraries\",\"fix\":\"Call find_part with part of the name. If LTspice is not installed here, set SPICEMCP_LIB_DIRS to the folder holding your .lib/.sub/.model files.\",\"example\":{\"run_id\":\"lpf_001\",\"template\":\"sallen_key_lowpass\",\"spec\":{\"fc\":10000}}}",
+   "secs": 0.0,
+   "at": 1794241760.7613137
+  },
+  {
+   "tool": "start_from_template",
+   "args": {
+    "run_id": "amp1",
+    "template": "noninverting_amp",
+    "spec": {
+     "gain": 10,
+     "bw": 100000,
+     "gbw": 10000000,
+     "cload": 1e-10
+    }
+   },
+   "answer": "{\"run_id\":\"amp1\",\"template\":\"noninverting_amp\",\"limits\":[\"gain_db>=19.9\",\"gain_db<=20.1\",\"bw>=100000\",\"pm_deg>=45\"],\"goal\":[\"max bw\"],\"start_point\":{\"R1\":10000.0,\"R2\":90000.0},\"start_result\":{\"candidate_id\":\"cand_0049\",\"status\":\"ok\",\"feasible\":true,\"metrics\":{\"gain_db\":19.9962,\"bw\":1119540.0,\"pm_deg\":85.3454,\"vn_uv\":149.437}},\"schematic_asc\":\"/work/smcp/proj/.ltspice-mcp/schematics/amp1.asc\",\"hand_calculation\":\"query_run(run_id='amp1', what='details')\",\"next_step\":\"Start point already meets every limit. Call run_optimization(run_id='amp1', iterations=20) to improve the goal, or generate_design_report.\"}",
+   "secs": 0.1,
+   "at": 1794241764.0214863
+  },
+  {
+   "tool": "query_run",
+   "args": {
+    "run_id": "amp1",
+    "what": "netlist",
+    "candidate_id": "cand_0049"
+   },
+   "answer": "{\"candidate_id\":\"cand_0049\",\"params\":{\"R1\":10000.0,\"R2\":90000.0},\"netlist\":\"* Non-inverting amplifier (SpiceMCP template noninverting_amp)\\n* gain target 10 V/V; transistor-level op-amp on +-5 V, GBW 1e+07 Hz\\nV1 in 0 AC 1\\nVcc vcc 0 5\\nVee vee 0 -5\\nX1 in inn vcc vee out SPMCP_OA\\nR2 out inn 90000.0\\nR1 inn 0 10000.0\\nRL out 0 10k\\nCL out 0 1e-10\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 4.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 4.026e-12\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\n.ac dec 100 10 1e+08\\n.meas AC gain_db FIND mag(V(out)) AT 10\\n.meas AC bw WHEN mag(V(out))=7.071 FALL=1\\n.end\\n* Amplifier stability: loop gain, feedback broken at the amplifier input\\nV1 in 0 0\\nVcc vcc 0 5\\nVee vee 0 -5\\nX1 in inn vcc vee out SPMCP_OA\\nR2 out fbd 90000.0\\nR1 fbd 0 10000.0\\nRL out 0 10k\\nCL out 0 1e-10\\nLbrk fbd inn 1k\\nCinj inn inj 1k\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 4.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 4.026e-12\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\nVinj inj 0 AC 1\\n.ac dec 50 100 1e+09\\n.meas AC ugf WHEN mag(V(fbd))=1 FALL=1\\n.meas AC pm FIND V(fbd) WHEN mag(V(fbd))=1 FALL=1\\n.end\\n* Amplifier noise: output noise, 10 Hz to 1e+06 Hz\\nV1 in 0 AC 1\\nVcc vcc 0 5\\nVee vee 0 -5\\nX1 in inn vcc vee out SPMCP_OA\\nR2 out inn 90000.0\\nR1 inn 0 10000.0\\nRL out 0 10k\\nCL out 0 1e-10\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 1e+07 Hz, slew 9.9 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 4.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 4.026e-12\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\n.noise V(out) V1 dec 20 10 1e+06\\n.meas NOISE vn INTEG V(onoise)\\n.meas NOISE vn_uv PARAM vn*1e6\\n.end\\n\",\"next_step\":\"Use this netlist as-is; do not retype it from memory.\"}",
+   "secs": 0.0,
+   "at": 1794241767.7714188
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "amp1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "none",
+    "supply": "Vcc",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 100
+   },
+   "answer": "{\"run_id\":\"amp1\",\"buildable_candidate\":\"cand_0075\",\"parts\":{\"R1\":{\"value\":10000.0,\"label\":\"10k\",\"series\":\"E96\",\"tolerance_pct\":1.0,\"change_pct\":0.0},\"R2\":{\"value\":90900.0,\"label\":\"90.9k\",\"series\":\"E96\",\"tolerance_pct\":1.0,\"change_pct\":1.0}},\"metrics\":{\"gain_db\":20.074,\"bw\":1128370.0,\"pm_deg\":85.3871,\"vn_uv\":150.585},\"meets_all_limits\":true,\"worst_margin_pct\":0.129,\"nearest_values_meet_limits\":true,\"yield\":{\"runs\":100,\"passed\":69,\"yield_pct\":69.0,\"yield_at_least_pct\":60.5,\"seed\":649909,\"statement\":\"69/100 pass: yield is at least 61% (95% confidence). More yield_runs narrow this.\",\"covers\":\"part tolerance, supply \u00b15%, -40/25/85 \u00b0C\",\"samples_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/amp1/yield/samples.json\",\"worst_case\":{\"fails_most\":\"gain_db\",\"most_failures_at_c\":-40.0,\"part_driving_failures\":{\"part\":\"R2\",\"direction\":\"high\",\"strength\":0.69},\"tightest\":{\"metric\":\"gain_db\",\"limit\":\"<=20.1\",\"worst\":20.2117,\"worst_margin_pct\":-0.556,\"at_temp_c\":85.0}}},\"stress\":\"not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)\",\"parts_list\":\"/work/smcp/proj/.ltspice-mcp/simulations/amp1/bom.csv\",\"more\":\"query_run(run_id='amp1', what='details')\",\"next_step\":\"Standard values meet the limits but yield is low, mostly from gain_db at -40 C with R2 high: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit.\"}",
+   "secs": 3.2,
+   "at": 1794241773.7081199
+  },
+  {
+   "tool": "run_optimization",
+   "args": {
+    "run_id": "amp1",
+    "iterations": 30
+   },
+   "answer": "{\"error\":\"run 'amp1' is stopped; nothing to do\",\"fix\":\"The run is stopped. Start a new run with a new run_id.\",\"example\":{\"run_id\":\"rc_001\",\"iterations\":20}}",
+   "secs": 0.2,
+   "at": 1794241792.086262
+  },
+  {
+   "tool": "start_from_template",
+   "args": {
+    "run_id": "amp2",
+    "template": "noninverting_amp",
+    "spec": {
+     "gain": 10,
+     "bw": 100000,
+     "gbw": 10000000,
+     "cload": 1e-10
+    }
+   },
+   "answer": "{\"run_id\":\"amp2\",\"template\":\"noninverting_amp\",\"limits\":[\"gain_db>=19.9\",\"gain_db<=20.1\",\"bw>=100000\",\"pm_deg>=45\"],\"goal\":[\"max bw\"],\"start_point\":{\"R1\":10000.0,\"R2\":90000.0},\"start_result\":{\"candidate_id\":\"cand_0076\",\"status\":\"ok\",\"feasible\":true,\"metrics\":{\"gain_db\":19.9962,\"bw\":1119540.0,\"pm_deg\":85.3454,\"vn_uv\":149.437}},\"schematic_asc\":\"/work/smcp/proj/.ltspice-mcp/schematics/amp2.asc\",\"hand_calculation\":\"query_run(run_id='amp2', what='details')\",\"next_step\":\"Start point already meets every limit. Call run_optimization(run_id='amp2', iterations=20) to improve the goal, or generate_design_report.\"}",
+   "secs": 0.1,
+   "at": 1794241807.495032
+  },
+  {
+   "tool": "evaluate_candidate",
+   "args": {
+    "run_id": "amp2",
+    "params": {
+     "R1": 11300,
+     "R2": 102000
+    }
+   },
+   "answer": "{\"cached\":false,\"candidate_id\":\"cand_0077\",\"iteration\":2,\"new_candidate\":true,\"status\":\"ok\",\"metrics\":{\"gain_db\":20.0192,\"bw\":1122850.0,\"ugf\":1019910.0,\"pm\":-0.0022756,\"pm_deg\":85.3563,\"vn\":0.000155009,\"vn_uv\":155.009},\"constraints\":[{\"constraint\":\"gain_db\",\"required\":\">=19.9\",\"actual\":20.0192,\"passed\":true},{\"constraint\":\"gain_db\",\"required\":\"<=20.1\",\"actual\":20.0192,\"passed\":true},{\"constraint\":\"bw\",\"required\":\">=100000\",\"actual\":1122850.0,\"passed\":true},{\"constraint\":\"pm_deg\",\"required\":\">=45\",\"actual\":85.3563,\"passed\":true}],\"feasible\":true,\"score\":11.2285,\"failure_type\":null,\"failure_message\":null,\"warnings\":[],\"best_candidate\":\"cand_0077\",\"improved_best\":true,\"next_step\":\"Call query_run(run_id='amp2', what='status') or run_optimization.\"}",
+   "secs": 0.0,
+   "at": 1794241807.6797104
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "amp2",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "none",
+    "supply": "Vcc",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 100
+   },
+   "answer": "{\"run_id\":\"amp2\",\"buildable_candidate\":\"cand_0077\",\"parts\":{\"R1\":{\"value\":11300.0,\"label\":\"11.3k\",\"series\":\"E96\",\"tolerance_pct\":1.0,\"change_pct\":0.0},\"R2\":{\"value\":102000.0,\"label\":\"102k\",\"series\":\"E96\",\"tolerance_pct\":1.0,\"change_pct\":0.0}},\"metrics\":{\"bw\":1122850.0,\"gain_db\":20.0192,\"pm_deg\":85.3563,\"vn_uv\":155.009},\"meets_all_limits\":true,\"worst_margin_pct\":0.402,\"nearest_values_meet_limits\":true,\"yield\":{\"runs\":100,\"passed\":81,\"yield_pct\":81.0,\"yield_at_least_pct\":73.4,\"seed\":580171,\"statement\":\"81/100 pass: yield is at least 73% (95% confidence). More yield_runs narrow this.\",\"covers\":\"part tolerance, supply \u00b15%, -40/25/85 \u00b0C\",\"samples_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/amp2/yield/samples.json\",\"worst_case\":{\"fails_most\":\"gain_db\",\"most_failures_at_c\":-40.0,\"part_driving_failures\":{\"part\":\"R2\",\"direction\":\"high\",\"strength\":0.64},\"tightest\":{\"metric\":\"gain_db\",\"limit\":\"<=20.1\",\"worst\":20.1709,\"worst_margin_pct\":-0.353,\"at_temp_c\":85.0}}},\"stress\":\"not checked: no transient or DC-sweep deck: there is no operating waveform to measure (AC-only circuits run at signal level)\",\"parts_list\":\"/work/smcp/proj/.ltspice-mcp/simulations/amp2/bom.csv\",\"more\":\"query_run(run_id='amp2', what='details')\",\"next_step\":\"Standard values meet the limits but yield is low, mostly from gain_db at -40 C with R2 high: tighten its tolerance_pct, re-optimise with a tighter limit for margin, or relax the limit.\"}",
+   "secs": 3.5,
+   "at": 1794241807.7800562
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* step test\n.include /work/smcp/parts.lib\nV1 in 0 PULSE(0 0.01 1u 1n 1n 1m 2m)\nVcc vcc 0 5\nVee vee 0 -5\nX1 in inn vcc vee out OPAMP10M\nR2 out inn 102k\nR1 inn 0 11.3k\nRL out 0 10k\nCL out 0 100p\n.tran 0 300u 0 10n\n.meas TRAN vfin FIND V(out) AT 290u\n.meas TRAN vmax MAX V(out) FROM 1.5u TO 300u\n.meas TRAN vmin MIN V(out) FROM 1.5u TO 300u\n.end\n",
+    "timeout_s": 300
+   },
+   "answer": "{\"status\":\"failed\",\"metrics\":{},\"warnings\":[\"Error on line 11 or its substitute:\"],\"failure_type\":\"simulation_failure\",\"failure_message\":\"ngspice ran but no .meas results found\",\"failure_detail\":{\"tail\":\"\\nNote: No compatibility mode selected!\\n\\n\\nCircuit: * step test\\n\\n\\nError on line 11 or its substitute:\\n  .tran 0 300u 0 10n\\nTSTEP is invalid, must be greater than zero.\\n    Simulation interrupted due to error!\\n\\nNote: No \\\".plot\\\", \\\".print\\\", or \\\".fourier\\\" lines; no simulations run\\n\"},\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"Fix the netlist using failure_message, then retry.\",\"fix\":\"ngspice ran but no .meas results found\"}",
+   "secs": 0.0,
+   "at": 1794241823.3070197
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* step test\n.include /work/smcp/parts.lib\nV1 in 0 PULSE(0 0.01 1u 1n 1n 1m 2m)\nVcc vcc 0 5\nVee vee 0 -5\nX1 in inn vcc vee out OPAMP10M\nR2 out inn 102k\nR1 inn 0 11.3k\nRL out 0 10k\nCL out 0 100p\n.tran 10n 300u\n.meas TRAN vfin FIND V(out) AT 290u\n.meas TRAN vmax MAX V(out) FROM 1.5u TO 300u\n.meas TRAN vmin MIN V(out) FROM 1.5u TO 300u\n.end\n",
+    "timeout_s": 300
+   },
+   "answer": "{\"status\":\"ok\",\"metrics\":{\"vfin\":0.0982185,\"vmax\":0.0982185,\"vmin\":0.0951957},\"warnings\":[],\"failure_type\":null,\"failure_message\":null,\"failure_detail\":null,\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"To tune values, replace them with {NAME} placeholders and call start_optimization.\"}",
+   "secs": 0.1,
+   "at": 1794241827.170963
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* Non-inverting amplifier, gain 10 (20 dB), 1 kHz, -3 dB BW > 100 kHz\n* SpiceMCP run amp2, candidate cand_0077. R1/R2 E96 1 %.\n.include /work/smcp/parts.lib\nV1 in 0 AC 1\nVcc vcc 0 5\nVee vee 0 -5\nX1 in inn vcc vee out OPAMP10M\nR2 out inn 102k\nR1 inn 0 11.3k\nRL out 0 10k\nCL out 0 100p\n.ac dec 100 10 1e+08\n.meas AC gain_db FIND mag(V(out)) AT 1k\n.meas AC bw WHEN mag(V(out))=7.071 FALL=1\n.end\n"
+   },
+   "answer": "{\"status\":\"ok\",\"metrics\":{\"gain_db\":20.0192,\"bw\":1122850.0},\"warnings\":[],\"failure_type\":null,\"failure_message\":null,\"failure_detail\":null,\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"To tune values, replace them with {NAME} placeholders and call start_optimization.\"}",
+   "secs": 0.0,
+   "at": 1794241835.0374343
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* step test 2\n.include /work/smcp/parts.lib\nV1 in 0 PULSE(0 0.01 1u 1n 1n 1m 2m)\nVcc vcc 0 5\nVee vee 0 -5\nX1 in inn vcc vee out OPAMP10M\nR2 out inn 102k\nR1 inn 0 11.3k\nRL out 0 10k\nCL out 0 100p\n.tran 10n 1m\n.meas TRAN vo20 FIND V(out) AT 20u\n.meas TRAN vo100 FIND V(out) AT 100u\n.meas TRAN vo500 FIND V(out) AT 500u\n.meas TRAN vo900 FIND V(out) AT 900u\n.meas TRAN vmax MAX V(out) FROM 1.5u TO 1m\n.end\n",
+    "timeout_s": 300
+   },
+   "answer": "{\"status\":\"ok\",\"metrics\":{\"vo20\":0.0982185,\"vo100\":0.0982185,\"vo500\":0.0982185,\"vo900\":0.0982185,\"vmax\":0.0982185},\"warnings\":[],\"failure_type\":null,\"failure_message\":null,\"failure_detail\":null,\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"To tune values, replace them with {NAME} placeholders and call start_optimization.\"}",
+   "secs": 0.6,
+   "at": 1794241842.9623575
+  },
+  {
+   "tool": "start_from_template",
+   "args": {
+    "run_id": "buck1",
+    "template": "buck",
+    "spec": {
+     "vin": 12,
+     "vout": 5,
+     "iout": 1,
+     "fsw": 500000,
+     "ripple_mv": 50
+    }
+   },
+   "answer": "{\"run_id\":\"buck1\",\"template\":\"buck\",\"limits\":[\"vout>=4.9\",\"vout<=5.1\",\"ripple_mv<=50\",\"pm_deg>=45\"],\"goal\":[\"min param_l\",\"min param_c\"],\"start_point\":{\"L\":2.03226e-05,\"C\":2.46711e-06,\"R1\":31666.7,\"CI\":1.34163e-08},\"start_result\":{\"candidate_id\":\"cand_0107\",\"status\":\"ok\",\"feasible\":true,\"metrics\":{\"vout\":4.99918,\"ripple_mv\":32.8,\"pm_deg\":86.472,\"param_l\":2.03226e-05,\"param_c\":2.46711e-06}},\"schematic_asc\":\"/work/smcp/proj/.ltspice-mcp/schematics/buck1.asc\",\"hand_calculation\":\"query_run(run_id='buck1', what='details')\",\"next_step\":\"Start point already meets every limit. Call run_optimization(run_id='buck1', iterations=20) to improve the goal, or generate_design_report.\"}",
+   "secs": 9.0,
+   "at": 1794241851.476983
+  },
+  {
+   "tool": "query_run",
+   "args": {
+    "run_id": "buck1",
+    "what": "netlist",
+    "candidate_id": "cand_0107"
+   },
+   "answer": "{\"candidate_id\":\"cand_0107\",\"params\":{\"C\":2.46711e-06,\"CI\":1.34163e-08,\"L\":2.03226e-05,\"R1\":31666.7},\"netlist\":\"* Buck converter, closed loop (SpiceMCP template buck)\\n* 12 V -> 5 V at 1 A, 500 kHz, ripple target 50 mV\\n* voltage-mode PWM: error amplifier (integrator) -> comparator against a ramp -> switch\\nVin in 0 12\\nVref ref 0 1.2\\nVramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)\\nX2 ref fb in 0 vc SPMCP_OA\\nCI vc fb 1.341628166893928e-08\\nR1 out fb 31666.666666666668\\nR2 fb 0 10000\\nX3 ramp vc in 0 g SPMCP_CMP\\nM1 sw g in PSW\\nD1 0 sw DS\\nL1 sw out 2.032258064516129e-05\\nC1 out 0 2.4671052631578943e-06\\nRL out 0 5\\n.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)\\n.model DS D(Is=1e-6 Rs=0.02 N=1.2)\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 2.013e-11\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\n.subckt SPMCP_CMP inp inn vdd vss out\\n* comparator with gate-drive output, pins in+ in- V+ V- out\\n* the op-amp's two stages, then a 0.1 A inverter driving a 5 A inverter\\nM8 pb pb vdd vdd SPMCP_CMP_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_CMP_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_CMP_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_CMP_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_CMP_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_CMP_N W=10u L=2u\\nM6 o1 x2 vss vss SPMCP_CMP_N W=400u L=1u\\nM7 o1 pb vdd vdd SPMCP_CMP_P W=500u L=2u\\nCc x2 cz 4.026e-13\\nRz cz o1 111.8\\nM9 o2 o1 vdd vdd SPMCP_CMP_P W=40u L=1u\\nM10 o2 o1 vss vss SPMCP_CMP_N W=16u L=1u\\nM11 out o2 vdd vdd SPMCP_CMP_P W=2000u L=1u\\nM12 out o2 vss vss SPMCP_CMP_N W=800u L=1u\\n.model SPMCP_CMP_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_CMP_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_CMP\\n.tran 2e-09 0.00111225 0 2e-09\\n.meas TRAN vout AVG V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN vmax MAX V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN vmin MIN V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN iin AVG I(Vin) FROM 0.000912252 TO 0.00111225\\n.meas TRAN ripple_mv PARAM (vmax-vmin)*1000\\n.meas TRAN eff PARAM vout*vout/5/(-12*iin)\\n.end\\n* Buck stability (averaged switch): loop gain, feedback broken at the amplifier input\\nVin in 0 12\\nVref ref 0 1.2\\nX2 ref fb in 0 vc SPMCP_OA\\nCI vc fb 1.341628166893928e-08\\n* loop broken between the output and the divider: the integrator (R1, CI) stays whole\\nR1 outx fb 31666.666666666668\\nR2 fb 0 10000\\nLbrk out outx 1k\\nCinj outx inj 1k\\n* the switch, diode and comparator averaged over a cycle: duty = (Vc - 0.5) / 2\\nBsw sw 0 V=V(in)*min(max((V(vc)-0.5)/2,0),1)-0.4*(1-min(max((V(vc)-0.5)/2,0),1))\\nL1 sw out 2.032258064516129e-05\\nC1 out 0 2.4671052631578943e-06\\nRL out 0 5\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 2.013e-11\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=",
+   "secs": 0.0,
+   "at": 1794241863.0515347
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 16 combinations simulated\",\"seconds_so_far\":50,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794241875.1389606
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 32 combinations simulated\",\"seconds_so_far\":104,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794241928.7494087
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":158,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794241982.5164764
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":211,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242035.722732
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":264,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242088.824519
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":317,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242142.1366534
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":370,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242195.3350213
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":423,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242248.3199255
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":476,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242301.235943
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":529,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242354.344566
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":582,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242406.9921918
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":635,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242460.008574
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":687,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242512.4626262
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":741,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.2,
+   "at": 1794242566.4401937
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":795,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242619.5511005
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":848,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242672.6185899
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":900,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242725.4909067
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"status\":\"still running\",\"progress\":\"standard values: 37 combinations simulated\",\"seconds_so_far\":954,\"next_step\":\"Call finish_design(run_id='buck1') again to wait for the result.\"}",
+   "secs": 50.1,
+   "at": 1794242778.9186373
+  },
+  {
+   "tool": "finish_design",
+   "args": {
+    "run_id": "buck1",
+    "resistors": "E96",
+    "capacitors": "E12",
+    "inductors": "E12",
+    "supply": "Vin",
+    "supply_tol_pct": 5,
+    "temps_c": [
+     -40,
+     25,
+     85
+    ],
+    "yield_runs": 50
+   },
+   "answer": "{\"run_id\":\"buck1\",\"buildable_candidate\":\"cand_0128\",\"parts\":{\"C\":{\"value\":2.7e-06,\"label\":\"2.7u\",\"series\":\"E12\",\"tolerance_pct\":5.0,\"change_pct\":9.44},\"CI\":{\"value\":1.5e-08,\"label\":\"15n\",\"series\":\"E12\",\"tolerance_pct\":5.0,\"change_pct\":11.8},\"L\":{\"value\":1.8e-05,\"label\":\"18u\",\"series\":\"E12\",\"tolerance_pct\":20.0,\"change_pct\":-11.43},\"R1\":{\"value\":31600.0,\"label\":\"31.6k\",\"series\":\"E96\",\"tolerance_pct\":1.0,\"change_pct\":-0.21}},\"metrics\":{\"vout\":4.99115,\"ripple_mv\":31.527,\"pm_deg\":87.2022},\"meets_all_limits\":true,\"worst_margin_pct\":1.86,\"nearest_values_meet_limits\":true,\"yield\":{\"runs\":50,\"passed\":50,\"yield_pct\":100.0,\"yield_at_least_pct\":94.2,\"seed\":14531,\"statement\":\"50/50 pass: yield is at least 94% (95% confidence). More yield_runs narrow this.\",\"covers\":\"part tolerance, supply \u00b15%, -40/25/85 \u00b0C\",\"samples_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/buck1/yield/samples.json\"},\"buy_at_least\":{\"CI\":\"4 V\",\"R1\":\"0.063 W\",\"R2\":\"0.063 W\",\"M1\":\"20 V, Id 1 A, Idm 6.9 A, Vgs 20 V\",\"D1\":\"20 V, 0.87 A\",\"L1\":\"Isat 1.5 A, Irms 1 A\",\"C1\":\"10 V\"},\"parts_list\":\"/work/smcp/proj/.ltspice-mcp/simulations/buck1/bom.csv\",\"more\":\"query_run(run_id='buck1', what='details')\",\"next_step\":\"Buildable design found. Call generate_design_report(run_id='buck1').\"}",
+   "secs": 17.0,
+   "at": 1794242832.6930256
+  },
+  {
+   "tool": "query_run",
+   "args": {
+    "run_id": "buck1",
+    "what": "netlist",
+    "candidate_id": "cand_0128"
+   },
+   "answer": "{\"candidate_id\":\"cand_0128\",\"params\":{\"C\":2.7e-06,\"CI\":1.5e-08,\"L\":1.8e-05,\"R1\":31600.0},\"netlist\":\"* Buck converter, closed loop (SpiceMCP template buck)\\n* 12 V -> 5 V at 1 A, 500 kHz, ripple target 50 mV\\n* voltage-mode PWM: error amplifier (integrator) -> comparator against a ramp -> switch\\nVin in 0 12\\nVref ref 0 1.2\\nVramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)\\nX2 ref fb in 0 vc SPMCP_OA\\nCI vc fb 1.5e-08\\nR1 out fb 31600.0\\nR2 fb 0 10000\\nX3 ramp vc in 0 g SPMCP_CMP\\nM1 sw g in PSW\\nD1 0 sw DS\\nL1 sw out 1.8e-05\\nC1 out 0 2.7e-06\\nRL out 0 5\\n.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)\\n.model DS D(Is=1e-6 Rs=0.02 N=1.2)\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 2.013e-11\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\n.subckt SPMCP_CMP inp inn vdd vss out\\n* comparator with gate-drive output, pins in+ in- V+ V- out\\n* the op-amp's two stages, then a 0.1 A inverter driving a 5 A inverter\\nM8 pb pb vdd vdd SPMCP_CMP_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_CMP_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_CMP_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_CMP_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_CMP_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_CMP_N W=10u L=2u\\nM6 o1 x2 vss vss SPMCP_CMP_N W=400u L=1u\\nM7 o1 pb vdd vdd SPMCP_CMP_P W=500u L=2u\\nCc x2 cz 4.026e-13\\nRz cz o1 111.8\\nM9 o2 o1 vdd vdd SPMCP_CMP_P W=40u L=1u\\nM10 o2 o1 vss vss SPMCP_CMP_N W=16u L=1u\\nM11 out o2 vdd vdd SPMCP_CMP_P W=2000u L=1u\\nM12 out o2 vss vss SPMCP_CMP_N W=800u L=1u\\n.model SPMCP_CMP_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_CMP_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_CMP\\n.tran 2e-09 0.00111225 0 2e-09\\n.meas TRAN vout AVG V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN vmax MAX V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN vmin MIN V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN iin AVG I(Vin) FROM 0.000912252 TO 0.00111225\\n.meas TRAN ripple_mv PARAM (vmax-vmin)*1000\\n.meas TRAN eff PARAM vout*vout/5/(-12*iin)\\n.end\\n* Buck stability (averaged switch): loop gain, feedback broken at the amplifier input\\nVin in 0 12\\nVref ref 0 1.2\\nX2 ref fb in 0 vc SPMCP_OA\\nCI vc fb 1.5e-08\\n* loop broken between the output and the divider: the integrator (R1, CI) stays whole\\nR1 outx fb 31600.0\\nR2 fb 0 10000\\nLbrk out outx 1k\\nCinj outx inj 1k\\n* the switch, diode and comparator averaged over a cycle: duty = (Vc - 0.5) / 2\\nBsw sw 0 V=V(in)*min(max((V(vc)-0.5)/2,0),1)-0.4*(1-min(max((V(vc)-0.5)/2,0),1))\\nL1 sw out 1.8e-05\\nC1 out 0 2.7e-06\\nRL out 0 5\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 2.013e-11\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\nVinj inj 0 AC 1\\n.ac dec 50 22.4769 250000\\n.meas AC ugf WHEN mag(V",
+   "secs": 0.0,
+   "at": 1794242853.7280183
+  },
+  {
+   "tool": "query_run",
+   "args": {
+    "run_id": "buck1",
+    "what": "netlist",
+    "candidate_id": "cand_0128"
+   },
+   "answer": "{\"candidate_id\":\"cand_0128\",\"params\":{\"C\":2.7e-06,\"CI\":1.5e-08,\"L\":1.8e-05,\"R1\":31600.0},\"netlist\":\"* Buck converter, closed loop (SpiceMCP template buck)\\n* 12 V -> 5 V at 1 A, 500 kHz, ripple target 50 mV\\n* voltage-mode PWM: error amplifier (integrator) -> comparator against a ramp -> switch\\nVin in 0 12\\nVref ref 0 1.2\\nVramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)\\nX2 ref fb in 0 vc SPMCP_OA\\nCI vc fb 1.5e-08\\nR1 out fb 31600.0\\nR2 fb 0 10000\\nX3 ramp vc in 0 g SPMCP_CMP\\nM1 sw g in PSW\\nD1 0 sw DS\\nL1 sw out 1.8e-05\\nC1 out 0 2.7e-06\\nRL out 0 5\\n.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)\\n.model DS D(Is=1e-6 Rs=0.02 N=1.2)\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 2.013e-11\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\n.subckt SPMCP_CMP inp inn vdd vss out\\n* comparator with gate-drive output, pins in+ in- V+ V- out\\n* the op-amp's two stages, then a 0.1 A inverter driving a 5 A inverter\\nM8 pb pb vdd vdd SPMCP_CMP_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_CMP_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_CMP_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_CMP_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_CMP_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_CMP_N W=10u L=2u\\nM6 o1 x2 vss vss SPMCP_CMP_N W=400u L=1u\\nM7 o1 pb vdd vdd SPMCP_CMP_P W=500u L=2u\\nCc x2 cz 4.026e-13\\nRz cz o1 111.8\\nM9 o2 o1 vdd vdd SPMCP_CMP_P W=40u L=1u\\nM10 o2 o1 vss vss SPMCP_CMP_N W=16u L=1u\\nM11 out o2 vdd vdd SPMCP_CMP_P W=2000u L=1u\\nM12 out o2 vss vss SPMCP_CMP_N W=800u L=1u\\n.model SPMCP_CMP_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_CMP_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_CMP\\n.tran 2e-09 0.00111225 0 2e-09\\n.meas TRAN vout AVG V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN vmax MAX V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN vmin MIN V(out) FROM 0.000912252 TO 0.00111225\\n.meas TRAN iin AVG I(Vin) FROM 0.000912252 TO 0.00111225\\n.meas TRAN ripple_mv PARAM (vmax-vmin)*1000\\n.meas TRAN eff PARAM vout*vout/5/(-12*iin)\\n.end\\n* Buck stability (averaged switch): loop gain, feedback broken at the amplifier input\\nVin in 0 12\\nVref ref 0 1.2\\nX2 ref fb in 0 vc SPMCP_OA\\nCI vc fb 1.5e-08\\n* loop broken between the output and the divider: the integrator (R1, CI) stays whole\\nR1 outx fb 31600.0\\nR2 fb 0 10000\\nLbrk out outx 1k\\nCinj outx inj 1k\\n* the switch, diode and comparator averaged over a cycle: duty = (Vc - 0.5) / 2\\nBsw sw 0 V=V(in)*min(max((V(vc)-0.5)/2,0),1)-0.4*(1-min(max((V(vc)-0.5)/2,0),1))\\nL1 sw out 1.8e-05\\nC1 out 0 2.7e-06\\nRL out 0 5\\n.subckt SPMCP_OA inp inn vdd vss out\\n* two-stage CMOS op-amp, pins in+ in- V+ V- out\\n* GBW 2e+06 Hz, slew 2 V/us, 1.1 mA supply\\nM8 pb pb vdd vdd SPMCP_OA_P W=10u L=2u\\nRb pb vss 5.476e+05\\nM5 tail pb vdd vdd SPMCP_OA_P W=20u L=2u\\nM1 x1 inn tail vdd SPMCP_OA_P W=40u L=1u\\nM2 x2 inp tail vdd SPMCP_OA_P W=40u L=1u\\nM3 x1 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM4 x2 x1 vss vss SPMCP_OA_N W=10u L=2u\\nM6 out x2 vss vss SPMCP_OA_N W=400u L=1u\\nM7 out pb vdd vdd SPMCP_OA_P W=500u L=2u\\nCc x2 cz 2.013e-11\\nRz cz out 111.8\\n.model SPMCP_OA_N NMOS(KP=0.0001 VTO=0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.model SPMCP_OA_P PMOS(KP=4e-05 VTO=-0.6 LAMBDA=0.02 TOX=20n CGSO=3e-10 CGDO=3e-10)\\n.ends SPMCP_OA\\nVinj inj 0 AC 1\\n.ac dec 50 22.4769 250000\\n.meas AC ugf WHEN mag(V",
+   "secs": 0.0,
+   "at": 1794242859.3591707
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* Buck converter, closed loop: 12 V -> 5 V, 1 A, 500 kHz\n* SpiceMCP run buck1, candidate cand_0128 (voltage-mode PWM, OPAMP2M + CMP)\n* L1 18u E12 20 %, C1 2.7u E12 5 %, CI 15n E12 5 %, R1 31.6k E96 1 %, R2 10k E96 1 %\n.include /work/smcp/parts.lib\nVin in 0 12\nVref ref 0 1.2\nVramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)\nX2 ref fb in 0 vc OPAMP2M\nCI vc fb 15n\nR1 out fb 31.6k\nR2 fb 0 10k\nX3 ramp vc in 0 g CMP\nM1 sw g in PSW\nD1 0 sw DS\nL1 sw out 18u\nC1 out 0 2.7u\nRL out 0 5\n.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)\n.model DS D(Is=1e-6 Rs=0.02 N=1.2)\n.tran 2n 2m\n.meas TRAN v_1p5ms FIND V(out) AT 1.5m\n.meas TRAN vmax MAX V(out) FROM 1.5m TO 2m\n.meas TRAN vmin MIN V(out) FROM 1.5m TO 2m\n.meas TRAN ripple_mv PARAM (vmax-vmin)*1000\n.end\n",
+    "timeout_s": 600
+   },
+   "answer": "{\"status\":\"ok\",\"metrics\":{\"v_1p5ms\":4.99136,\"vmax\":5.00671,\"vmin\":4.97432,\"ripple_mv\":32.393},\"warnings\":[],\"failure_type\":null,\"failure_message\":null,\"failure_detail\":null,\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"To tune values, replace them with {NAME} placeholders and call start_optimization.\"}",
+   "secs": 12.1,
+   "at": 1794242869.6058714
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* Buck converter, closed loop: 12 V -> 5 V, 1 A, 500 kHz\n* SpiceMCP run buck1, candidate cand_0128 (voltage-mode PWM, OPAMP2M + CMP)\n* L1 18u E12 20 %, C1 2.7u E12 5 %, CI 15n E12 5 %, R1 31.6k E96 1 %, R2 10k E96 1 %\n.include /work/smcp/parts.lib\nVin in 0 12\nVref ref 0 1.2\nVramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)\nX2 ref fb in 0 vc OPAMP2M\nCI vc fb 15n\nR1 out fb 31.6k\nR2 fb 0 10k\nX3 ramp vc in 0 g CMP\nM1 sw g in PSW\nD1 0 sw DS\nL1 sw out 18u\nC1 out 0 2.7u\nRL out 0 5\n.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)\n.model DS D(Is=1e-6 Rs=0.02 N=1.2)\n.tran 10n 1.5m\n.meas TRAN v05 FIND V(out) AT 0.5m\n.meas TRAN v10 FIND V(out) AT 1m\n.meas TRAN v12 FIND V(out) AT 1.2m\n.meas TRAN v14 FIND V(out) AT 1.4m\n.meas TRAN vmax MAX V(out) FROM 1.2m TO 1.5m\n.meas TRAN vmin MIN V(out) FROM 1.2m TO 1.5m\n.end",
+    "timeout_s": 600
+   },
+   "answer": "{\"status\":\"ok\",\"metrics\":{\"v05\":4.99816,\"v10\":4.99643,\"v12\":4.95245,\"v14\":5.0068,\"vmax\":5.02549,\"vmin\":4.93832},\"warnings\":[],\"failure_type\":null,\"failure_message\":null,\"failure_detail\":null,\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"To tune values, replace them with {NAME} placeholders and call start_optimization.\"}",
+   "secs": 3.4,
+   "at": 1794242888.0416944
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* Buck converter, closed loop: 12 V -> 5 V, 1 A, 500 kHz\n* SpiceMCP run buck1, candidate cand_0128 (voltage-mode PWM, OPAMP2M + CMP)\n* L1 18u E12 20 %, C1 2.7u E12 5 %, CI 15n E12 5 %, R1 31.6k E96 1 %, R2 10k E96 1 %\n.include /work/smcp/parts.lib\nVin in 0 11.4\nVref ref 0 1.2\nVramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)\nX2 ref fb in 0 vc OPAMP2M\nCI vc fb 15n\nR1 out fb 31.6k\nR2 fb 0 10k\nX3 ramp vc in 0 g CMP\nM1 sw g in PSW\nD1 0 sw DS\nL1 sw out 18u\nC1 out 0 2.7u\nRL out 0 5\n.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)\n.model DS D(Is=1e-6 Rs=0.02 N=1.2)\n.tran 10n 1.5m\n.meas TRAN v05 FIND V(out) AT 0.5m\n.meas TRAN v10 FIND V(out) AT 1m\n.meas TRAN v12 FIND V(out) AT 1.2m\n.meas TRAN v14 FIND V(out) AT 1.4m\n.meas TRAN vmax MAX V(out) FROM 1.2m TO 1.5m\n.meas TRAN vmin MIN V(out) FROM 1.2m TO 1.5m\n.end",
+    "timeout_s": 600
+   },
+   "answer": "{\"status\":\"ok\",\"metrics\":{\"v05\":4.96159,\"v10\":4.99963,\"v12\":4.98932,\"v14\":4.98174,\"vmax\":5.05354,\"vmin\":4.9467},\"warnings\":[],\"failure_type\":null,\"failure_message\":null,\"failure_detail\":null,\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"To tune values, replace them with {NAME} placeholders and call start_optimization.\"}",
+   "secs": 3.6,
+   "at": 1794242891.5778959
+  },
+  {
+   "tool": "simulate",
+   "args": {
+    "netlist": "* Buck converter, closed loop: 12 V -> 5 V, 1 A, 500 kHz\n* SpiceMCP run buck1, candidate cand_0128 (voltage-mode PWM, OPAMP2M + CMP)\n* L1 18u E12 20 %, C1 2.7u E12 5 %, CI 15n E12 5 %, R1 31.6k E96 1 %, R2 10k E96 1 %\n.include /work/smcp/parts.lib\nVin in 0 12.6\nVref ref 0 1.2\nVramp ramp 0 PULSE(0.5 2.5 0 1.98e-06 10n 10n 2e-06)\nX2 ref fb in 0 vc OPAMP2M\nCI vc fb 15n\nR1 out fb 31.6k\nR2 fb 0 10k\nX3 ramp vc in 0 g CMP\nM1 sw g in PSW\nD1 0 sw DS\nL1 sw out 18u\nC1 out 0 2.7u\nRL out 0 5\n.model PSW VDMOS(pchan Vto=-2 Kp=20 Rd=0.04 Rs=0.01 Rb=0.01 Cgs=1n Cgdmax=1n Cgdmin=0.1n Cjo=0.5n)\n.model DS D(Is=1e-6 Rs=0.02 N=1.2)\n.tran 10n 1.5m\n.meas TRAN v05 FIND V(out) AT 0.5m\n.meas TRAN v10 FIND V(out) AT 1m\n.meas TRAN v12 FIND V(out) AT 1.2m\n.meas TRAN v14 FIND V(out) AT 1.4m\n.meas TRAN vmax MAX V(out) FROM 1.2m TO 1.5m\n.meas TRAN vmin MIN V(out) FROM 1.2m TO 1.5m\n.end",
+    "timeout_s": 600
+   },
+   "answer": "{\"status\":\"ok\",\"metrics\":{\"v05\":5.00129,\"v10\":4.9689,\"v12\":4.99719,\"v14\":5.00114,\"vmax\":5.04066,\"vmin\":4.9477},\"warnings\":[],\"failure_type\":null,\"failure_message\":null,\"failure_detail\":null,\"log_path\":\"/work/smcp/proj/.ltspice-mcp/simulations/adhoc/adhoc.ng.log\",\"next_step\":\"To tune values, replace them with {NAME} placeholders and call start_optimization.\"}",
+   "secs": 4.1,
+   "at": 1794242895.2836926
+  }
+ ],
+ "surface": {
+  "instructions": "SpiceMCP designs circuits with LTspice. Typical flow:\n1. start_from_template (filters, amplifier, LDO, buck: sized for you; see\n   list_templates), or start_optimization (your netlist with {PARAM} placeholders\n   and .meas lines; it checks the spec is possible first)\n2. run_optimization   (the server searches; you do not loop per simulation)\n3. finish_design      (standard values; yield over tolerance, supply, temperature;\n   part stress and the rating to buy)\n4. generate_design_report\nReal parts: find_part, then start_from_template(parts={\"opamp\": NAME}).\nBuilt-in blocks need no .subckt: X1 in+ in- V+ V- out SPMCP_OA (op-amp) or SPMCP_CMP\n(comparator). Long calls return within a minute; if an answer says \"still running\",\ncall the same tool again. query_run reads saved state at any time. Follow next_step.\nNever rebuild a past circuit from memory: use query_run(what=\"netlist\").",
+  "tools": [
+   {
+    "name": "check_setup",
+    "description": "Show the LTspice path and project folder in use.\nCall first if anything fails to simulate.",
+    "input_schema": {
+     "properties": {},
+     "type": "object"
+    }
+   },
+   {
+    "name": "simulate",
+    "description": "Run one netlist now and return its .meas results. Nothing is saved.\nTo sweep, set sweep_param (\"R1\", \"{GAIN}\" or \"temp\") and sweep_values.",
+    "input_schema": {
+     "properties": {
+      "netlist": {
+       "type": "string"
+      },
+      "sweep_param": {
+       "default": "",
+       "type": "string"
+      },
+      "sweep_values": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "timeout_s": {
+       "default": 120.0,
+       "type": "number"
+      }
+     },
+     "required": [
+      "netlist"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "check_feasibility",
+    "description": "Check if a spec is physically possible before simulating. Free, no LTspice.\nUse mode=\"concept\" without a netlist; tech holds SI values like vdd, cload, vin.",
+    "input_schema": {
+     "properties": {
+      "goals": {
+       "items": {
+        "$ref": "#/$defs/Goal"
+       },
+       "type": "array"
+      },
+      "limits": {
+       "items": {
+        "$ref": "#/$defs/Limit"
+       },
+       "type": "array"
+      },
+      "params": {
+       "items": {
+        "$ref": "#/$defs/Param"
+       },
+       "type": "array"
+      },
+      "netlist": {
+       "default": "",
+       "type": "string"
+      },
+      "circuit_type": {
+       "default": "general",
+       "enum": [
+        "general",
+        "filter",
+        "opamp",
+        "ldo",
+        "dcdc"
+       ],
+       "type": "string"
+      },
+      "mode": {
+       "default": "practical",
+       "enum": [
+        "practical",
+        "theoretical",
+        "concept"
+       ],
+       "type": "string"
+      },
+      "tech": {
+       "additionalProperties": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "string"
+         }
+        ]
+       },
+       "type": "object"
+      }
+     },
+     "required": [
+      "goals"
+     ],
+     "type": "object",
+     "$defs": {
+      "Goal": {
+       "additionalProperties": false,
+       "properties": {
+        "metric": {
+         "description": ".meas name",
+         "type": "string"
+        },
+        "direction": {
+         "default": "max",
+         "enum": [
+          "max",
+          "min"
+         ],
+         "type": "string"
+        },
+        "weight": {
+         "default": 1.0,
+         "exclusiveMinimum": 0,
+         "type": "number"
+        }
+       },
+       "required": [
+        "metric"
+       ],
+       "type": "object"
+      },
+      "Limit": {
+       "additionalProperties": false,
+       "description": "Hard limit: min and/or max.",
+       "properties": {
+        "metric": {
+         "description": ".meas name",
+         "type": "string"
+        },
+        "min": {
+         "type": "number"
+        },
+        "max": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "metric"
+       ],
+       "type": "object"
+      },
+      "Param": {
+       "additionalProperties": false,
+       "description": "Tunable value: min+max, or values.",
+       "properties": {
+        "name": {
+         "description": "R1 for {R1}",
+         "type": "string"
+        },
+        "min": {
+         "type": "number"
+        },
+        "max": {
+         "type": "number"
+        },
+        "values": {
+         "items": {
+          "type": "number"
+         },
+         "type": "array"
+        },
+        "scale": {
+         "default": "auto",
+         "enum": [
+          "auto",
+          "log",
+          "linear"
+         ],
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "type": "object"
+      }
+     }
+    }
+   },
+   {
+    "name": "list_templates",
+    "description": "List ready-made circuits (filters, amplifier, LDO, buck) and the spec each needs.\nStart here when the user describes a circuit instead of giving a netlist.",
+    "input_schema": {
+     "properties": {},
+     "type": "object"
+    }
+   },
+   {
+    "name": "find_part",
+    "description": "Find a real part by part number or maker in the SPICE libraries on this computer\n(LTspice's, plus SPICEMCP_LIB_DIRS). Use the name in start_from_template parts.",
+    "input_schema": {
+     "properties": {
+      "query": {
+       "type": "string"
+      },
+      "kind": {
+       "default": "any",
+       "enum": [
+        "any",
+        "opamp",
+        "nmos",
+        "pmos",
+        "diode",
+        "npn",
+        "pnp"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "query"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "start_from_template",
+    "description": "Build a run from a ready-made circuit, size it by hand equations and simulate\nthat start point. spec keys from list_templates (SI); parts: names from find_part.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "type": "string"
+      },
+      "template": {
+       "type": "string"
+      },
+      "spec": {
+       "additionalProperties": {
+        "type": "number"
+       },
+       "type": "object"
+      },
+      "parts": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "propertyNames": {
+        "enum": [
+         "opamp",
+         "switch",
+         "diode"
+        ]
+       },
+       "type": "object"
+      }
+     },
+     "required": [
+      "run_id",
+      "template",
+      "spec"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "start_optimization",
+    "description": "Create a saved optimization run. netlist uses {NAME} for each param and a\n.meas line per metric. Refused if the spec is impossible.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "type": "string"
+      },
+      "netlist": {
+       "type": "string"
+      },
+      "params": {
+       "items": {
+        "$ref": "#/$defs/Param"
+       },
+       "type": "array"
+      },
+      "goals": {
+       "items": {
+        "$ref": "#/$defs/Goal"
+       },
+       "type": "array"
+      },
+      "limits": {
+       "items": {
+        "$ref": "#/$defs/Limit"
+       },
+       "type": "array"
+      },
+      "circuit_type": {
+       "default": "general",
+       "enum": [
+        "general",
+        "filter",
+        "opamp",
+        "ldo",
+        "dcdc"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "run_id",
+      "netlist",
+      "params",
+      "goals"
+     ],
+     "type": "object",
+     "$defs": {
+      "Goal": {
+       "additionalProperties": false,
+       "properties": {
+        "metric": {
+         "description": ".meas name",
+         "type": "string"
+        },
+        "direction": {
+         "default": "max",
+         "enum": [
+          "max",
+          "min"
+         ],
+         "type": "string"
+        },
+        "weight": {
+         "default": 1.0,
+         "exclusiveMinimum": 0,
+         "type": "number"
+        }
+       },
+       "required": [
+        "metric"
+       ],
+       "type": "object"
+      },
+      "Limit": {
+       "additionalProperties": false,
+       "description": "Hard limit: min and/or max.",
+       "properties": {
+        "metric": {
+         "description": ".meas name",
+         "type": "string"
+        },
+        "min": {
+         "type": "number"
+        },
+        "max": {
+         "type": "number"
+        }
+       },
+       "required": [
+        "metric"
+       ],
+       "type": "object"
+      },
+      "Param": {
+       "additionalProperties": false,
+       "description": "Tunable value: min+max, or values.",
+       "properties": {
+        "name": {
+         "description": "R1 for {R1}",
+         "type": "string"
+        },
+        "min": {
+         "type": "number"
+        },
+        "max": {
+         "type": "number"
+        },
+        "values": {
+         "items": {
+          "type": "number"
+         },
+         "type": "array"
+        },
+        "scale": {
+         "default": "auto",
+         "enum": [
+          "auto",
+          "log",
+          "linear"
+         ],
+         "type": "string"
+        }
+       },
+       "required": [
+        "name"
+       ],
+       "type": "object"
+      }
+     }
+    }
+   },
+   {
+    "name": "run_optimization",
+    "description": "Let the server search for `iterations` simulations and return one summary.\nPreferred way to optimize: do not loop evaluate_candidate yourself.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "type": "string"
+      },
+      "iterations": {
+       "default": 20,
+       "maximum": 500,
+       "minimum": 1,
+       "type": "integer"
+      }
+     },
+     "required": [
+      "run_id"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "evaluate_candidate",
+    "description": "Simulate one exact set of param values inside a run (cached if repeated).\nUse to test your own idea; use run_optimization for searching.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "type": "string"
+      },
+      "params": {
+       "additionalProperties": {
+        "type": "number"
+       },
+       "type": "object"
+      },
+      "force": {
+       "default": false,
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "run_id",
+      "params"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "query_run",
+    "description": "Read saved run data. Default what=\"status\". \"runs\" lists runs; \"details\" = hand\ncalc, warnings, alternatives. candidate/netlist/similar need candidate_id.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "default": "",
+       "type": "string"
+      },
+      "what": {
+       "default": "status",
+       "enum": [
+        "status",
+        "best",
+        "pareto",
+        "history",
+        "candidates",
+        "candidate",
+        "netlist",
+        "compare",
+        "similar",
+        "sensitivity",
+        "explored",
+        "failed",
+        "trace",
+        "next",
+        "runs",
+        "details"
+       ],
+       "type": "string"
+      },
+      "candidate_id": {
+       "default": "",
+       "type": "string"
+      },
+      "candidate_ids": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "parameter": {
+       "default": "",
+       "type": "string"
+      },
+      "metric": {
+       "default": "",
+       "type": "string"
+      },
+      "limit": {
+       "default": 20,
+       "maximum": 200,
+       "minimum": 1,
+       "type": "integer"
+      }
+     },
+     "type": "object"
+    }
+   },
+   {
+    "name": "rollback_to_candidate",
+    "description": "Restore a past candidate's exact netlist from storage and return its file path.\nUse this instead of rebuilding an old circuit from memory.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "type": "string"
+      },
+      "candidate_id": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "run_id",
+      "candidate_id"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "finish_design",
+    "description": "Snap the best design to standard values, check yield over parts (R 1% C 5% L 20%),\nsupply and temperature (templates: 5%, -40/25/85 C); return the parts list.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "type": "string"
+      },
+      "resistors": {
+       "default": "E96",
+       "enum": [
+        "E6",
+        "E12",
+        "E24",
+        "E48",
+        "E96",
+        "none"
+       ],
+       "type": "string"
+      },
+      "capacitors": {
+       "default": "E12",
+       "enum": [
+        "E6",
+        "E12",
+        "E24",
+        "E48",
+        "E96",
+        "none"
+       ],
+       "type": "string"
+      },
+      "inductors": {
+       "default": "E12",
+       "enum": [
+        "E6",
+        "E12",
+        "E24",
+        "E48",
+        "E96",
+        "none"
+       ],
+       "type": "string"
+      },
+      "tolerance_pct": {
+       "additionalProperties": {
+        "type": "number"
+       },
+       "propertyNames": {
+        "enum": [
+         "R",
+         "C",
+         "L"
+        ]
+       },
+       "type": "object"
+      },
+      "yield_runs": {
+       "default": 30,
+       "maximum": 500,
+       "minimum": 0,
+       "type": "integer"
+      },
+      "supply": {
+       "default": "",
+       "type": "string"
+      },
+      "supply_tol_pct": {
+       "type": "number"
+      },
+      "temps_c": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "run_id"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "generate_design_report",
+    "description": "Write a Markdown design report for a run's best design and return its path.\nOptional checks cost LTspice runs: dc_audit, pvt (supply = source name), monte_carlo=N.",
+    "input_schema": {
+     "properties": {
+      "run_id": {
+       "type": "string"
+      },
+      "plots": {
+       "default": true,
+       "type": "boolean"
+      },
+      "dc_audit": {
+       "default": false,
+       "type": "boolean"
+      },
+      "pvt": {
+       "default": false,
+       "type": "boolean"
+      },
+      "monte_carlo": {
+       "default": 0,
+       "maximum": 10000,
+       "minimum": 0,
+       "type": "integer"
+      },
+      "supply": {
+       "default": "",
+       "type": "string"
+      },
+      "schematic": {
+       "default": "",
+       "type": "string"
+      },
+      "out": {
+       "default": "",
+       "type": "string"
+      }
+     },
+     "required": [
+      "run_id"
+     ],
+     "type": "object"
+    }
+   },
+   {
+    "name": "render_schematic",
+    "description": "Draw a schematic as PNG or SVG. path: an LTspice .asc, or a SPICE netlist\n(.cir/.net/.sp), which is auto-placed, routed and checked first.",
+    "input_schema": {
+     "properties": {
+      "path": {
+       "type": "string"
+      },
+      "output_path": {
+       "default": "schematic.png",
+       "type": "string"
+      },
+      "style": {
+       "default": "tech_minimal",
+       "enum": [
+        "tech_minimal",
+        "classic",
+        "sketch"
+       ],
+       "type": "string"
+      }
+     },
+     "required": [
+      "path"
+     ],
+     "type": "object"
+    }
+   }
+  ]
+ }
+}

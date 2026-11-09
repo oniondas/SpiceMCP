@@ -1,0 +1,15 @@
+* Non-inverting amplifier, gain 10 (20 dB), 1 kHz, -3 dB BW > 100 kHz
+* SpiceMCP run amp2, candidate cand_0077. R1/R2 E96 1 %.
+.include parts.lib
+V1 in 0 AC 1
+Vcc vcc 0 5
+Vee vee 0 -5
+X1 in inn vcc vee out OPAMP10M
+R2 out inn 102k
+R1 inn 0 11.3k
+RL out 0 10k
+CL out 0 100p
+.ac dec 100 10 1e+08
+.meas AC gain_db FIND mag(V(out)) AT 1k
+.meas AC bw WHEN mag(V(out))=7.071 FALL=1
+.end

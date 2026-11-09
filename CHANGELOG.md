@@ -5,6 +5,8 @@
 - Benchmark against designing without SpiceMCP (a model alone, and a model with a raw
   simulator) on three circuits, measured by an independent checker:
   `docs/reports/benchmark/`. Step 14 in the engineering report.
+- Benchmark repeated with a smaller model (Haiku 5.5) as the designer, driving the real
+  server through `docs/reports/benchmark/measure/bridge.py`.
 
 ## 1.1.0
 
